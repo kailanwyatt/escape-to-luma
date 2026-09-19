@@ -1,0 +1,1 @@
+export type RunMode = 'GENERATED' | 'AUTHORED_30' | 'VALIDATION_15' | 'OBSTACLE_TEST';
