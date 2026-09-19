@@ -12,6 +12,7 @@ import { xpIntoLevel, xpToNextLevel } from './src/progression/xp';
 import { GameHaptics } from './src/feedback/Haptics';
 import { AudioManager } from './src/feedback/AudioManager';
 import { DebugOverlay } from './src/ui/DebugOverlay';
+import { GraphicsScreen } from './src/ui/GraphicsScreen';
 import { HomeScreen } from './src/ui/HomeScreen';
 import { HUD } from './src/ui/HUD';
 import { ProjectileSelect } from './src/ui/ProjectileSelect';
@@ -19,7 +20,7 @@ import { ResultFeedback } from './src/ui/ResultFeedback';
 import { SettingsScreen } from './src/ui/SettingsScreen';
 import { StatsScreen } from './src/ui/StatsScreen';
 
-type AppScreen = 'home' | 'play' | 'projectiles' | 'stats' | 'settings';
+type AppScreen = 'home' | 'play' | 'projectiles' | 'stats' | 'settings' | 'graphics';
 
 const EMPTY_RECORDS = {
   score: false,
@@ -97,6 +98,7 @@ function AppShell() {
   const [screen, setScreen] = useState<AppScreen>('home');
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [debugSnapshot, setDebugSnapshot] = useState<DebugSnapshot | null>(null);
+  const [systemReduceMotion, setSystemReduceMotion] = useState(false);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
 
@@ -378,7 +380,15 @@ function AppShell() {
               setScreen('settings');
             })
           }
+          onGraphics={() =>
+            tap(() => {
+              setScreen('graphics');
+            })
+          }
         />
+      ) : null}
+      {screen === 'graphics' ? (
+        <GraphicsScreen onBack={() => tap(() => setScreen('home'))} />
       ) : null}
       {screen === 'projectiles' ? (
         <ProjectileSelect

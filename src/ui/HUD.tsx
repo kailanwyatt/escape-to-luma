@@ -36,7 +36,7 @@ export function HUD({
           <Text style={[styles.shot, debugEnabled && styles.shotOn]}>
             {debugEnabled
               ? `${hud.environment.toUpperCase()} · ${hud.shotInEnvironment}/${hud.shotsPerEnvironment}`
-              : hud.environment.toUpperCase()}
+              : `${hud.environment.toUpperCase()} · PROTO`}
           </Text>
         </Pressable>
         <Text style={styles.score}>{formatScore(hud.score)}</Text>

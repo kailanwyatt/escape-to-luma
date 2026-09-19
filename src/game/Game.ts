@@ -4,6 +4,7 @@ import type { WebGLRenderer } from 'three';
 import { AuthoredRunTracker } from '../challenge/AuthoredRunTracker';
 import { RunDirector } from '../challenge/RunDirector';
 import type { ChallengeConfig, EnvironmentId } from '../config/ChallengeConfig';
+import { obstacleTypeOf } from '../config/ObstacleConfig';
 import { AudioManager } from '../feedback/AudioManager';
 import { GameHaptics } from '../feedback/Haptics';
 import { Analytics, ANALYTICS_EVENTS } from '../services/analytics/Analytics';
@@ -107,9 +108,7 @@ export class Game {
   private continueBusy = false;
   private continueGrantedThisDeath = false;
   private adMessage: string | null = null;
-  private runStartTracked = false;
   private lastRunEndReason: 'death' | 'complete' | 'quit' = 'death';
-  private commercialReady = false;
   private adShowing = false;
   private lastEnvironmentTracked: EnvironmentId | null = null;
   private hasPlayedRun = false;
@@ -192,7 +191,6 @@ export class Game {
       Analytics.markOnboardingStarted();
     }
     AdService.start();
-    this.commercialReady = true;
   }
 
   start(): void {
@@ -400,7 +398,6 @@ export class Game {
     this.continueBusy = false;
     this.continueGrantedThisDeath = false;
     this.adMessage = null;
-    this.runStartTracked = true;
     this.lastRunEndReason = 'death';
     this.lastEnvironmentTracked = null;
     Analytics.newRunId();
@@ -1638,7 +1635,7 @@ export class Game {
       shotId: this.director.challengeNumber,
       environment: this.director.current.environment,
       loopNumber: this.director.loopNumber,
-      obstacleTypes: this.director.current.obstacles.map((obstacle) => obstacle.type).join(','),
+      obstacleTypes: this.director.current.obstacles.map((obstacle) => obstacleTypeOf(obstacle)).join(','),
     };
   }
 

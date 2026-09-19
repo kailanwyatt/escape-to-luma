@@ -27,15 +27,27 @@ export function ProjectileSelect({ save, onSelect, onBack }: Props) {
                 }
               }}
             >
-              <View>
-                <Text style={styles.name}>{style.name}</Text>
-                <Text style={styles.meta}>
-                  {unlocked
-                    ? selected
-                      ? 'SELECTED'
-                      : 'UNLOCKED'
-                    : `UNLOCK LEVEL ${style.unlockLevel}`}
-                </Text>
+              <View style={styles.left}>
+                <View
+                  style={[
+                    styles.swatch,
+                    {
+                      backgroundColor: `#${style.color.toString(16).padStart(6, '0')}`,
+                      borderColor: `#${style.emissive.toString(16).padStart(6, '0')}`,
+                      opacity: unlocked ? 1 : 0.35,
+                    },
+                  ]}
+                />
+                <View>
+                  <Text style={styles.name}>{style.name}</Text>
+                  <Text style={styles.meta}>
+                    {unlocked
+                      ? selected
+                        ? 'SELECTED · PROTOTYPE SPHERE'
+                        : 'UNLOCKED · PROTOTYPE SPHERE'
+                      : `UNLOCK LEVEL ${style.unlockLevel}`}
+                  </Text>
+                </View>
               </View>
               <Text style={styles.mark}>{selected ? '✓' : unlocked ? '●' : '○'}</Text>
             </Pressable>
@@ -63,6 +75,18 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     textAlign: 'center',
     marginBottom: 20,
+  },
+  left: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  swatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
   },
   list: {
     flex: 1,

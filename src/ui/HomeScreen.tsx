@@ -13,6 +13,7 @@ type Props = {
   onProjectiles: () => void;
   onStats: () => void;
   onSettings: () => void;
+  onGraphics: () => void;
 };
 
 export function HomeScreen({
@@ -25,11 +26,13 @@ export function HomeScreen({
   onProjectiles,
   onStats,
   onSettings,
+  onGraphics,
 }: Props) {
   const insets = useSafeAreaInsets();
   const ratio = xpNext <= 0 ? 1 : Math.min(1, xpInto / xpNext);
   return (
     <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <Text style={styles.kicker}>PROTOTYPE ART</Text>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.level}>LEVEL {level}</Text>
       <Text style={styles.xp}>
@@ -50,6 +53,9 @@ export function HomeScreen({
       <Pressable style={styles.secondary} onPress={onSettings}>
         <Text style={styles.secondaryText}>SETTINGS</Text>
       </Pressable>
+      <Pressable style={styles.graphics} onPress={onGraphics}>
+        <Text style={styles.graphicsText}>GRAPHICS NEEDS</Text>
+      </Pressable>
       <Text style={styles.best}>BEST {formatScore(bestScore)}</Text>
     </View>
   );
@@ -69,6 +75,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 8,
     marginBottom: 28,
+  },
+  kicker: {
+    color: 'rgba(244,239,230,0.45)',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 3,
+    marginBottom: 8,
   },
   level: {
     color: '#f4efe6',
@@ -114,6 +127,20 @@ const styles = StyleSheet.create({
   secondaryText: {
     color: '#7ef0ff',
     fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  graphics: {
+    marginTop: 22,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,210,74,0.45)',
+    borderRadius: 12,
+  },
+  graphicsText: {
+    color: '#ffd24a',
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 2,
   },
