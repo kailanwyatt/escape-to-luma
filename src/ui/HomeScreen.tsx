@@ -1,154 +1,216 @@
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { formatScore } from '../target/TargetScoring';
+import { TOTAL_CORE_LEVELS, worldForLevel } from '../campaign/worlds';
+import { HOME_BRAND } from '../config/branding';
+import { ContainmentScene } from '../design/components/ContainmentScene';
+import { ECONOMY } from '../config/economy';
+import {
+  BottomNav,
+  BrandHero,
+  Button,
+  ContinueJourneyButton,
+  Screen,
+  StatusPanel,
+  color,
+  space,
+  textStyles,
+} from '../design';
+import { formatCountdown, msUntilNextEnergy, regenerateEnergy } from '../economy/energy';
+import { hasUnlimitedEnergy, isEndlessUnlocked, type PersistentGameData } from '../persistence/GameSave';
 
 type Props = {
-  title?: string;
-  level: number;
-  xpInto: number;
-  xpNext: number;
-  bestScore: number;
-  onPlay: () => void;
-  onProjectiles: () => void;
+  save: PersistentGameData;
+  onContinue: () => void;
+  onJourney: () => void;
+  onSparks: () => void;
+  onShop: () => void;
   onStats: () => void;
   onSettings: () => void;
-  onGraphics: () => void;
+  onEndless: () => void;
+  currentLevel: number;
 };
 
 export function HomeScreen({
-  title = 'APERTURE',
-  level,
-  xpInto,
-  xpNext,
-  bestScore,
-  onPlay,
-  onProjectiles,
+  save,
+  onContinue,
+  onJourney,
+  onSparks,
+  onShop,
   onStats,
   onSettings,
-  onGraphics,
+  onEndless,
+  currentLevel,
 }: Props) {
-  const insets = useSafeAreaInsets();
-  const ratio = xpNext <= 0 ? 1 : Math.min(1, xpInto / xpNext);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const campaign = save.campaign;
+  const unlimited = hasUnlimitedEnergy(campaign);
+  const level = Math.max(1, Math.min(currentLevel, TOTAL_CORE_LEVELS));
+  const world = worldForLevel(level);
+  const energy = regenerateEnergy(campaign.currentEnergy, campaign.energyUpdatedAt, now, unlimited);
+  const nextMs = msUntilNextEnergy(energy.energy, energy.energyUpdatedAt, now);
+  const post = campaign.campaignCompleted;
+  const worldIndex = world?.index ?? 1;
+  const worldName = post ? HOME_BRAND.destination : (world?.name ?? 'THE CONTAINMENT');
+
+  const ctaLabel = post ? 'ENDLESS VOYAGE' : 'CONTINUE JOURNEY';
+  const ctaSub = post
+    ? 'EXPLORE THE NETWORK'
+    : `WORLD ${worldIndex} · LEVEL ${level}`;
+
   return (
-    <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <Text style={styles.kicker}>PROTOTYPE ART</Text>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.level}>LEVEL {level}</Text>
-      <Text style={styles.xp}>
-        {xpNext <= 0 ? 'MAX' : `${xpInto} / ${xpNext} XP`}
-      </Text>
-      <View style={styles.bar}>
-        <View style={[styles.fill, { width: `${Math.round(ratio * 100)}%` }]} />
+    <Screen>
+      <View style={styles.topBar}>
+        <View style={styles.topSpacer} />
+        {isEndlessUnlocked(campaign) && !post ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Endless voyage" onPress={onEndless} hitSlop={12} style={styles.topGhost}>
+            <Text style={textStyles.caption}>ENDLESS</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.topGhost} />
+        )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          onPress={onSettings}
+          hitSlop={12}
+          style={styles.settingsBtn}
+        >
+          <Text style={styles.settingsGlyph}>⚙</Text>
+        </Pressable>
       </View>
-      <Pressable style={styles.play} onPress={onPlay}>
-        <Text style={styles.playText}>PLAY</Text>
-      </Pressable>
-      <Pressable style={styles.secondary} onPress={onProjectiles}>
-        <Text style={styles.secondaryText}>PROJECTILES</Text>
-      </Pressable>
-      <Pressable style={styles.secondary} onPress={onStats}>
-        <Text style={styles.secondaryText}>STATS</Text>
-      </Pressable>
-      <Pressable style={styles.secondary} onPress={onSettings}>
-        <Text style={styles.secondaryText}>SETTINGS</Text>
-      </Pressable>
-      <Pressable style={styles.graphics} onPress={onGraphics}>
-        <Text style={styles.graphicsText}>GRAPHICS NEEDS</Text>
-      </Pressable>
-      <Text style={styles.best}>BEST {formatScore(bestScore)}</Text>
-    </View>
+
+      <View style={styles.layout}>
+        <View style={styles.topBlock}>
+          <BrandHero
+            kicker={post ? 'HOME REACHED' : HOME_BRAND.eyebrow}
+            title={HOME_BRAND.title}
+            productLine={HOME_BRAND.subtitle}
+            tagline={
+              post ? 'THE NETWORK IS OPEN.' : HOME_BRAND.tagline
+            }
+          />
+
+          <StatusPanel
+            worldIndex={worldIndex}
+            worldName={worldName}
+            level={level}
+            totalLevels={TOTAL_CORE_LEVELS}
+            energyLabel={unlimited ? '∞' : `${energy.energy} / ${ECONOMY.maxEnergy}`}
+            shardsLabel={String(campaign.shards)}
+          />
+          {!unlimited && energy.energy < ECONOMY.maxEnergy ? (
+            <Text style={[textStyles.caption, styles.nextEnergy]}>
+              NEXT +1  {formatCountdown(nextMs)}
+            </Text>
+          ) : null}
+        </View>
+
+        <ContainmentScene />
+
+        <View style={styles.midBlock}>
+          <View style={styles.ctaContainer}>
+            <ContinueJourneyButton
+              label={ctaLabel}
+              onPress={post ? onEndless : onContinue}
+            />
+          </View>
+          <Text style={[textStyles.caption, styles.ctaSub]}>{ctaSub}</Text>
+          {post ? (
+            <Button label="REPLAY JOURNEY" variant="ghost" onPress={onContinue} />
+          ) : null}
+        </View>
+
+        <View style={styles.bottomBlock}>
+          <BottomNav
+            items={[
+              { id: 'journey', label: 'JOURNEY', subtitle: 'WORLDS', glyph: '⌖', onPress: onJourney },
+              { id: 'sparks', label: 'SPARKS', subtitle: 'CUSTOMIZE', glyph: '✦', onPress: onSparks },
+              { id: 'shop', label: 'SHOP', subtitle: 'SKINS & BOOSTS', glyph: '▣', onPress: onShop },
+              { id: 'stats', label: 'STATS', subtitle: 'YOUR PROGRESS', glyph: '▦', onPress: onStats },
+            ]}
+          />
+
+          <View style={styles.quoteRow}>
+            <View style={styles.quoteLine} />
+            <Text style={textStyles.quote}>{HOME_BRAND.closing}</Text>
+            <View style={styles.quoteLine} />
+          </View>
+        </View>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(10,8,7,0.92)',
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: space.sm,
+  },
+  topSpacer: {
+    flex: 1,
+  },
+  topGhost: {
+    minWidth: 44,
+    alignItems: 'center',
+  },
+  settingsBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: color.panelBorder,
+    backgroundColor: color.panel,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
   },
-  title: {
-    color: '#ffd24a',
-    fontSize: 42,
-    fontWeight: '900',
-    letterSpacing: 8,
-    marginBottom: 28,
+  settingsGlyph: {
+    color: color.cyanBright,
+    fontSize: 22,
   },
-  kicker: {
-    color: 'rgba(244,239,230,0.45)',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 3,
-    marginBottom: 8,
+  layout: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingBottom: space.xs,
   },
-  level: {
-    color: '#f4efe6',
-    fontSize: 18,
-    fontWeight: '800',
+  topBlock: {
+    gap: space.md,
+    alignItems: 'stretch',
+  },
+  nextEnergy: {
+    textAlign: 'center',
+    marginTop: -space.sm,
+  },
+  midBlock: {
+    alignItems: 'center',
+    gap: space.xs,
+    paddingVertical: space.md,
+  },
+  ctaContainer: {
+    width: '100%',
+    paddingHorizontal: 4,
+    alignItems: 'center',
+  },
+  ctaSub: {
     letterSpacing: 2,
   },
-  xp: {
-    marginTop: 8,
-    color: 'rgba(244,239,230,0.7)',
-    fontSize: 13,
-    fontWeight: '700',
+  bottomBlock: {
+    gap: space.md,
   },
-  bar: {
-    marginTop: 10,
-    width: 220,
-    height: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(244,239,230,0.15)',
-    overflow: 'hidden',
+  quoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.xs,
   },
-  fill: {
-    height: '100%',
-    backgroundColor: '#7ef0ff',
-  },
-  play: {
-    marginTop: 36,
-    backgroundColor: '#d06a32',
-    paddingHorizontal: 48,
-    paddingVertical: 16,
-    borderRadius: 16,
-  },
-  playText: {
-    color: '#fff8ef',
-    fontSize: 20,
-    fontWeight: '900',
-    letterSpacing: 3,
-  },
-  secondary: {
-    marginTop: 14,
-    paddingVertical: 10,
-  },
-  secondaryText: {
-    color: '#7ef0ff',
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 2,
-  },
-  graphics: {
-    marginTop: 22,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,210,74,0.45)',
-    borderRadius: 12,
-  },
-  graphicsText: {
-    color: '#ffd24a',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 2,
-  },
-  best: {
-    marginTop: 28,
-    color: 'rgba(244,239,230,0.65)',
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 1,
+  quoteLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: color.strokeStrong,
   },
 });

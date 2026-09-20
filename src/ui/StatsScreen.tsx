@@ -10,7 +10,12 @@ type Props = {
 
 export function StatsScreen({ save, onBack }: Props) {
   const p = save.playerProgress;
+  const c = save.campaign.stats;
   const rows: [string, string][] = [
+    ['Journey Clears', String(c.levelsCompleted)],
+    ['Worlds Cleared', String(c.worldsCompleted)],
+    ['Journey Attempts', String(c.totalAttempts)],
+    ['Shards Earned', String(c.shardsEarned)],
     ['Runs', String(p.totalRuns)],
     ['Best Score', formatScore(p.highestScore)],
     ['Longest Run', String(p.longestRun)],

@@ -12,8 +12,12 @@ import {
 } from '../progression/projectiles';
 import { playerLevelFromXp, xpForLevel } from '../progression/xp';
 import { GameLog } from '../debug/GameLog';
+import { ECONOMY } from '../config/economy';
+import type { LevelProgress } from '../campaign/types';
+import { DEFAULT_SPARK_ID } from '../customization/sparks';
+import { DEFAULT_TRAIL_ID } from '../customization/trails';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 const STORAGE_KEY = 'ball-game-cs.save.v1';
 const LEGACY_BESTS_KEY = 'ball-game-cs.personal-bests.v1';
 
@@ -50,6 +54,46 @@ export type CommercialSave = {
   runsSinceLastInterstitial: number;
 };
 
+export type CampaignStats = {
+  levelsCompleted: number;
+  worldsCompleted: number;
+  totalAttempts: number;
+  failures: number;
+  perfects: number;
+  bullseyes: number;
+  greats: number;
+  closeCalls: number;
+  shardsEarned: number;
+  boostsUsed: number;
+};
+
+export type CampaignSave = {
+  highestUnlockedLevel: number;
+  completedLevels: Record<string, LevelProgress>;
+  unlockedWorldIds: string[];
+  campaignCompleted: boolean;
+  hasSeenOpening: boolean;
+  shards: number;
+  currentEnergy: number;
+  energyUpdatedAt: number;
+  ownedSparkIds: string[];
+  equippedSparkId: string;
+  ownedTrailIds: string[];
+  equippedTrailId: string;
+  boostInventory: {
+    guidance: number;
+    slowField: number;
+    secondChance: number;
+    hyperjump: number;
+  };
+  unlimitedEnergyExpiresAt: number;
+  consecutiveFailuresOnLevel: number;
+  lastPlayedLevel: number;
+  stats: CampaignStats;
+  /** Dev: allow Endless Voyage before campaign complete. */
+  endlessUnlockedDev: boolean;
+};
+
 export type PersistentGameData = {
   saveVersion: number;
   playerProgress: PlayerProgress;
@@ -60,6 +104,7 @@ export type PersistentGameData = {
   settings: GameSettings;
   hasCompletedOnboarding: boolean;
   commercial: CommercialSave;
+  campaign: CampaignSave;
 };
 
 export const EMPTY_PROGRESS: PlayerProgress = {
@@ -95,6 +140,45 @@ export const EMPTY_COMMERCIAL: CommercialSave = {
   runsSinceLastInterstitial: 99,
 };
 
+export const EMPTY_CAMPAIGN_STATS: CampaignStats = {
+  levelsCompleted: 0,
+  worldsCompleted: 0,
+  totalAttempts: 0,
+  failures: 0,
+  perfects: 0,
+  bullseyes: 0,
+  greats: 0,
+  closeCalls: 0,
+  shardsEarned: 0,
+  boostsUsed: 0,
+};
+
+export const EMPTY_CAMPAIGN: CampaignSave = {
+  highestUnlockedLevel: 1,
+  completedLevels: {},
+  unlockedWorldIds: ['containment'],
+  campaignCompleted: false,
+  hasSeenOpening: false,
+  shards: 0,
+  currentEnergy: ECONOMY.maxEnergy,
+  energyUpdatedAt: Date.now(),
+  ownedSparkIds: [DEFAULT_SPARK_ID],
+  equippedSparkId: DEFAULT_SPARK_ID,
+  ownedTrailIds: [DEFAULT_TRAIL_ID],
+  equippedTrailId: DEFAULT_TRAIL_ID,
+  boostInventory: {
+    guidance: 0,
+    slowField: 0,
+    secondChance: 0,
+    hyperjump: 0,
+  },
+  unlimitedEnergyExpiresAt: 0,
+  consecutiveFailuresOnLevel: 0,
+  lastPlayedLevel: 1,
+  stats: { ...EMPTY_CAMPAIGN_STATS },
+  endlessUnlockedDev: false,
+};
+
 export function emptySave(): PersistentGameData {
   return {
     saveVersion: SAVE_VERSION,
@@ -106,6 +190,16 @@ export function emptySave(): PersistentGameData {
     settings: { ...DEFAULT_SETTINGS },
     hasCompletedOnboarding: false,
     commercial: { ...EMPTY_COMMERCIAL },
+    campaign: {
+      ...EMPTY_CAMPAIGN,
+      completedLevels: {},
+      unlockedWorldIds: [...EMPTY_CAMPAIGN.unlockedWorldIds],
+      ownedSparkIds: [...EMPTY_CAMPAIGN.ownedSparkIds],
+      ownedTrailIds: [...EMPTY_CAMPAIGN.ownedTrailIds],
+      boostInventory: { ...EMPTY_CAMPAIGN.boostInventory },
+      stats: { ...EMPTY_CAMPAIGN_STATS },
+      energyUpdatedAt: Date.now(),
+    },
   };
 }
 
@@ -135,6 +229,27 @@ export function migrateSaveData(oldVersion: number, data: Partial<PersistentGame
   if (data.commercial) {
     next.commercial = { ...EMPTY_COMMERCIAL, ...data.commercial };
   }
+  if (data.campaign) {
+    next.campaign = {
+      ...EMPTY_CAMPAIGN,
+      ...data.campaign,
+      completedLevels: { ...(data.campaign.completedLevels ?? {}) },
+      unlockedWorldIds: data.campaign.unlockedWorldIds?.length
+        ? [...data.campaign.unlockedWorldIds]
+        : ['containment'],
+      ownedSparkIds: data.campaign.ownedSparkIds?.length
+        ? [...data.campaign.ownedSparkIds]
+        : [DEFAULT_SPARK_ID],
+      ownedTrailIds: data.campaign.ownedTrailIds?.length
+        ? [...data.campaign.ownedTrailIds]
+        : [DEFAULT_TRAIL_ID],
+      boostInventory: { ...EMPTY_CAMPAIGN.boostInventory, ...data.campaign.boostInventory },
+      stats: { ...EMPTY_CAMPAIGN_STATS, ...data.campaign.stats },
+    };
+  } else if (oldVersion < 4) {
+    // Prototype → SPARK: keep endless progress; start journey at level 1 with full energy.
+    next.campaign.hasSeenOpening = false;
+  }
   next.playerProgress.playerLevel = playerLevelFromXp(next.playerProgress.totalXP);
   const unlocked = new Set([
     ...unlockedProjectileIds(next.playerProgress.playerLevel),
@@ -144,8 +259,10 @@ export function migrateSaveData(oldVersion: number, data: Partial<PersistentGame
   if (!next.playerProgress.unlockedProjectileIds.includes(next.selectedProjectileId)) {
     next.selectedProjectileId = DEFAULT_PROJECTILE_ID;
   }
+  if (!next.campaign.ownedSparkIds.includes(next.campaign.equippedSparkId)) {
+    next.campaign.equippedSparkId = DEFAULT_SPARK_ID;
+  }
   next.saveVersion = SAVE_VERSION;
-  void oldVersion;
   return next;
 }
 
@@ -212,4 +329,12 @@ export function setSaveLevel(save: PersistentGameData, level: number): Persisten
 
 export function structuredCloneSave(save: PersistentGameData): PersistentGameData {
   return JSON.parse(JSON.stringify(save)) as PersistentGameData;
+}
+
+export function hasUnlimitedEnergy(campaign: CampaignSave, now = Date.now()): boolean {
+  return campaign.unlimitedEnergyExpiresAt > now;
+}
+
+export function isEndlessUnlocked(campaign: CampaignSave): boolean {
+  return campaign.campaignCompleted || campaign.endlessUnlockedDev;
 }

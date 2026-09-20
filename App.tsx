@@ -5,22 +5,38 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, AppState, PanResponder, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { canStartLevel } from './src/campaign/CampaignPlay';
+import { ECONOMY } from './src/config/economy';
+import { msUntilNextEnergy } from './src/economy/energy';
 import { Game } from './src/game/Game';
 import type { DebugSnapshot, HudSnapshot } from './src/game/GameState';
 import { emptySave, type GameSettings, type PersistentGameData } from './src/persistence/GameSave';
-import { xpIntoLevel, xpToNextLevel } from './src/progression/xp';
 import { GameHaptics } from './src/feedback/Haptics';
 import { AudioManager } from './src/feedback/AudioManager';
 import { DebugOverlay } from './src/ui/DebugOverlay';
 import { GraphicsScreen } from './src/ui/GraphicsScreen';
 import { HomeScreen } from './src/ui/HomeScreen';
 import { HUD } from './src/ui/HUD';
-import { ProjectileSelect } from './src/ui/ProjectileSelect';
+import { JourneyScreen } from './src/ui/JourneyScreen';
+import { LevelReadyScreen } from './src/ui/LevelReadyScreen';
+import { OutOfEnergyScreen } from './src/ui/OutOfEnergyScreen';
 import { ResultFeedback } from './src/ui/ResultFeedback';
 import { SettingsScreen } from './src/ui/SettingsScreen';
+import { ShopScreen } from './src/ui/ShopScreen';
+import { SparksScreen } from './src/ui/SparksScreen';
 import { StatsScreen } from './src/ui/StatsScreen';
 
-type AppScreen = 'home' | 'play' | 'projectiles' | 'stats' | 'settings' | 'graphics';
+type AppScreen =
+  | 'home'
+  | 'play'
+  | 'journey'
+  | 'levelReady'
+  | 'sparks'
+  | 'shop'
+  | 'stats'
+  | 'settings'
+  | 'graphics'
+  | 'outOfEnergy';
 
 const EMPTY_RECORDS = {
   score: false,
@@ -80,7 +96,25 @@ const INITIAL_HUD: HudSnapshot = {
   adBusy: false,
   adMessage: null,
   removeAds: false,
+  sessionMode: 'endless',
+  campaignLevel: 1,
+  campaignWorldName: null,
+  energy: ECONOMY.maxEnergy,
+  maxEnergy: ECONOMY.maxEnergy,
+  shards: 0,
+  unlimitedEnergy: false,
+  lastShardsGained: 0,
+  lastPrecisionRank: null,
+  storyBeat: null,
+  windActive: false,
+  helpOffer: false,
 };
+
+function continueLevelNumber(save: PersistentGameData): number {
+  const c = save.campaign;
+  const level = c.lastPlayedLevel >= 1 ? c.lastPlayedLevel : c.highestUnlockedLevel;
+  return Math.min(150, Math.max(1, Math.min(level, c.highestUnlockedLevel)));
+}
 
 export default function App() {
   return (
@@ -96,6 +130,7 @@ function AppShell() {
   const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
   const [save, setSave] = useState<PersistentGameData>(emptySave());
   const [screen, setScreen] = useState<AppScreen>('home');
+  const [pendingLevel, setPendingLevel] = useState(1);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [debugSnapshot, setDebugSnapshot] = useState<DebugSnapshot | null>(null);
   const [systemReduceMotion, setSystemReduceMotion] = useState(false);
@@ -250,12 +285,28 @@ function AppShell() {
     fn();
   }, []);
 
-  const onPlay = useCallback(() => {
-    tap(() => {
-      setScreen('play');
-      gameRef.current?.playFromHome();
-    });
-  }, [tap]);
+  const syncEnergyAndSave = useCallback(() => {
+    gameRef.current?.syncCampaignSave();
+    refreshSave();
+  }, [refreshSave]);
+
+  const tryOpenLevelReady = useCallback(
+    (levelNumber: number) => {
+      syncEnergyAndSave();
+      const campaign = gameRef.current?.getSave().campaign ?? save.campaign;
+      const check = canStartLevel(campaign, levelNumber);
+      if (!check.ok && check.reason === 'energy') {
+        setScreen('outOfEnergy');
+        return;
+      }
+      if (!check.ok) {
+        return;
+      }
+      setPendingLevel(levelNumber);
+      setScreen('levelReady');
+    },
+    [save.campaign, syncEnergyAndSave],
+  );
 
   const onHome = useCallback(() => {
     tap(() => {
@@ -274,6 +325,10 @@ function AppShell() {
     },
     [refreshSave, save.settings],
   );
+
+  const nextEnergyMs = msUntilNextEnergy(save.campaign.currentEnergy, save.campaign.energyUpdatedAt);
+  const showOutOfEnergyOverlay =
+    (screen === 'play' && hud.phase === 'OUT_OF_ENERGY') || screen === 'outOfEnergy';
 
   return (
     <View style={styles.root}>
@@ -307,6 +362,61 @@ function AppShell() {
             GameHaptics.forUi();
             gameRef.current?.declineContinue();
           }}
+          onContinueLevel={() => {
+            GameHaptics.forUi();
+            gameRef.current?.continueAfterLevel();
+          }}
+          onRetryLevel={() => {
+            GameHaptics.forUi();
+            gameRef.current?.retryCampaignLevel();
+          }}
+          onUseHelp={() => {
+            GameHaptics.forUi();
+            gameRef.current?.useHelpSlowField();
+          }}
+          onDeclineHelp={() => {
+            GameHaptics.forUi();
+            gameRef.current?.declineHelp();
+          }}
+        />
+      ) : null}
+      {showOutOfEnergyOverlay ? (
+        <OutOfEnergyScreen
+          nextEnergyMs={nextEnergyMs}
+          onWatchAd={() =>
+            tap(() => {
+              gameRef.current?.watchRewardedEnergy();
+              refreshSave();
+            })
+          }
+          onUnlimited24={() =>
+            tap(() => {
+              gameRef.current?.activateUnlimitedEnergy(ECONOMY.unlimitedEnergy24hMs);
+              refreshSave();
+              if (screen === 'outOfEnergy') {
+                tryOpenLevelReady(pendingLevel);
+              }
+            })
+          }
+          onUnlimited7={() =>
+            tap(() => {
+              gameRef.current?.activateUnlimitedEnergy(ECONOMY.unlimitedEnergy7dMs);
+              refreshSave();
+              if (screen === 'outOfEnergy') {
+                tryOpenLevelReady(pendingLevel);
+              }
+            })
+          }
+          onLater={() =>
+            tap(() => {
+              if (screen === 'play' && hud.phase === 'OUT_OF_ENERGY') {
+                onHome();
+              } else {
+                setScreen('home');
+                refreshSave();
+              }
+            })
+          }
         />
       ) : null}
       <DebugOverlay
@@ -357,15 +467,41 @@ function AppShell() {
       />
       {screen === 'home' ? (
         <HomeScreen
-          level={save.playerProgress.playerLevel}
-          xpInto={xpIntoLevel(save.playerProgress.totalXP)}
-          xpNext={xpToNextLevel(save.playerProgress.totalXP)}
-          bestScore={save.playerProgress.highestScore || save.personalBests.bestScore}
-          onPlay={onPlay}
-          onProjectiles={() =>
+          save={save}
+          onContinue={() =>
+            tap(() => {
+              const level = continueLevelNumber(gameRef.current?.getSave() ?? save);
+              syncEnergyAndSave();
+              const campaign = gameRef.current?.getSave().campaign ?? save.campaign;
+              const check = canStartLevel(campaign, level);
+              if (!check.ok && check.reason === 'energy') {
+                setPendingLevel(level);
+                setScreen('outOfEnergy');
+                return;
+              }
+              if (!check.ok) {
+                return;
+              }
+              setPendingLevel(level);
+              setScreen('levelReady');
+            })
+          }
+          onJourney={() =>
+            tap(() => {
+              syncEnergyAndSave();
+              setScreen('journey');
+            })
+          }
+          onSparks={() =>
             tap(() => {
               refreshSave();
-              setScreen('projectiles');
+              setScreen('sparks');
+            })
+          }
+          onShop={() =>
+            tap(() => {
+              syncEnergyAndSave();
+              setScreen('shop');
             })
           }
           onStats={() =>
@@ -380,27 +516,82 @@ function AppShell() {
               setScreen('settings');
             })
           }
-          onGraphics={() =>
+          onEndless={() =>
             tap(() => {
-              setScreen('graphics');
+              setScreen('play');
+              gameRef.current?.startEndlessVoyage();
             })
           }
+          currentLevel={continueLevelNumber(save)}
         />
       ) : null}
-      {screen === 'graphics' ? (
-        <GraphicsScreen onBack={() => tap(() => setScreen('home'))} />
-      ) : null}
-      {screen === 'projectiles' ? (
-        <ProjectileSelect
+      {screen === 'journey' ? (
+        <JourneyScreen
           save={save}
-          onSelect={(id) => {
+          onSelectLevel={(levelNumber) =>
+            tap(() => tryOpenLevelReady(levelNumber))
+          }
+          onBack={() => tap(() => setScreen('home'))}
+        />
+      ) : null}
+      {screen === 'levelReady' ? (
+        <LevelReadyScreen
+          save={save}
+          levelNumber={pendingLevel}
+          onPlay={(boosts) =>
+            tap(() => {
+              setScreen('play');
+              gameRef.current?.startCampaignLevel(pendingLevel, boosts);
+            })
+          }
+          onBack={() => tap(() => setScreen('home'))}
+        />
+      ) : null}
+      {screen === 'sparks' ? (
+        <SparksScreen
+          save={save}
+          onEquip={(id) => {
             GameHaptics.forUi();
             AudioManager.play('ui');
-            gameRef.current?.setSelectedProjectile(id);
+            gameRef.current?.equipSpark(id);
+            refreshSave();
+          }}
+          onBuy={(id) => {
+            GameHaptics.forUi();
+            AudioManager.play('ui');
+            gameRef.current?.buySparkWithShards(id);
             refreshSave();
           }}
           onBack={() => tap(() => setScreen('home'))}
         />
+      ) : null}
+      {screen === 'shop' ? (
+        <ShopScreen
+          save={save}
+          onBuyBoost={(id) => {
+            GameHaptics.forUi();
+            AudioManager.play('ui');
+            gameRef.current?.buyBoostWithShards(id);
+            refreshSave();
+          }}
+          onWatchEnergy={() => {
+            GameHaptics.forUi();
+            gameRef.current?.watchRewardedEnergy();
+            refreshSave();
+          }}
+          onBuyUnlimited={(hours) => {
+            GameHaptics.forUi();
+            AudioManager.play('ui');
+            const ms =
+              hours === 24 ? ECONOMY.unlimitedEnergy24hMs : ECONOMY.unlimitedEnergy7dMs;
+            gameRef.current?.activateUnlimitedEnergy(ms);
+            refreshSave();
+          }}
+          onBack={() => tap(() => setScreen('home'))}
+        />
+      ) : null}
+      {screen === 'graphics' ? (
+        <GraphicsScreen onBack={() => tap(() => setScreen('home'))} />
       ) : null}
       {screen === 'stats' ? (
         <StatsScreen save={save} onBack={() => tap(() => setScreen('home'))} />

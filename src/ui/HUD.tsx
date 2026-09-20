@@ -12,7 +12,19 @@ type Props = {
   onHome: () => void;
   onContinue: () => void;
   onDeclineContinue: () => void;
+  onContinueLevel: () => void;
+  onRetryLevel: () => void;
+  onUseHelp: () => void;
+  onDeclineHelp: () => void;
 };
+
+const CAMPAIGN_OVERLAY_PHASES = new Set<HudSnapshot['phase']>([
+  'CAMPAIGN_OPENING',
+  'LEVEL_COMPLETE',
+  'LEVEL_FAILED',
+  'WORLD_COMPLETE',
+  'OUT_OF_ENERGY',
+]);
 
 export function HUD({
   hud,
@@ -22,27 +34,50 @@ export function HUD({
   onHome,
   onContinue,
   onDeclineContinue,
+  onContinueLevel,
+  onRetryLevel,
+  onUseHelp,
+  onDeclineHelp,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const campaign = hud.sessionMode === 'campaign';
+  const showCampaignTop = campaign && !CAMPAIGN_OVERLAY_PHASES.has(hud.phase) && hud.phase !== 'RESULT';
+
   const hearts = hud.unlimitedHearts
     ? '∞'
     : [0, 1, 2].map((index) => (index < hud.lives ? '♥' : '♡')).join(' ');
 
+  const energyLabel = hud.unlimitedEnergy
+    ? '⚡ ∞'
+    : `⚡ ${hud.energy}/${hud.maxEnergy}`;
+
   return (
     <View style={styles.root}>
-      <View style={[styles.top, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
-        <Text style={styles.hearts}>{hearts}</Text>
-        <Pressable onPress={onToggleDebug} hitSlop={12}>
-          <Text style={[styles.shot, debugEnabled && styles.shotOn]}>
-            {debugEnabled
-              ? `${hud.environment.toUpperCase()} · ${hud.shotInEnvironment}/${hud.shotsPerEnvironment}`
-              : `${hud.environment.toUpperCase()} · PROTO`}
+      {showCampaignTop ? (
+        <View style={[styles.top, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
+          <Text style={styles.campaignMeta}>{energyLabel}</Text>
+          <Text style={styles.campaignCenter}>
+            L{hud.campaignLevel}
+            {hud.campaignWorldName ? ` · ${hud.campaignWorldName.toUpperCase()}` : ''}
+            {hud.windActive ? ' · WIND' : ''}
           </Text>
-        </Pressable>
-        <Text style={styles.score}>{formatScore(hud.score)}</Text>
-      </View>
+          <Text style={styles.campaignMeta}>◆ {hud.shards}</Text>
+        </View>
+      ) : !campaign ? (
+        <View style={[styles.top, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
+          <Text style={styles.hearts}>{hearts}</Text>
+          <Pressable onPress={onToggleDebug} hitSlop={12}>
+            <Text style={[styles.shot, debugEnabled && styles.shotOn]}>
+              {debugEnabled
+                ? `${hud.environment.toUpperCase()} · ${hud.shotInEnvironment}/${hud.shotsPerEnvironment}`
+                : `${hud.environment.toUpperCase()} · PROTO`}
+            </Text>
+          </Pressable>
+          <Text style={styles.score}>{formatScore(hud.score)}</Text>
+        </View>
+      ) : null}
 
-      {hud.streak >= 2 || hud.multiplier > 1 ? (
+      {!campaign && (hud.streak >= 2 || hud.multiplier > 1) ? (
         <View style={styles.streakWrap}>
           {hud.multiplier > 1 ? <Text style={styles.multiplier}>x{hud.multiplier}</Text> : null}
           {hud.streak >= 2 ? <Text style={styles.streak}>STREAK {hud.streak}</Text> : null}
@@ -53,12 +88,81 @@ export function HUD({
 
       {hud.cancelReady ? <Text style={styles.cancel}>CANCEL</Text> : null}
 
-      {hud.onboardingText ? (
+      {hud.onboardingText && !CAMPAIGN_OVERLAY_PHASES.has(hud.phase) ? (
         <View style={[styles.onboarding, { bottom: Math.max(insets.bottom, 16) + 28 }]}>
           <Text style={styles.onboardingTitle}>{hud.onboardingText}</Text>
           {hud.onboardingText === 'DRAG TO AIM' ? (
             <Text style={styles.onboardingSub}>RELEASE TO THROW</Text>
           ) : null}
+        </View>
+      ) : null}
+
+      {hud.phase === 'CAMPAIGN_OPENING' ? (
+        <View style={styles.overlay}>
+          {hud.storyBeat ? <Text style={styles.storyBeat}>{hud.storyBeat}</Text> : null}
+          <Text style={styles.tapStart}>TAP TO BEGIN</Text>
+        </View>
+      ) : null}
+
+      {hud.phase === 'LEVEL_COMPLETE' ? (
+        <View style={styles.overlay}>
+          <Text style={styles.endTitle}>LEVEL CLEAR</Text>
+          {hud.lastPrecisionRank ? (
+            <Text style={styles.rank}>{hud.lastPrecisionRank}</Text>
+          ) : null}
+          {hud.lastShardsGained > 0 ? (
+            <Text style={styles.shardGain}>+{hud.lastShardsGained} SHARDS</Text>
+          ) : null}
+          <Pressable style={styles.button} onPress={onContinueLevel}>
+            <Text style={styles.buttonText}>NEXT</Text>
+          </Pressable>
+          <Pressable style={styles.homeButton} onPress={onHome}>
+            <Text style={styles.homeText}>HOME</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {hud.phase === 'WORLD_COMPLETE' ? (
+        <View style={styles.overlay}>
+          <Text style={styles.endTitle}>WORLD COMPLETE</Text>
+          {hud.lastShardsGained > 0 ? (
+            <Text style={styles.shardGain}>+{hud.lastShardsGained} SHARDS</Text>
+          ) : null}
+          <Text style={styles.continueCopy}>The journey continues.</Text>
+          <Pressable style={styles.button} onPress={onContinueLevel}>
+            <Text style={styles.buttonText}>CONTINUE</Text>
+          </Pressable>
+          <Pressable style={styles.homeButton} onPress={onHome}>
+            <Text style={styles.homeText}>HOME</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {hud.phase === 'LEVEL_FAILED' ? (
+        <View style={styles.overlay}>
+          <Text style={styles.endTitle}>LEVEL FAILED</Text>
+          {hud.lastFail ? <Text style={styles.continueCopy}>{hud.lastFail}</Text> : null}
+          {hud.helpOffer ? (
+            <View style={styles.helpBanner}>
+              <Text style={styles.helpTitle}>NEED A HAND?</Text>
+              <Text style={styles.helpCopy}>Try a free slow field on this level.</Text>
+              <Pressable style={styles.helpButton} onPress={onUseHelp}>
+                <Text style={styles.buttonText}>USE SLOW FIELD</Text>
+              </Pressable>
+              <Pressable onPress={onDeclineHelp}>
+                <Text style={styles.homeText}>NO THANKS</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <Pressable style={styles.button} onPress={onRetryLevel}>
+                <Text style={styles.buttonText}>RETRY</Text>
+              </Pressable>
+              <Pressable style={styles.homeButton} onPress={onHome}>
+                <Text style={styles.homeText}>HOME</Text>
+              </Pressable>
+            </>
+          )}
         </View>
       ) : null}
 
@@ -230,6 +334,20 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     width: 90,
   },
+  campaignMeta: {
+    color: 'rgba(244,239,230,0.65)',
+    fontSize: 13,
+    fontWeight: '700',
+    width: 72,
+  },
+  campaignCenter: {
+    flex: 1,
+    textAlign: 'center',
+    color: 'rgba(244,239,230,0.55)',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
   score: {
     color: '#f4efe6',
     fontSize: 18,
@@ -323,6 +441,54 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 36,
     pointerEvents: 'auto',
+  },
+  storyBeat: {
+    color: '#f4efe6',
+    fontSize: 17,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 26,
+    marginBottom: 28,
+  },
+  rank: {
+    color: '#7ef0ff',
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: 3,
+    marginBottom: 8,
+  },
+  shardGain: {
+    color: '#ffd24a',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  helpBanner: {
+    marginTop: 16,
+    alignItems: 'center',
+    width: '100%',
+  },
+  helpTitle: {
+    color: '#ffd24a',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  helpCopy: {
+    marginTop: 8,
+    marginBottom: 16,
+    color: 'rgba(244,239,230,0.78)',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  helpButton: {
+    marginBottom: 12,
+    backgroundColor: '#d06a32',
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 14,
   },
   endTitle: {
     color: '#ffd24a',

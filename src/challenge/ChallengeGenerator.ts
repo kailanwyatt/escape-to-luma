@@ -281,6 +281,206 @@ function buildTemplate(
       return wrap(id, environment, template, [ring(rng, zA, 'horizontal'), { z: zB, bladeCount: 2, rotationSpeed: rng.float(0.4, 0.5), direction: 1 }], centeredTarget());
     case 'PENDULUM_ROTOR':
       return wrap(id, environment, template, [pendulum(rng, zA), { z: zB, bladeCount: 2, rotationSpeed: rng.float(0.4, 0.52), direction: 1 }], centeredTarget());
+    case 'BASIC_ORBITER':
+      return wrap(
+        id,
+        environment,
+        template,
+        [
+          {
+            type: 'orbiter',
+            z: zA,
+            centerX: 0,
+            centerY: 3,
+            orbitRadius: rng.float(1.1, 1.45),
+            blockerRadius: rng.float(0.28, 0.36),
+            speed: rng.float(0.7, 1.05),
+          },
+        ],
+        centeredTarget(),
+      );
+    case 'DRIFT_BLOCKER':
+      return wrap(
+        id,
+        environment,
+        template,
+        [
+          {
+            type: 'driftingBlocker',
+            z: zA,
+            baseX: -0.45,
+            baseY: 3,
+            blockerRadius: rng.float(0.34, 0.42),
+            amplitudeX: rng.float(0.7, 1.0),
+            amplitudeY: rng.float(0.25, 0.4),
+            speed: rng.float(0.55, 0.9),
+          },
+          {
+            type: 'driftingBlocker',
+            z: zA,
+            baseX: 0.45,
+            baseY: 3,
+            blockerRadius: rng.float(0.34, 0.42),
+            amplitudeX: rng.float(0.7, 1.0),
+            amplitudeY: rng.float(0.25, 0.4),
+            speed: rng.float(0.55, 0.9),
+            phase: Math.PI,
+          },
+        ],
+        centeredTarget(),
+      );
+    case 'PHASE_FIELD':
+      return wrap(
+        id,
+        environment,
+        template,
+        [
+          {
+            type: 'phaseField',
+            z: zA,
+            centerX: 0,
+            centerY: 3,
+            fieldRadius: rng.float(2.1, 2.5),
+            speed: rng.float(0.65, 1.0),
+            openRatio: rng.float(0.35, 0.5),
+          },
+        ],
+        centeredTarget(),
+      );
+    case 'SHIFTING_APERTURE':
+      return wrap(
+        id,
+        environment,
+        template,
+        [
+          {
+            type: 'shiftingAperture',
+            z: zA,
+            minRadius: rng.float(0.4, 0.55),
+            maxRadius: rng.float(1.4, 1.7),
+            pulseSpeed: rng.float(0.7, 1.05),
+            baseX: 0,
+            baseY: 3,
+            shiftAmplitude: rng.float(0.4, 0.7),
+            shiftSpeed: rng.float(0.5, 0.85),
+          },
+        ],
+        centeredTarget(),
+      );
+    case 'LASER_VERTICAL':
+      return wrap(
+        id,
+        environment,
+        template,
+        [
+          {
+            type: 'laserGrid',
+            z: zA,
+            orientation: 'vertical',
+            openingSize: rng.float(1.15, 1.4),
+            spacing: 0.55,
+            span: 4.2,
+            thickness: 0.06,
+            mode: 'static',
+          },
+        ],
+        centeredTarget(),
+      );
+    case 'LASER_HORIZONTAL':
+      return wrap(
+        id,
+        environment,
+        template,
+        [
+          {
+            type: 'laserGrid',
+            z: zA,
+            orientation: 'horizontal',
+            openingSize: rng.float(1.15, 1.4),
+            spacing: 0.55,
+            span: 4.2,
+            thickness: 0.06,
+            mode: 'static',
+          },
+        ],
+        centeredTarget(),
+      );
+    case 'LASER_PULSE':
+      return wrap(
+        id,
+        environment,
+        template,
+        [
+          {
+            type: 'laserGrid',
+            z: zA,
+            orientation: 'vertical',
+            openingSize: rng.float(1.05, 1.25),
+            spacing: 0.5,
+            span: 4.2,
+            thickness: 0.06,
+            mode: 'pulse',
+            speed: rng.float(0.55, 0.75),
+            onRatio: rng.float(0.48, 0.58),
+          },
+        ],
+        centeredTarget(),
+      );
+    case 'LASER_CROSS':
+      return wrap(
+        id,
+        environment,
+        template,
+        [
+          {
+            type: 'laserGrid',
+            z: zA,
+            orientation: 'both',
+            openingSize: rng.float(1.1, 1.3),
+            spacing: 0.55,
+            span: 4.0,
+            thickness: 0.055,
+            mode: 'pulse',
+            speed: rng.float(0.5, 0.7),
+            onRatio: rng.float(0.45, 0.55),
+          },
+        ],
+        centeredTarget(),
+      );
+    case 'GRAVITY_WELL':
+      return wrap(
+        id,
+        environment,
+        template,
+        [
+          {
+            type: 'orbiter',
+            z: zA,
+            centerX: 0,
+            centerY: 3,
+            orbitRadius: rng.float(1.15, 1.35),
+            blockerRadius: rng.float(0.3, 0.36),
+            speed: rng.float(0.75, 1.0),
+          },
+        ],
+        offsetTarget(),
+      );
+    case 'COMBINED_HAZARD':
+      return wrap(
+        id,
+        environment,
+        template,
+        [rotorA({ bladeCount: 2 }), ring(rng, zB, 'horizontal')],
+        centeredTarget(),
+      );
+    case 'HOME_APPROACH':
+      return wrap(id, environment, template, [iris(rng, zA, { minRadius: 0.55, maxRadius: 1.75, speed: 0.7 })], softTarget());
+    case 'HOME_FINALE':
+      return wrap(id, environment, template, [], softTarget());
+  }
+
+  function softTarget() {
+    return { x: 0, y: 3, radius: 1.25, z: targetZ };
   }
 }
 

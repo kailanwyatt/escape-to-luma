@@ -1,8 +1,19 @@
 import { GAME_TUNING } from '../game/gameTuning';
 import { clamp } from '../utils/math';
 
-export type RotorHitPart = 'blade' | 'hub' | 'frame';
-export type ObstacleHitPart = RotorHitPart | 'gate' | 'iris' | 'pendulum' | 'ring';
+export type RotorHitPart = 'hub' | 'frame' | 'blade';
+
+export type ObstacleHitPart =
+  | RotorHitPart
+  | 'gate'
+  | 'iris'
+  | 'pendulum'
+  | 'ring'
+  | 'orbiter'
+  | 'drift'
+  | 'phase'
+  | 'aperture'
+  | 'laser';
 
 export type ObstacleCollisionResult = {
   hit: ObstacleHitPart | null;
@@ -69,6 +80,141 @@ export function evaluateRingCollision(
     return { hit: 'ring', nearMiss: false, clearance };
   }
   return closeCall(clearance);
+}
+
+export function evaluateBlockerCollision(
+  x: number,
+  y: number,
+  projectileRadius: number,
+  blockerX: number,
+  blockerY: number,
+  blockerRadius: number,
+  hitPart: ObstacleHitPart = 'drift',
+): ObstacleCollisionResult {
+  const clearance = Math.hypot(x - blockerX, y - blockerY) - blockerRadius - projectileRadius;
+  if (clearance < 0) {
+    return { hit: hitPart, nearMiss: false, clearance };
+  }
+  return closeCall(clearance);
+}
+
+/** Closed phase = solid disk; open phase = pass (large clearance). */
+export function evaluatePhaseCollision(
+  x: number,
+  y: number,
+  projectileRadius: number,
+  centerX: number,
+  centerY: number,
+  fieldRadius: number,
+  open: boolean,
+): ObstacleCollisionResult {
+  if (open) {
+    return { hit: null, nearMiss: false, clearance: 1 };
+  }
+  const dist = Math.hypot(x - centerX, y - centerY);
+  const clearance = fieldRadius - dist - projectileRadius;
+  // Inside the closed field → blocked.
+  if (dist + projectileRadius <= fieldRadius) {
+    return { hit: 'phase', nearMiss: false, clearance: dist - fieldRadius };
+  }
+  return closeCall(Math.abs(clearance));
+}
+
+export type LaserBeam = {
+  orientation: 'vertical' | 'horizontal';
+  /** Beam center line position (x for vertical, y for horizontal). */
+  position: number;
+  /** Half-length of the beam along its span axis. */
+  halfSpan: number;
+  /** Half-thickness perpendicular to the beam. */
+  halfThickness: number;
+  centerX: number;
+  centerY: number;
+};
+
+export function laserBeamsFromLayout(params: {
+  orientation: 'vertical' | 'horizontal' | 'both';
+  openingSize: number;
+  spacing: number;
+  span: number;
+  thickness: number;
+  centerX: number;
+  centerY: number;
+}): LaserBeam[] {
+  const beams: LaserBeam[] = [];
+  const halfOpen = params.openingSize / 2;
+  const halfSpan = params.span / 2;
+  const halfThickness = params.thickness / 2;
+
+  const place = (orientation: 'vertical' | 'horizontal') => {
+    // Place beams outward from the safe gap until span is filled.
+    for (let side of [-1, 1] as const) {
+      let pos = halfOpen + params.spacing * 0.5;
+      while (pos <= halfSpan + 0.01) {
+        beams.push({
+          orientation,
+          position: (orientation === 'vertical' ? params.centerX : params.centerY) + side * pos,
+          halfSpan,
+          halfThickness,
+          centerX: params.centerX,
+          centerY: params.centerY,
+        });
+        pos += params.spacing;
+      }
+    }
+  };
+
+  if (params.orientation === 'vertical' || params.orientation === 'both') {
+    place('vertical');
+  }
+  if (params.orientation === 'horizontal' || params.orientation === 'both') {
+    place('horizontal');
+  }
+  return beams;
+}
+
+export function evaluateLaserCollision(
+  x: number,
+  y: number,
+  projectileRadius: number,
+  beams: LaserBeam[],
+  lasersOn: boolean,
+): ObstacleCollisionResult {
+  if (!lasersOn || beams.length === 0) {
+    return { hit: null, nearMiss: false, clearance: 1 };
+  }
+
+  let minClearance = Number.POSITIVE_INFINITY;
+  for (const beam of beams) {
+    let clearance: number;
+    if (beam.orientation === 'vertical') {
+      const along = Math.abs(y - beam.centerY);
+      if (along > beam.halfSpan + projectileRadius) {
+        continue;
+      }
+      clearance = Math.abs(x - beam.position) - beam.halfThickness - projectileRadius;
+    } else {
+      const along = Math.abs(x - beam.centerX);
+      if (along > beam.halfSpan + projectileRadius) {
+        continue;
+      }
+      clearance = Math.abs(y - beam.position) - beam.halfThickness - projectileRadius;
+    }
+    minClearance = Math.min(minClearance, clearance);
+    if (clearance < 0) {
+      return { hit: 'laser', nearMiss: false, clearance };
+    }
+  }
+
+  if (!Number.isFinite(minClearance)) {
+    return { hit: null, nearMiss: false, clearance: 1 };
+  }
+  return closeCall(minClearance);
+}
+
+export function lasersOnAt(elapsedTime: number, speed: number, phase: number, onRatio: number): boolean {
+  const cycle = ((elapsedTime * speed + phase) % 1 + 1) % 1;
+  return cycle < onRatio;
 }
 
 export function evaluatePendulumCollision(

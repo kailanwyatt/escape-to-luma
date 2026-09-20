@@ -42,7 +42,7 @@ export function scoreTarget(
   return { kind: 'HIT', points: score.HIT };
 }
 
-export function resultLabel(kind: ShotResultKind, points: number): string {
+export function resultLabel(kind: ShotResultKind, points: number, campaign = false): string {
   switch (kind) {
     case 'PERFECT':
       return `PERFECT +${points}`;
@@ -51,7 +51,7 @@ export function resultLabel(kind: ShotResultKind, points: number): string {
     case 'GREAT':
       return `GREAT +${points}`;
     case 'HIT':
-      return `HIT +${points}`;
+      return campaign ? `CLEAR +${points}` : `HIT +${points}`;
     case 'ROTOR_HIT':
       return 'BLOCKED';
     case 'MISS':

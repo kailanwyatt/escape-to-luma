@@ -36,6 +36,18 @@ const TEMPLATE_PRIMARY: Record<ChallengeTemplateId, ObstacleType> = {
   ROTOR_RING: 'rotor',
   RING_ROTOR: 'movingRing',
   PENDULUM_ROTOR: 'pendulum',
+  BASIC_ORBITER: 'orbiter',
+  DRIFT_BLOCKER: 'driftingBlocker',
+  PHASE_FIELD: 'phaseField',
+  SHIFTING_APERTURE: 'shiftingAperture',
+  LASER_VERTICAL: 'laserGrid',
+  LASER_HORIZONTAL: 'laserGrid',
+  LASER_PULSE: 'laserGrid',
+  LASER_CROSS: 'laserGrid',
+  GRAVITY_WELL: 'orbiter',
+  COMBINED_HAZARD: 'rotor',
+  HOME_APPROACH: 'iris',
+  HOME_FINALE: 'iris',
 };
 
 export function primaryTypeForTemplate(template: ChallengeTemplateId): ObstacleType {
@@ -43,6 +55,9 @@ export function primaryTypeForTemplate(template: ChallengeTemplateId): ObstacleT
 }
 
 export function primaryTypeForChallenge(challenge: ChallengeConfig): ObstacleType {
+  if (challenge.obstacles.length === 0) {
+    return primaryTypeForTemplate(challenge.template);
+  }
   return obstacleTypeOf(challenge.obstacles[0]);
 }
 

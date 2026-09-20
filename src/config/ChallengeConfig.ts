@@ -35,7 +35,19 @@ export type ChallengeTemplateId =
   | 'IRIS_ROTOR'
   | 'ROTOR_RING'
   | 'RING_ROTOR'
-  | 'PENDULUM_ROTOR';
+  | 'PENDULUM_ROTOR'
+  | 'BASIC_ORBITER'
+  | 'DRIFT_BLOCKER'
+  | 'PHASE_FIELD'
+  | 'SHIFTING_APERTURE'
+  | 'LASER_VERTICAL'
+  | 'LASER_HORIZONTAL'
+  | 'LASER_PULSE'
+  | 'LASER_CROSS'
+  | 'GRAVITY_WELL'
+  | 'COMBINED_HAZARD'
+  | 'HOME_APPROACH'
+  | 'HOME_FINALE';
 
 export interface ChallengeConfig {
   id: string;

@@ -122,8 +122,24 @@ function clearsObstacle(
     const result = evaluateRingCollision(x, y, ball, pos.x, pos.y, obstacle.radius);
     return !result.hit && result.clearance >= 0.05;
   }
+  if (type === 'laserGrid' && obstacle.type === 'laserGrid') {
+    const cx = obstacle.centerX ?? 0;
+    const cy = obstacle.centerY ?? 3;
+    const half = obstacle.openingSize / 2;
+    if (obstacle.mode === 'pulse') {
+      // Pulsing grids are fair if a clear center throw exists while on, or any throw while off.
+      return Math.abs(x - cx) <= half - ball - 0.05 && Math.abs(y - cy) <= half - ball - 0.05;
+    }
+    if (obstacle.orientation === 'vertical') {
+      return Math.abs(x - cx) <= half - ball - 0.05;
+    }
+    if (obstacle.orientation === 'horizontal') {
+      return Math.abs(y - cy) <= half - ball - 0.05;
+    }
+    return Math.abs(x - cx) <= half - ball - 0.05 && Math.abs(y - cy) <= half - ball - 0.05;
+  }
   if (!isRotorConfig(obstacle)) {
-    return false;
+    return true;
   }
   const cx = GAME_TUNING.rotor.center.x;
   const cy = GAME_TUNING.rotor.center.y;

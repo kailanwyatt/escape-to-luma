@@ -8,10 +8,15 @@ import {
 } from '../config/ObstacleConfig';
 import { emptyPredictedState, type ObstacleDebugInfo, type ObstaclePredictedState } from './GameplayObstacle';
 import { evaluateRotorCollision, type ObstacleCollisionResult } from './ObstacleCollision';
+import { DriftingBlockerObstacle } from './DriftingBlockerObstacle';
 import { IrisObstacle } from './IrisObstacle';
+import { LaserGridObstacle } from './LaserGridObstacle';
 import { MovingRingObstacle } from './MovingRingObstacle';
+import { OrbiterObstacle } from './OrbiterObstacle';
 import { PendulumObstacle } from './PendulumObstacle';
+import { PhaseFieldObstacle } from './PhaseFieldObstacle';
 import { RotorObstacle } from './RotorObstacle';
+import { ShiftingApertureObstacle } from './ShiftingApertureObstacle';
 import { interpolateAtZ, SlidingGateObstacle } from './SlidingGateObstacle';
 
 type ObstacleImpl =
@@ -19,7 +24,12 @@ type ObstacleImpl =
   | SlidingGateObstacle
   | IrisObstacle
   | PendulumObstacle
-  | MovingRingObstacle;
+  | MovingRingObstacle
+  | OrbiterObstacle
+  | DriftingBlockerObstacle
+  | PhaseFieldObstacle
+  | ShiftingApertureObstacle
+  | LaserGridObstacle;
 
 export class ObstacleSlot {
   readonly id: string;
@@ -145,6 +155,16 @@ function createImpl(id: string, type: ObstacleType): ObstacleImpl {
       return new PendulumObstacle(id);
     case 'movingRing':
       return new MovingRingObstacle(id);
+    case 'orbiter':
+      return new OrbiterObstacle(id);
+    case 'driftingBlocker':
+      return new DriftingBlockerObstacle(id);
+    case 'phaseField':
+      return new PhaseFieldObstacle(id);
+    case 'shiftingAperture':
+      return new ShiftingApertureObstacle(id);
+    case 'laserGrid':
+      return new LaserGridObstacle(id);
     default:
       return new RotorObstacle(id);
   }
@@ -168,6 +188,26 @@ function applyTypedConfig(
     return;
   }
   if (impl instanceof MovingRingObstacle && config.type === 'movingRing') {
+    impl.applyConfig(config, environment);
+    return;
+  }
+  if (impl instanceof OrbiterObstacle && config.type === 'orbiter') {
+    impl.applyConfig(config, environment);
+    return;
+  }
+  if (impl instanceof DriftingBlockerObstacle && config.type === 'driftingBlocker') {
+    impl.applyConfig(config, environment);
+    return;
+  }
+  if (impl instanceof PhaseFieldObstacle && config.type === 'phaseField') {
+    impl.applyConfig(config, environment);
+    return;
+  }
+  if (impl instanceof ShiftingApertureObstacle && config.type === 'shiftingAperture') {
+    impl.applyConfig(config, environment);
+    return;
+  }
+  if (impl instanceof LaserGridObstacle && config.type === 'laserGrid') {
     impl.applyConfig(config, environment);
     return;
   }

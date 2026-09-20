@@ -12,7 +12,12 @@ export type GamePhase =
   | 'RUN_START'
   | 'CONTINUE_OFFER'
   | 'RUN_OVER'
-  | 'PROTOTYPE_COMPLETE';
+  | 'PROTOTYPE_COMPLETE'
+  | 'CAMPAIGN_OPENING'
+  | 'LEVEL_COMPLETE'
+  | 'LEVEL_FAILED'
+  | 'WORLD_COMPLETE'
+  | 'OUT_OF_ENERGY';
 
 export type ShotResultKind =
   | 'ROTOR_HIT'
@@ -83,6 +88,18 @@ export type HudSnapshot = {
   adBusy: boolean;
   adMessage: string | null;
   removeAds: boolean;
+  sessionMode: 'campaign' | 'endless';
+  campaignLevel: number;
+  campaignWorldName: string | null;
+  energy: number;
+  maxEnergy: number;
+  shards: number;
+  unlimitedEnergy: boolean;
+  lastShardsGained: number;
+  lastPrecisionRank: string | null;
+  storyBeat: string | null;
+  windActive: boolean;
+  helpOffer: boolean;
 };
 
 export type ObstacleDebug = {

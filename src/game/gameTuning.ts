@@ -76,10 +76,10 @@ export const GAME_TUNING = {
 
   score: {
     HIT: 100,
-    GREAT: 125,
-    BULLSEYE: 175,
-    PERFECT: 250,
-    CLOSE_CALL: 25,
+    GREAT: 150,
+    BULLSEYE: 250,
+    PERFECT: 400,
+    CLOSE_CALL: 50,
   },
 
   timing: {

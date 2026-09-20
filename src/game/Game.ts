@@ -11,6 +11,19 @@ import { Analytics, ANALYTICS_EVENTS } from '../services/analytics/Analytics';
 import { AdService } from '../services/ads/AdService';
 import { PurchaseService } from '../services/purchases/PurchaseService';
 import { getCommercialConfig } from '../config/commercial';
+import { ECONOMY } from '../config/economy';
+import {
+  applyLevelFailure,
+  applyLevelSuccess,
+  consumeBoosts,
+  syncCampaignEnergy,
+} from '../campaign/CampaignPlay';
+import { getCampaignLevel, WORLD1_LEVELS } from '../campaign/levels';
+import type { CampaignLevelDefinition, PrecisionRank, SelectedBoosts } from '../campaign/types';
+import { worldForLevel } from '../campaign/worlds';
+import { sparkById } from '../customization/sparks';
+import { trailById } from '../customization/trails';
+import { rankFromResult } from '../economy/rewards';
 import { ParticleSystem } from '../feedback/Particles';
 import { ProjectileTrail } from '../feedback/ProjectileTrail';
 import { ObstacleSlot } from '../obstacles/ObstacleSlot';
@@ -38,6 +51,7 @@ import {
   saveGameSave,
   setSaveLevel,
   structuredCloneSave,
+  hasUnlimitedEnergy,
   type GameSettings,
   type PersistentGameData,
 } from '../persistence/GameSave';
@@ -141,6 +155,20 @@ export class Game {
   private leveledUpThisRun = false;
   private systemReduceMotion = false;
   private throwsThisRun = 0;
+  private sessionMode: 'campaign' | 'endless' = 'endless';
+  private campaignDef: CampaignLevelDefinition | null = null;
+  private selectedBoosts: SelectedBoosts = {};
+  private campaignWindX = 0;
+  private campaignGravityScale = 1;
+  private lastShardsGained = 0;
+  private lastPrecisionRank: PrecisionRank | null = null;
+  private storyBeat: string | null = null;
+  private pendingWorldComplete = false;
+  private secondChancePending = false;
+  private helpOffer = false;
+  private openingTimer = 0;
+  private pendingCampaignFail = false;
+  private slowFieldActive = false;
 
   constructor(gl: ExpoWebGLRenderingContext) {
     this.gl = gl;
@@ -183,7 +211,8 @@ export class Game {
     this.startingLevel = this.save.playerProgress.playerLevel;
     PurchaseService.hydrate(this.save.commercial.removeAds);
     this.applySettings();
-    this.applyProjectileLook();
+    this.syncCampaignEnergyOnSave();
+    this.applySparkLook();
     this.emitHud();
     void AudioManager.init();
     Analytics.appOpen();
@@ -217,9 +246,11 @@ export class Game {
   }
 
   resume(): void {
+    this.syncCampaignEnergyOnSave();
     if (!this.running) {
       this.start();
     }
+    this.emitHud();
   }
 
   dispose(): void {
@@ -244,7 +275,7 @@ export class Game {
   setDebugEnabled(enabled: boolean): void {
     this.debugEnabled = __DEV__ && enabled;
     this.debugVisuals.setEnabled(this.debugEnabled);
-    this.trajectory.setDebugFull(this.debugEnabled);
+    this.syncTrajectoryDebugFull();
     this.emitHud();
   }
 
@@ -257,10 +288,17 @@ export class Game {
   }
 
   canAcceptInput(): boolean {
-    return this.state.canAcceptInput();
+    return (
+      this.state.canAcceptInput() ||
+      this.state.phase === 'CAMPAIGN_OPENING'
+    );
   }
 
   onTouchStart(x: number, y: number): void {
+    if (this.state.phase === 'CAMPAIGN_OPENING') {
+      this.skipCampaignOpening();
+      return;
+    }
     if (this.state.phase === 'RUN_START') {
       this.state.set('READY');
       this.camera.clearEffects();
@@ -565,7 +603,244 @@ export class Game {
   }
 
   playFromHome(): void {
+    this.startEndlessVoyage();
+  }
+
+  startEndlessVoyage(): void {
+    this.sessionMode = 'endless';
+    this.campaignDef = null;
+    this.campaignWindX = 0;
+    this.campaignGravityScale = 1;
+    this.projectileSystem.windX = 0;
+    this.projectileSystem.gravityScale = 1;
+    this.projectileSystem.wells = [];
+    this.selectedBoosts = {};
+    this.secondChancePending = false;
+    this.slowFieldActive = false;
+    this.helpOffer = false;
+    this.pendingCampaignFail = false;
+    this.syncTrajectoryDebugFull();
     this.restart(undefined, { awaitStart: true });
+  }
+
+  startCampaignLevel(levelNumber: number, boosts: SelectedBoosts): void {
+    const def = getCampaignLevel(levelNumber);
+    if (!def) {
+      return;
+    }
+    this.syncCampaignEnergyOnSave();
+    this.sessionMode = 'campaign';
+    this.campaignDef = def;
+    this.helpOffer = false;
+    this.pendingCampaignFail = false;
+    this.pendingWorldComplete = false;
+    this.lastShardsGained = 0;
+    this.lastPrecisionRank = null;
+    this.pendingAdvance = false;
+    this.pendingRunOver = false;
+
+    const inv = this.save.campaign.boostInventory;
+    const toConsume: SelectedBoosts = {};
+    for (const id of ['guidance', 'slowField', 'secondChance'] as const) {
+      if (boosts[id] && (inv[id] ?? 0) > 0) {
+        toConsume[id] = true;
+      }
+    }
+    if (Object.keys(toConsume).length > 0) {
+      this.save = {
+        ...this.save,
+        campaign: consumeBoosts(this.save.campaign, toConsume),
+      };
+      void saveGameSave(this.save);
+    }
+    this.selectedBoosts = toConsume;
+    this.secondChancePending = Boolean(toConsume.secondChance);
+    this.slowFieldActive = Boolean(toConsume.slowField);
+
+    this.campaignWindX = def.windX ?? 0;
+    this.campaignGravityScale = def.gravityScale ?? 1;
+    this.projectileSystem.windX = this.campaignWindX;
+    this.projectileSystem.gravityScale = this.campaignGravityScale;
+    this.projectileSystem.wells = def.gravityWells ?? [];
+    this.syncTrajectoryDebugFull();
+
+    this.run.reset();
+    this.run.unlimitedHearts = true;
+    this.simTime = 0;
+    this.storyBeat = def.storyBeat ?? worldForLevel(def.levelNumber)?.storyBeat ?? null;
+    this.applyChallenge(def.challenge, true);
+    this.resetProjectile();
+    this.aim.cancel();
+    this.trajectory.setVisible(false);
+    this.lastResult = null;
+    this.banner = null;
+    this.bannerTimer = 0;
+    this.camera.clearEffects();
+    this.camera.allowShake = false;
+    this.camera.rebase();
+    this.scene.environment.hidePortal();
+    this.applySparkLook();
+
+    Analytics.track(ANALYTICS_EVENTS.levelStarted, {
+      levelNumber: def.levelNumber,
+      worldId: def.worldId,
+      boosts: Object.keys(toConsume).join(',') || 'none',
+    });
+
+    if (!this.save.campaign.hasSeenOpening) {
+      this.openingTimer = 2.8;
+      this.state.set('CAMPAIGN_OPENING');
+    } else {
+      this.state.set('READY');
+    }
+    this.emitHud();
+  }
+
+  retryCampaignLevel(): void {
+    if (!this.campaignDef) {
+      return;
+    }
+    this.startCampaignLevel(this.campaignDef.levelNumber, {});
+  }
+
+  continueAfterLevel(): void {
+    if (!this.campaignDef) {
+      this.state.set('READY');
+      this.emitHud();
+      return;
+    }
+    const nextLevel = this.campaignDef.levelNumber + 1;
+    this.pendingWorldComplete = false;
+    this.startCampaignLevel(nextLevel, {});
+  }
+
+  declineHelp(): void {
+    this.helpOffer = false;
+    this.emitHud();
+  }
+
+  useHelpSlowField(): void {
+    if (!this.helpOffer || !this.campaignDef) {
+      return;
+    }
+    this.helpOffer = false;
+    this.slowFieldActive = true;
+    this.resetCampaignAttempt();
+    this.state.set('READY');
+    this.emitHud();
+  }
+
+  watchRewardedEnergy(): void {
+    void this.watchRewardedEnergyAsync();
+  }
+
+  activateUnlimitedEnergy(durationMs: number): void {
+    this.activateUnlimitedEnergyInternal(durationMs);
+    this.emitHud();
+  }
+
+  addShards(amount: number): void {
+    this.save.campaign.shards += amount;
+    void saveGameSave(this.save);
+    this.emitHud();
+  }
+
+  setEnergy(amount: number): void {
+    this.save.campaign.currentEnergy = Math.max(0, Math.min(ECONOMY.maxEnergy, amount));
+    this.save.campaign.energyUpdatedAt = Date.now();
+    void saveGameSave(this.save);
+    this.emitHud();
+  }
+
+  unlockEndless(): void {
+    this.save.campaign.endlessUnlockedDev = true;
+    void saveGameSave(this.save);
+    this.emitHud();
+  }
+
+  completeWorld1(): void {
+    const campaign = structuredCloneSave(this.save).campaign;
+    for (const level of WORLD1_LEVELS) {
+      const prev = campaign.completedLevels[level.id];
+      campaign.completedLevels[level.id] = {
+        bestRank: 'CLEAR',
+        bestScore: ECONOMY.score.CLEAR,
+        attempts: prev?.attempts ?? 0,
+        cleared: true,
+        rewardsGranted: prev?.rewardsGranted ?? {
+          clear: true,
+          great: false,
+          bullseye: false,
+          perfect: false,
+        },
+      };
+    }
+    campaign.highestUnlockedLevel = Math.max(campaign.highestUnlockedLevel, 16);
+    if (!campaign.unlockedWorldIds.includes('city')) {
+      campaign.unlockedWorldIds.push('city');
+    }
+    if (!campaign.ownedSparkIds.includes('reactor')) {
+      campaign.ownedSparkIds.push('reactor');
+    }
+    this.save = { ...this.save, campaign };
+    void saveGameSave(this.save);
+    this.emitHud();
+  }
+
+  resetCampaign(): void {
+    this.save.campaign = structuredCloneSave(emptySave()).campaign;
+    this.syncCampaignEnergyOnSave();
+    void saveGameSave(this.save);
+    this.sessionMode = 'endless';
+    this.campaignDef = null;
+    this.emitHud();
+  }
+
+  syncCampaignSave(): void {
+    this.syncCampaignEnergyOnSave();
+    void saveGameSave(this.save);
+    this.emitHud();
+  }
+
+  buySparkWithShards(sparkId: string): boolean {
+    const spark = sparkById(sparkId);
+    if (spark.acquisition !== 'shards' || spark.shardCost == null) {
+      return false;
+    }
+    if (this.save.campaign.ownedSparkIds.includes(sparkId)) {
+      return false;
+    }
+    if (this.save.campaign.shards < spark.shardCost) {
+      return false;
+    }
+    this.save.campaign.shards -= spark.shardCost;
+    this.save.campaign.ownedSparkIds.push(sparkId);
+    void saveGameSave(this.save);
+    this.emitHud();
+    return true;
+  }
+
+  equipSpark(sparkId: string): void {
+    if (!this.save.campaign.ownedSparkIds.includes(sparkId)) {
+      return;
+    }
+    this.save.campaign.equippedSparkId = sparkId;
+    void saveGameSave(this.save);
+    this.applySparkLook();
+    this.emitHud();
+  }
+
+  buyBoostWithShards(boostId: 'guidance' | 'slowField' | 'secondChance'): boolean {
+    const cost = ECONOMY.boostCosts[boostId];
+    if (this.save.campaign.shards < cost) {
+      return false;
+    }
+    this.save.campaign.shards -= cost;
+    const inv = this.save.campaign.boostInventory;
+    inv[boostId] = (inv[boostId] ?? 0) + 1;
+    void saveGameSave(this.save);
+    this.emitHud();
+    return true;
   }
 
   requestRetry(): void {
@@ -702,9 +977,107 @@ export class Game {
   }
 
   private applyProjectileLook(): void {
+    if (this.sessionMode === 'campaign') {
+      this.applySparkLook();
+      return;
+    }
     const style = projectileStyle(this.save.selectedProjectileId);
     this.projectile.applyStyle(style);
     this.trail.setStyle(style.trailColor, style.trailWidth);
+  }
+
+  private applySparkLook(): void {
+    const spark = sparkById(this.save.campaign.equippedSparkId);
+    const trail = trailById(this.save.campaign.equippedTrailId);
+    this.projectile.applyStyle({
+      color: spark.color,
+      emissive: spark.emissive,
+      emissiveIntensity: spark.emissiveIntensity,
+      shininess: spark.shininess,
+    });
+    this.trail.setStyle(trail.color, trail.width);
+  }
+
+  private syncCampaignEnergyOnSave(): void {
+    this.save = {
+      ...this.save,
+      campaign: syncCampaignEnergy(this.save.campaign),
+    };
+  }
+
+  private syncTrajectoryDebugFull(): void {
+    const guidance =
+      this.sessionMode === 'campaign' && Boolean(this.selectedBoosts.guidance);
+    this.trajectory.setDebugFull(this.debugEnabled || guidance);
+  }
+
+  private skipCampaignOpening(): void {
+    if (!this.save.campaign.hasSeenOpening) {
+      this.save.campaign.hasSeenOpening = true;
+      void saveGameSave(this.save);
+    }
+    this.openingTimer = 0;
+    this.state.set('READY');
+    this.camera.clearEffects();
+    this.camera.allowShake = false;
+    AudioManager.play('ui');
+    this.emitHud();
+  }
+
+  private finishCampaignOpening(): void {
+    if (!this.save.campaign.hasSeenOpening) {
+      this.save.campaign.hasSeenOpening = true;
+      void saveGameSave(this.save);
+    }
+    this.openingTimer = 0;
+    this.state.set('READY');
+    this.emitHud();
+  }
+
+  private resetCampaignAttempt(): void {
+    if (!this.campaignDef) {
+      return;
+    }
+    this.applyChallenge(this.campaignDef.challenge, true);
+    this.resetProjectile();
+    this.pendingCampaignFail = false;
+    this.pendingRunOver = false;
+    this.pendingAdvance = false;
+    this.lastResult = null;
+    this.timeScale = 1;
+    this.slowdownRemaining = 0;
+  }
+
+  private activateUnlimitedEnergyInternal(durationMs: number): void {
+    const now = Date.now();
+    const expires = Math.max(this.save.campaign.unlimitedEnergyExpiresAt, now) + durationMs;
+    this.save.campaign.unlimitedEnergyExpiresAt = expires;
+    this.syncCampaignEnergyOnSave();
+    void saveGameSave(this.save);
+  }
+
+  private async watchRewardedEnergyAsync(): Promise<void> {
+    if (this.continueBusy || this.adShowing) {
+      return;
+    }
+    this.continueBusy = true;
+    this.emitHud();
+    const result = await AdService.showRewarded();
+    this.continueBusy = false;
+    if (result === 'completed') {
+      this.save.campaign.currentEnergy = Math.min(
+        ECONOMY.maxEnergy,
+        this.save.campaign.currentEnergy + ECONOMY.rewardedAdEnergyAmount,
+      );
+      this.save.campaign.energyUpdatedAt = Date.now();
+      this.syncCampaignEnergyOnSave();
+      void saveGameSave(this.save);
+      if (this.state.phase === 'OUT_OF_ENERGY' && this.campaignDef) {
+        this.resetCampaignAttempt();
+        this.state.set('READY');
+      }
+    }
+    this.emitHud();
   }
 
   private onboardingCopy(): string | null {
@@ -730,17 +1103,32 @@ export class Game {
   private targetResolved = false;
 
   getHudSnapshot(): HudSnapshot {
-    const challenge = this.director.current;
+    const challenge =
+      this.sessionMode === 'campaign' && this.campaignDef
+        ? this.campaignDef.challenge
+        : this.director.current;
+    const campaign = this.save.campaign;
+    const unlimitedEnergy = hasUnlimitedEnergy(campaign);
+    const world = this.campaignDef
+      ? worldForLevel(this.campaignDef.levelNumber)
+      : worldForLevel(campaign.lastPlayedLevel);
     return {
       phase: this.state.phase,
       lives: this.run.lives,
       score: this.run.score,
-      shotId: this.director.challengeNumber,
-      totalShots: this.director.totalShots,
+      shotId:
+        this.sessionMode === 'campaign' && this.campaignDef
+          ? this.campaignDef.levelNumber
+          : this.director.challengeNumber,
+      totalShots: this.sessionMode === 'campaign' ? 1 : this.director.totalShots,
       resultKind: this.state.phase === 'RESULT' ? this.lastResult : null,
       resultText:
         this.state.phase === 'RESULT' && this.lastResult
-          ? resultLabel(this.lastResult, this.lastResultPoints)
+          ? resultLabel(
+              this.lastResult,
+              this.lastResultPoints,
+              this.sessionMode === 'campaign',
+            )
           : null,
       showOnboarding: Boolean(this.onboardingCopy() === 'DRAG TO AIM'),
       onboardingText: this.onboardingCopy(),
@@ -786,6 +1174,18 @@ export class Game {
       adBusy: this.continueBusy || this.adShowing,
       adMessage: this.adMessage,
       removeAds: PurchaseService.hasRemoveAdsEntitlement(),
+      sessionMode: this.sessionMode,
+      campaignLevel: this.campaignDef?.levelNumber ?? campaign.lastPlayedLevel,
+      campaignWorldName: world?.name ?? null,
+      energy: campaign.currentEnergy,
+      maxEnergy: ECONOMY.maxEnergy,
+      shards: campaign.shards,
+      unlimitedEnergy,
+      lastShardsGained: this.lastShardsGained,
+      lastPrecisionRank: this.lastPrecisionRank,
+      storyBeat: this.storyBeat,
+      windActive: Math.abs(this.campaignWindX) > 0.001,
+      helpOffer: this.helpOffer,
     };
   }
 
@@ -929,7 +1329,12 @@ export class Game {
       this.adShowing ||
       this.state.phase === 'CONTINUE_OFFER' ||
       this.state.phase === 'RUN_OVER' ||
-      this.state.phase === 'PROTOTYPE_COMPLETE';
+      this.state.phase === 'PROTOTYPE_COMPLETE' ||
+      this.state.phase === 'CAMPAIGN_OPENING' ||
+      this.state.phase === 'LEVEL_COMPLETE' ||
+      this.state.phase === 'LEVEL_FAILED' ||
+      this.state.phase === 'WORLD_COMPLETE' ||
+      this.state.phase === 'OUT_OF_ENERGY';
 
     if (!freezeWorld) {
       this.simTime += dt;
@@ -938,8 +1343,12 @@ export class Game {
       this.authored.noteTime(this.director.index, dt);
     }
     if (!freezeWorld) {
+      const obstacleDt =
+        this.sessionMode === 'campaign' && this.slowFieldActive
+          ? dt * ECONOMY.boostSlowFieldMultiplier
+          : dt;
       for (const rotor of this.obstacles) {
-        rotor.update(dt, this.simTime);
+        rotor.update(obstacleDt, this.simTime);
       }
       this.target.update(dt, this.simTime);
     }
@@ -950,6 +1359,11 @@ export class Game {
       this.state.phase !== 'AIMING' &&
       this.state.phase !== 'RUN_START' &&
       this.state.phase !== 'CONTINUE_OFFER' &&
+      this.state.phase !== 'CAMPAIGN_OPENING' &&
+      this.state.phase !== 'LEVEL_COMPLETE' &&
+      this.state.phase !== 'LEVEL_FAILED' &&
+      this.state.phase !== 'WORLD_COMPLETE' &&
+      this.state.phase !== 'OUT_OF_ENERGY' &&
       !this.adShowing;
     this.camera.update(dt);
     this.scene.environment.update(dt);
@@ -994,6 +1408,13 @@ export class Game {
       if (this.resetTimer <= 0) {
         this.state.set('READY');
         this.emitHud();
+      }
+    }
+
+    if (this.state.phase === 'CAMPAIGN_OPENING') {
+      this.openingTimer -= rawDt;
+      if (this.openingTimer <= 0) {
+        this.finishCampaignOpening();
       }
     }
 
@@ -1214,8 +1635,20 @@ export class Game {
     }
     this.maybeAnnounceNewBest();
     this.maybeAnnounceProgress();
-    this.pendingRunOver = outcome.runOver;
-    this.pendingAdvance = kind !== 'ROTOR_HIT' && kind !== 'MISS' && !outcome.runOver;
+    if (this.sessionMode === 'campaign') {
+      if (kind === 'ROTOR_HIT' || kind === 'MISS') {
+        this.pendingCampaignFail = true;
+        this.pendingRunOver = false;
+        this.pendingAdvance = false;
+      } else {
+        this.pendingCampaignFail = false;
+        this.pendingRunOver = false;
+        this.pendingAdvance = false;
+      }
+    } else {
+      this.pendingRunOver = outcome.runOver;
+      this.pendingAdvance = kind !== 'ROTOR_HIT' && kind !== 'MISS' && !outcome.runOver;
+    }
     this.resultTimer = delaySeconds;
     this.state.set('RESULT');
     this.trackShotResult(kind);
@@ -1223,6 +1656,21 @@ export class Game {
   }
 
   private finishResult(): void {
+    if (this.sessionMode === 'campaign' && this.campaignDef) {
+      if (this.pendingCampaignFail) {
+        this.finishCampaignFailure();
+        return;
+      }
+      if (
+        this.lastResult &&
+        this.lastResult !== 'ROTOR_HIT' &&
+        this.lastResult !== 'MISS'
+      ) {
+        this.finishCampaignSuccess();
+        return;
+      }
+    }
+
     if (this.pendingRunOver) {
       this.maybeOfferContinue();
       return;
@@ -1265,6 +1713,72 @@ export class Game {
     }
     this.state.set('RESETTING');
     this.resetTimer = GAME_TUNING.timing.resetDelay / 1000;
+    this.emitHud();
+  }
+
+  private finishCampaignSuccess(): void {
+    const def = this.campaignDef!;
+    const rank = rankFromResult(this.lastResult ?? '');
+    if (!rank) {
+      this.resetCampaignAttempt();
+      this.state.set('READY');
+      this.emitHud();
+      return;
+    }
+    const outcome = applyLevelSuccess(this.save, def, rank, this.run.closeCalls);
+    this.save = outcome.save;
+    void saveGameSave(this.save);
+    this.lastShardsGained = outcome.shardsGained;
+    this.lastPrecisionRank = rank;
+    this.pendingWorldComplete = outcome.worldComplete;
+    Analytics.track(ANALYTICS_EVENTS.levelCompleted, {
+      levelNumber: def.levelNumber,
+      worldId: def.worldId,
+      rank,
+      shardsGained: outcome.shardsGained,
+      worldComplete: outcome.worldComplete,
+    });
+    this.state.set(outcome.worldComplete ? 'WORLD_COMPLETE' : 'LEVEL_COMPLETE');
+    this.emitHud();
+  }
+
+  private finishCampaignFailure(): void {
+    const def = this.campaignDef!;
+    this.pendingCampaignFail = false;
+
+    if (this.secondChancePending) {
+      this.secondChancePending = false;
+      this.resetCampaignAttempt();
+      this.state.set('READY');
+      this.emitHud();
+      return;
+    }
+
+    this.save = applyLevelFailure(this.save, def, {
+      consumeEnergy: true,
+      usedSecondChance: false,
+    });
+    this.syncCampaignEnergyOnSave();
+    void saveGameSave(this.save);
+
+    Analytics.track(ANALYTICS_EVENTS.levelFailed, {
+      levelNumber: def.levelNumber,
+      worldId: def.worldId,
+      fail: this.lastFail,
+    });
+
+    if (
+      !hasUnlimitedEnergy(this.save.campaign) &&
+      this.save.campaign.currentEnergy <= 0
+    ) {
+      this.state.set('OUT_OF_ENERGY');
+      this.emitHud();
+      return;
+    }
+
+    this.helpOffer =
+      this.save.campaign.consecutiveFailuresOnLevel >= ECONOMY.helpAfterFailures;
+    this.state.set('LEVEL_FAILED');
     this.emitHud();
   }
 
@@ -1513,10 +2027,16 @@ export class Game {
   }
 
   private syncTrajectory(): void {
+    this.syncTrajectoryDebugFull();
     this.trajectory.update(
       this.projectile.position,
       this.aim.getLaunchVelocity(),
       this.target.z,
+      {
+        windX: this.projectileSystem.windX,
+        gravityScale: this.projectileSystem.gravityScale,
+        wells: this.projectileSystem.wells,
+      },
     );
   }
 
@@ -1578,6 +2098,15 @@ export class Game {
 
   private async requestRetryAsync(): Promise<void> {
     if (this.continueBusy || this.adShowing) {
+      return;
+    }
+    if (this.sessionMode === 'campaign') {
+      if (
+        this.state.phase === 'LEVEL_FAILED' ||
+        this.state.phase === 'OUT_OF_ENERGY'
+      ) {
+        this.retryCampaignLevel();
+      }
       return;
     }
     if (
@@ -1737,6 +2266,11 @@ function failLabel(type: string, index: number): string {
     iris: 'IRIS',
     pendulum: 'PENDULUM',
     movingRing: 'RING',
+    orbiter: 'ORBITER',
+    driftingBlocker: 'DRIFT',
+    phaseField: 'PHASE',
+    shiftingAperture: 'APERTURE',
+    laserGrid: 'LASER',
   };
   return `${names[type] ?? type.toUpperCase()} ${index === 0 ? 'A' : 'B'}`;
 }
@@ -1747,14 +2281,17 @@ function collisionEvent(
   if (type === 'slidingGate') {
     return 'gate';
   }
-  if (type === 'iris') {
+  if (type === 'iris' || type === 'shiftingAperture' || type === 'phaseField') {
     return 'iris';
   }
-  if (type === 'pendulum') {
+  if (type === 'pendulum' || type === 'orbiter' || type === 'driftingBlocker') {
     return 'pendulum';
   }
   if (type === 'movingRing') {
     return 'ring';
+  }
+  if (type === 'laserGrid') {
+    return 'gate';
   }
   return 'rotor';
 }

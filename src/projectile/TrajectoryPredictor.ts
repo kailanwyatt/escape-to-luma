@@ -50,23 +50,57 @@ export class TrajectoryPredictor {
   update(
     start: THREE.Vector3,
     velocity: { vx: number; vy: number; vz: number },
-  endZ = GAME_TUNING.target.z,
+    endZ = GAME_TUNING.target.z,
+    options?: {
+      windX?: number;
+      gravityScale?: number;
+      wells?: { x: number; y: number; z: number; strength: number; radius: number }[];
+    },
   ): void {
-    const gravity = GAME_TUNING.gravity;
+    const gravity = GAME_TUNING.gravity * (options?.gravityScale ?? 1);
+    const windX = options?.windX ?? 0;
+    const wells = options?.wells ?? [];
     const count = this.dots.length;
     const travelZ = Math.max(0.5, endZ - start.z);
     const tEnd =
       (velocity.vz <= 0.001 ? 1 : travelZ / velocity.vz) *
       (this.debugFull ? 1 : GAME_TUNING.aim.trajectoryFraction);
 
-    for (let i = 0; i < count; i += 1) {
-      const t = ((i + 1) / count) * tEnd;
-      const dot = this.dots[i];
-      dot.position.set(
-        start.x + velocity.vx * t,
-        start.y + velocity.vy * t - 0.5 * gravity * t * t,
-        start.z + velocity.vz * t,
-      );
+    let x = start.x;
+    let y = start.y;
+    let z = start.z;
+    let vx = velocity.vx;
+    let vy = velocity.vy;
+    let vz = velocity.vz;
+    const steps = count * 4;
+    const dt = tEnd / steps;
+    let dotIndex = 0;
+    for (let step = 1; step <= steps; step += 1) {
+      vy -= gravity * dt;
+      vx += windX * dt;
+      for (const well of wells) {
+        const dx = well.x - x;
+        const dy = well.y - y;
+        const dz = well.z - z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.15;
+        if (dist <= well.radius) {
+          const falloff = 1 - dist / well.radius;
+          const accel = well.strength * falloff * falloff;
+          vx += (dx / dist) * accel * dt;
+          vy += (dy / dist) * accel * dt;
+        }
+      }
+      x += vx * dt;
+      y += vy * dt;
+      z += vz * dt;
+      if (step % 4 === 0 && dotIndex < count) {
+        this.dots[dotIndex].position.set(x, y, z);
+        dotIndex += 1;
+      }
+    }
+    while (dotIndex < count) {
+      this.dots[dotIndex].position.set(x, y, z);
+      dotIndex += 1;
     }
   }
 }
