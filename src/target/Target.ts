@@ -15,9 +15,33 @@ export class Target {
   private pulse = 0;
   private pulseStrength = 0;
   private readonly rings: THREE.Mesh[] = [];
+  private readonly portal: THREE.Mesh;
+  private readonly frame: THREE.Mesh;
   private movement?: ChallengeConfig['target']['movement'];
 
   constructor() {
+    this.portal = new THREE.Mesh(
+      new THREE.CircleGeometry(1.02, 48),
+      new THREE.MeshBasicMaterial({
+        color: 0x0d6fb8,
+        transparent: true,
+        opacity: 0.22,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    );
+    this.portal.position.z = -0.04;
+    this.frame = new THREE.Mesh(
+      new THREE.TorusGeometry(1.08, 0.075, 10, 48),
+      new THREE.MeshPhongMaterial({
+        color: 0x153d5f,
+        emissive: 0x00aee8,
+        emissiveIntensity: 0.8,
+        shininess: 90,
+      }),
+    );
+    this.group.add(this.portal, this.frame);
     this.buildRings();
     this.group.position.set(this.x, this.y, this.z);
   }
@@ -54,6 +78,9 @@ export class Target {
     if (this.pulse > 0) {
       this.pulse = Math.max(0, this.pulse - dt * 3.2);
     }
+    this.frame.rotation.z = elapsedTime * 0.08;
+    (this.portal.material as THREE.MeshBasicMaterial).opacity =
+      0.18 + Math.sin(elapsedTime * 2.2) * 0.05;
     this.syncScale();
   }
 
@@ -68,13 +95,18 @@ export class Target {
   }
 
   private buildRings(): void {
-    const colors = [0xd63c3c, 0xf2f0ea, 0xd63c3c, 0xffd24a];
-    const radii = [1, 0.72, 0.46, 0.2];
+    const colors = [0x168dc4, 0x48dfff, 0xc9fbff, 0xffd54a];
+    const zones = GAME_TUNING.target.zones;
+    const radii = [zones.hit, zones.great, zones.bullseye, zones.perfect];
     for (let i = 0; i < colors.length; i += 1) {
       const mesh = new THREE.Mesh(
         new THREE.CircleGeometry(radii[i], 32),
-        new THREE.MeshLambertMaterial({
+        new THREE.MeshPhongMaterial({
           color: colors[i],
+          emissive: colors[i],
+          emissiveIntensity: i === colors.length - 1 ? 0.9 : 0.35,
+          transparent: true,
+          opacity: 0.88,
           side: THREE.DoubleSide,
         }),
       );
@@ -89,5 +121,16 @@ export class Target {
     const pulseScale =
       this.pulse <= 0 ? 1 : 1 + Math.sin(this.pulse * Math.PI) * 0.18 * this.pulseStrength;
     this.group.scale.setScalar(radiusScale * pulseScale);
+  }
+
+  dispose(): void {
+    this.portal.geometry.dispose();
+    (this.portal.material as THREE.Material).dispose();
+    this.frame.geometry.dispose();
+    (this.frame.material as THREE.Material).dispose();
+    for (const ring of this.rings) {
+      ring.geometry.dispose();
+      (ring.material as THREE.Material).dispose();
+    }
   }
 }

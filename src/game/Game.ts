@@ -12,6 +12,7 @@ import { AdService } from '../services/ads/AdService';
 import { PurchaseService } from '../services/purchases/PurchaseService';
 import { getCommercialConfig } from '../config/commercial';
 import { ECONOMY } from '../config/economy';
+import { RELEASE_POLICY } from '../config/release';
 import {
   applyLevelFailure,
   applyLevelSuccess,
@@ -26,6 +27,8 @@ import { trailById } from '../customization/trails';
 import { rankFromResult } from '../economy/rewards';
 import { ParticleSystem } from '../feedback/Particles';
 import { ProjectileTrail } from '../feedback/ProjectileTrail';
+import { WindField } from '../feedback/WindField';
+import { GravityWellField } from '../feedback/GravityWellField';
 import { ObstacleSlot } from '../obstacles/ObstacleSlot';
 import { AimSystem } from '../projectile/AimSystem';
 import { Projectile } from '../projectile/Projectile';
@@ -71,9 +74,13 @@ import {
 import { playerLevelFromXp, xpIntoLevel, xpToNextLevel } from '../progression/xp';
 import { analyticPosition, makeTargetMissReport, predictShot, type ShotPrediction, type TargetMissReport } from '../debug/ShotDiagnostics';
 import { createThreeRenderer, resizeThreeRenderer } from '../utils/createThreeRenderer';
+import { disposeThreeObject } from '../utils/disposeThree';
 import { signOr } from '../utils/math';
 import { GameState, type DebugSnapshot, type HudSnapshot, type ObstacleDebug } from './GameState';
 import { GAME_TUNING } from './gameTuning';
+
+const CAMPAIGN_OPENING_DURATION = 7.5;
+const CAMPAIGN_OPENING_STAGES = 5;
 import { RunManager } from './RunManager';
 
 export class Game {
@@ -93,6 +100,8 @@ export class Game {
   private readonly target = new Target();
   private readonly particles = new ParticleSystem();
   private readonly trail = new ProjectileTrail();
+  private readonly windField = new WindField();
+  private readonly gravityWellField = new GravityWellField();
   private readonly debugVisuals = new DebugVisuals();
 
   private raf = 0;
@@ -112,6 +121,7 @@ export class Game {
   private lastResultPoints = 0;
   private flightTime = 0;
   private simTime = 0;
+  private obstacleTime = 0;
   private debugEnabled = false;
   private fps = 60;
   private lastNearMiss = false;
@@ -167,8 +177,12 @@ export class Game {
   private secondChancePending = false;
   private helpOffer = false;
   private openingTimer = 0;
+  private openingStage = 0;
   private pendingCampaignFail = false;
   private slowFieldActive = false;
+  private hydrated = false;
+  private pendingCampaignComplete = false;
+  private unlockedSparkName: string | null = null;
 
   constructor(gl: ExpoWebGLRenderingContext) {
     this.gl = gl;
@@ -184,6 +198,8 @@ export class Game {
       this.target.group,
       this.particles.group,
       this.trail.group,
+      this.windField.group,
+      this.gravityWellField.group,
       this.debugVisuals.group,
     );
 
@@ -213,6 +229,7 @@ export class Game {
     this.applySettings();
     this.syncCampaignEnergyOnSave();
     this.applySparkLook();
+    this.hydrated = true;
     this.emitHud();
     void AudioManager.init();
     Analytics.appOpen();
@@ -250,11 +267,15 @@ export class Game {
     if (!this.running) {
       this.start();
     }
+    if (!this.adShowing) {
+      AudioManager.restoreFromSettings(this.save.settings.soundEnabled);
+    }
     this.emitHud();
   }
 
   dispose(): void {
     this.pause();
+    disposeThreeObject(this.scene.scene);
     this.renderer.dispose();
     this.hudListeners.clear();
   }
@@ -288,7 +309,7 @@ export class Game {
   }
 
   canAcceptInput(): boolean {
-    return (
+    return this.hydrated && (
       this.state.canAcceptInput() ||
       this.state.phase === 'CAMPAIGN_OPENING'
     );
@@ -359,7 +380,13 @@ export class Game {
       velocity,
       this.obstacles,
       this.target,
-      this.simTime,
+      this.obstacleTime,
+      this.obstacleTimeScale(),
+      {
+        windX: this.campaignWindX,
+        gravityScale: this.campaignGravityScale,
+        wells: this.projectileSystem.wells,
+      },
     );
     this.maxPathError = 0;
     this.projectile.velocity.set(velocity.vx, velocity.vy, velocity.vz);
@@ -399,6 +426,7 @@ export class Game {
       this.authored.reset();
     }
     this.simTime = 0;
+    this.obstacleTime = 0;
     this.applyChallenge(this.director.current, true);
     this.resetProjectile();
     this.aim.cancel();
@@ -610,10 +638,12 @@ export class Game {
     this.sessionMode = 'endless';
     this.campaignDef = null;
     this.campaignWindX = 0;
+    this.windField.setWind(0);
     this.campaignGravityScale = 1;
     this.projectileSystem.windX = 0;
     this.projectileSystem.gravityScale = 1;
     this.projectileSystem.wells = [];
+    this.gravityWellField.setWells([]);
     this.selectedBoosts = {};
     this.secondChancePending = false;
     this.slowFieldActive = false;
@@ -624,8 +654,18 @@ export class Game {
   }
 
   startCampaignLevel(levelNumber: number, boosts: SelectedBoosts): void {
+    if (!this.hydrated) {
+      return;
+    }
     const def = getCampaignLevel(levelNumber);
     if (!def) {
+      return;
+    }
+    if (
+      this.sessionMode === 'campaign' &&
+      this.campaignDef?.levelNumber === levelNumber &&
+      (this.state.phase === 'READY' || this.state.phase === 'CAMPAIGN_OPENING')
+    ) {
       return;
     }
     this.syncCampaignEnergyOnSave();
@@ -634,6 +674,8 @@ export class Game {
     this.helpOffer = false;
     this.pendingCampaignFail = false;
     this.pendingWorldComplete = false;
+    this.pendingCampaignComplete = false;
+    this.unlockedSparkName = null;
     this.lastShardsGained = 0;
     this.lastPrecisionRank = null;
     this.pendingAdvance = false;
@@ -658,15 +700,18 @@ export class Game {
     this.slowFieldActive = Boolean(toConsume.slowField);
 
     this.campaignWindX = def.windX ?? 0;
+    this.windField.setWind(this.campaignWindX);
     this.campaignGravityScale = def.gravityScale ?? 1;
     this.projectileSystem.windX = this.campaignWindX;
     this.projectileSystem.gravityScale = this.campaignGravityScale;
     this.projectileSystem.wells = def.gravityWells ?? [];
+    this.gravityWellField.setWells(def.gravityWells ?? []);
     this.syncTrajectoryDebugFull();
 
     this.run.reset();
     this.run.unlimitedHearts = true;
     this.simTime = 0;
+    this.obstacleTime = 0;
     this.storyBeat = def.storyBeat ?? worldForLevel(def.levelNumber)?.storyBeat ?? null;
     this.applyChallenge(def.challenge, true);
     this.resetProjectile();
@@ -688,7 +733,8 @@ export class Game {
     });
 
     if (!this.save.campaign.hasSeenOpening) {
-      this.openingTimer = 2.8;
+      this.openingTimer = CAMPAIGN_OPENING_DURATION;
+      this.openingStage = 0;
       this.state.set('CAMPAIGN_OPENING');
     } else {
       this.state.set('READY');
@@ -706,6 +752,29 @@ export class Game {
   continueAfterLevel(): void {
     if (!this.campaignDef) {
       this.state.set('READY');
+      this.emitHud();
+      return;
+    }
+    if (this.state.phase === 'WORLD_COMPLETE' && this.unlockedSparkName) {
+      this.state.set('SPARK_UNLOCKED');
+      this.emitHud();
+      return;
+    }
+    if (
+      (this.state.phase === 'WORLD_COMPLETE' || this.state.phase === 'SPARK_UNLOCKED') &&
+      this.pendingCampaignComplete
+    ) {
+      this.pendingWorldComplete = false;
+      this.state.set('CAMPAIGN_COMPLETE');
+      this.emitHud();
+      return;
+    }
+    if (this.state.phase === 'CAMPAIGN_COMPLETE') {
+      return;
+    }
+    if (this.campaignDef.levelNumber >= RELEASE_POLICY.campaignMaxLevel) {
+      this.pendingWorldComplete = false;
+      this.state.set('CAMPAIGN_COMPLETE');
       this.emitHud();
       return;
     }
@@ -1011,12 +1080,10 @@ export class Game {
     this.trajectory.setDebugFull(this.debugEnabled || guidance);
   }
 
-  private skipCampaignOpening(): void {
-    if (!this.save.campaign.hasSeenOpening) {
-      this.save.campaign.hasSeenOpening = true;
-      void saveGameSave(this.save);
-    }
+  skipCampaignOpening(): void {
+    this.markCampaignOpeningSeen();
     this.openingTimer = 0;
+    this.openingStage = CAMPAIGN_OPENING_STAGES - 1;
     this.state.set('READY');
     this.camera.clearEffects();
     this.camera.allowShake = false;
@@ -1024,14 +1091,24 @@ export class Game {
     this.emitHud();
   }
 
+  completeFirstRunStory(): void {
+    this.markCampaignOpeningSeen();
+    this.emitHud();
+  }
+
   private finishCampaignOpening(): void {
+    this.markCampaignOpeningSeen();
+    this.openingTimer = 0;
+    this.openingStage = CAMPAIGN_OPENING_STAGES - 1;
+    this.state.set('READY');
+    this.emitHud();
+  }
+
+  private markCampaignOpeningSeen(): void {
     if (!this.save.campaign.hasSeenOpening) {
       this.save.campaign.hasSeenOpening = true;
       void saveGameSave(this.save);
     }
-    this.openingTimer = 0;
-    this.state.set('READY');
-    this.emitHud();
   }
 
   private resetCampaignAttempt(): void {
@@ -1081,8 +1158,26 @@ export class Game {
   }
 
   private onboardingCopy(): string | null {
+    if (this.firstLevelOnboardingActive()) {
+      if (this.state.phase === 'AIMING' && this.aim.isCancelReady) {
+        return 'PULL BACK TO CENTER TO CANCEL';
+      }
+      if (this.state.phase === 'AIMING') {
+        return 'DRAG TO AIM · FINGER UP TO RELEASE';
+      }
+      if (this.state.phase === 'READY') {
+        return 'PULL TO POWER UP';
+      }
+    }
     if (this.state.phase === 'AIMING' && this.aim.isCancelReady && this.throwsThisRun >= 1) {
       return 'RETURN TO START TO CANCEL';
+    }
+    if (
+      this.sessionMode === 'campaign' &&
+      this.campaignDef?.tutorialHint &&
+      (this.state.phase === 'READY' || this.state.phase === 'AIMING')
+    ) {
+      return this.campaignDef.tutorialHint;
     }
     if (this.save.hasCompletedOnboarding) {
       return null;
@@ -1100,6 +1195,15 @@ export class Game {
     return null;
   }
 
+  private firstLevelOnboardingActive(): boolean {
+    const def = this.campaignDef;
+    return Boolean(
+      this.sessionMode === 'campaign' &&
+      def?.levelNumber === 1 &&
+      !this.save.campaign.completedLevels[def.id]?.cleared,
+    );
+  }
+
   private targetResolved = false;
 
   getHudSnapshot(): HudSnapshot {
@@ -1113,6 +1217,8 @@ export class Game {
       ? worldForLevel(this.campaignDef.levelNumber)
       : worldForLevel(campaign.lastPlayedLevel);
     return {
+      hydrated: this.hydrated,
+      openingStage: this.openingStage,
       phase: this.state.phase,
       lives: this.run.lives,
       score: this.run.score,
@@ -1132,6 +1238,7 @@ export class Game {
           : null,
       showOnboarding: Boolean(this.onboardingCopy() === 'DRAG TO AIM'),
       onboardingText: this.onboardingCopy(),
+      firstLevelOnboarding: this.firstLevelOnboardingActive(),
       shotsReached: this.run.challengesCleared,
       hits: this.run.hits,
       greats: this.run.greats,
@@ -1186,6 +1293,7 @@ export class Game {
       storyBeat: this.storyBeat,
       windActive: Math.abs(this.campaignWindX) > 0.001,
       helpOffer: this.helpOffer,
+      unlockedSparkName: this.unlockedSparkName,
     };
   }
 
@@ -1334,6 +1442,8 @@ export class Game {
       this.state.phase === 'LEVEL_COMPLETE' ||
       this.state.phase === 'LEVEL_FAILED' ||
       this.state.phase === 'WORLD_COMPLETE' ||
+      this.state.phase === 'SPARK_UNLOCKED' ||
+      this.state.phase === 'CAMPAIGN_COMPLETE' ||
       this.state.phase === 'OUT_OF_ENERGY';
 
     if (!freezeWorld) {
@@ -1347,12 +1457,18 @@ export class Game {
         this.sessionMode === 'campaign' && this.slowFieldActive
           ? dt * ECONOMY.boostSlowFieldMultiplier
           : dt;
+      this.obstacleTime += obstacleDt;
       for (const rotor of this.obstacles) {
-        rotor.update(obstacleDt, this.simTime);
+        rotor.update(obstacleDt, this.obstacleTime);
       }
       this.target.update(dt, this.simTime);
     }
     this.particles.update(dt);
+    this.windField.update(dt, this.save.settings.reduceMotion || this.systemReduceMotion);
+    this.gravityWellField.update(
+      this.simTime,
+      this.save.settings.reduceMotion || this.systemReduceMotion,
+    );
     this.trail.update(dt, this.projectile.position, this.state.phase === 'PROJECTILE_ACTIVE');
     this.camera.allowShake =
       this.state.phase !== 'READY' &&
@@ -1363,6 +1479,8 @@ export class Game {
       this.state.phase !== 'LEVEL_COMPLETE' &&
       this.state.phase !== 'LEVEL_FAILED' &&
       this.state.phase !== 'WORLD_COMPLETE' &&
+      this.state.phase !== 'SPARK_UNLOCKED' &&
+      this.state.phase !== 'CAMPAIGN_COMPLETE' &&
       this.state.phase !== 'OUT_OF_ENERGY' &&
       !this.adShowing;
     this.camera.update(dt);
@@ -1413,6 +1531,15 @@ export class Game {
 
     if (this.state.phase === 'CAMPAIGN_OPENING') {
       this.openingTimer -= rawDt;
+      const elapsed = CAMPAIGN_OPENING_DURATION - Math.max(0, this.openingTimer);
+      const stage = Math.min(
+        CAMPAIGN_OPENING_STAGES - 1,
+        Math.floor(elapsed / (CAMPAIGN_OPENING_DURATION / CAMPAIGN_OPENING_STAGES)),
+      );
+      if (stage !== this.openingStage) {
+        this.openingStage = stage;
+        this.emitHud();
+      }
       if (this.openingTimer <= 0) {
         this.finishCampaignOpening();
       }
@@ -1436,6 +1563,10 @@ export class Game {
     }
 
     this.projectile.syncMesh();
+    this.projectile.updateVisual(
+      this.simTime,
+      this.save.settings.reduceMotion || this.systemReduceMotion,
+    );
     this.updateDiagnostics();
     this.debugVisuals.sync(
       this.projectile.position,
@@ -1460,7 +1591,13 @@ export class Game {
         this.aim.getLaunchVelocity(),
         this.obstacles,
         this.target,
-        this.simTime,
+        this.obstacleTime,
+        this.obstacleTimeScale(),
+        {
+          windX: this.campaignWindX,
+          gravityScale: this.campaignGravityScale,
+          wells: this.projectileSystem.wells,
+        },
       );
     } else if (this.state.phase !== 'PROJECTILE_ACTIVE' && this.state.phase !== 'RESULT') {
       this.livePrediction = null;
@@ -1473,6 +1610,12 @@ export class Game {
       const dz = predicted.z - this.projectile.position.z;
       this.maxPathError = Math.max(this.maxPathError, Math.sqrt(dx * dx + dy * dy + dz * dz));
     }
+  }
+
+  private obstacleTimeScale(): number {
+    return this.sessionMode === 'campaign' && this.slowFieldActive
+      ? ECONOMY.boostSlowFieldMultiplier
+      : 1;
   }
 
   private checkCollisions(): void {
@@ -1731,6 +1874,10 @@ export class Game {
     this.lastShardsGained = outcome.shardsGained;
     this.lastPrecisionRank = rank;
     this.pendingWorldComplete = outcome.worldComplete;
+    this.pendingCampaignComplete = outcome.campaignComplete;
+    this.unlockedSparkName = outcome.unlockedSparkId
+      ? (sparkById(outcome.unlockedSparkId)?.name ?? 'NEW SPARK')
+      : null;
     Analytics.track(ANALYTICS_EVENTS.levelCompleted, {
       levelNumber: def.levelNumber,
       worldId: def.worldId,
@@ -1738,13 +1885,28 @@ export class Game {
       shardsGained: outcome.shardsGained,
       worldComplete: outcome.worldComplete,
     });
-    this.state.set(outcome.worldComplete ? 'WORLD_COMPLETE' : 'LEVEL_COMPLETE');
+    this.state.set(
+      outcome.worldComplete
+        ? 'WORLD_COMPLETE'
+        : outcome.campaignComplete
+          ? 'CAMPAIGN_COMPLETE'
+          : 'LEVEL_COMPLETE',
+    );
     this.emitHud();
   }
 
   private finishCampaignFailure(): void {
     const def = this.campaignDef!;
     this.pendingCampaignFail = false;
+
+    if (this.firstLevelOnboardingActive()) {
+      this.resetCampaignAttempt();
+      this.banner = 'TRY AGAIN · FIND THE CRACK';
+      this.bannerTimer = 1.6;
+      this.state.set('READY');
+      this.emitHud();
+      return;
+    }
 
     if (this.secondChancePending) {
       this.secondChancePending = false;
@@ -1768,6 +1930,7 @@ export class Game {
     });
 
     if (
+      !RELEASE_POLICY.freeRetries &&
       !hasUnlimitedEnergy(this.save.campaign) &&
       this.save.campaign.currentEnergy <= 0
     ) {

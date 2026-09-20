@@ -1,5 +1,6 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { BackButton, GlassPanel, Screen, ScreenTitle, color, space } from '../design';
 import { formatScore } from '../target/TargetScoring';
 import type { PersistentGameData } from '../persistence/GameSave';
 
@@ -29,68 +30,42 @@ export function StatsScreen({ save, onBack }: Props) {
     ['Space Clears', String(save.lifetimeStats.spaceClears)],
   ];
   return (
-    <View style={styles.root}>
-      <Text style={styles.title}>STATS</Text>
+    <Screen scroll={false}>
+      <ScreenTitle title="STATS" eyebrow="YOUR JOURNEY" />
       <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
         {rows.map(([label, value]) => (
-          <View key={label} style={styles.row}>
+          <GlassPanel key={label} style={styles.row}>
             <Text style={styles.label}>{label}</Text>
             <Text style={styles.value}>{value}</Text>
-          </View>
+          </GlassPanel>
         ))}
       </ScrollView>
-      <Pressable style={styles.back} onPress={onBack}>
-        <Text style={styles.backText}>BACK</Text>
-      </Pressable>
-    </View>
+      <BackButton onPress={onBack} />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(10,8,7,0.94)',
-    paddingTop: 72,
-    paddingHorizontal: 28,
-  },
-  title: {
-    color: '#ffd24a',
-    fontSize: 26,
-    fontWeight: '900',
-    letterSpacing: 3,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
   list: {
     flex: 1,
   },
   listContent: {
-    paddingBottom: 24,
+    paddingBottom: space.lg,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: space.xs,
+    paddingVertical: space.sm,
   },
   label: {
-    color: 'rgba(244,239,230,0.7)',
-    fontSize: 16,
+    color: color.creamMuted,
+    fontSize: 14,
     fontWeight: '600',
   },
   value: {
-    color: '#f4efe6',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  back: {
-    alignSelf: 'center',
-    marginBottom: 36,
-    paddingVertical: 12,
-  },
-  backText: {
-    color: '#7ef0ff',
+    color: color.cyanBright,
     fontSize: 14,
     fontWeight: '800',
-    letterSpacing: 2,
   },
 });

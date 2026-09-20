@@ -50,6 +50,28 @@ function rotor(
   };
 }
 
+function gate(
+  openingWidth: number,
+  opts?: {
+    amplitude?: number;
+    speed?: number;
+    z?: number;
+    openingHeight?: number;
+    appearance?: 'standard' | 'containmentGlass';
+  },
+): ObstacleConfig {
+  return {
+    type: 'slidingGate',
+    z: opts?.z ?? Z_A,
+    appearance: opts?.appearance,
+    openingWidth,
+    openingHeight: opts?.openingHeight ?? 3.1,
+    baseX: 0,
+    amplitude: opts?.amplitude ?? 0,
+    speed: opts?.speed ?? 0,
+  };
+}
+
 function lasers(
   orientation: 'vertical' | 'horizontal' | 'both',
   opts?: {
@@ -58,6 +80,12 @@ function lasers(
     speed?: number;
     onRatio?: number;
     z?: number;
+    movement?: {
+      axis: 'horizontal' | 'vertical' | 'both';
+      amplitude: number;
+      speed: number;
+      phase?: number;
+    };
   },
 ): ObstacleConfig {
   return {
@@ -73,99 +101,155 @@ function lasers(
     onRatio: opts?.onRatio,
     centerX: 0,
     centerY: 3,
+    movement: opts?.movement ?? {
+      axis:
+        orientation === 'vertical'
+          ? 'horizontal'
+          : orientation === 'horizontal'
+            ? 'vertical'
+            : 'both',
+      amplitude: orientation === 'both' ? 0.5 : 0.72,
+      speed: orientation === 'both' ? 0.62 : 0.58,
+    },
   };
 }
 
 /**
  * World 1 — Containment escape.
- * Teach rotors, then security lasers (V → H → pulse → cross), then dual + finale.
+ * Canonical teaching arc: breach, aim/power, moving gate, one-arm rotor,
+ * readable security patterns, combinations, then the Jump Gate escape.
  */
 export const WORLD1_LEVELS: CampaignLevelDefinition[] = [
-  level(1, 'w1-01', 'BASIC_ROTOR', [rotor(0.42)], soft, {
-    tutorialHint: 'DRAG TO AIM',
-    storyBeat: 'THE BREACH',
+  level(1, 'w1-01', 'BASIC_GATE', [
+    gate(1.72, { openingHeight: 2.65, appearance: 'containmentGlass' }),
+  ], center, {
+    tutorialHint: 'PULL TO POWER UP',
+    storyBeat: 'ESCAPE THE GLASS',
   }),
-  level(2, 'w1-02', 'BASIC_ROTOR', [rotor(0.5)], soft, {
-    tutorialHint: 'RELEASE TO THROW',
-    storyBeat: 'THE LAB',
+  level(2, 'w1-02', 'BASIC_GATE', [gate(2.55, { openingHeight: 3.3 })], offset, {
+    tutorialHint: 'PULL FARTHER FOR POWER',
+    storyBeat: 'BREAK CONTAINMENT',
   }),
-  level(3, 'w1-03', 'BASIC_ROTOR', [rotor(0.56)], center, {
-    tutorialHint: 'TIME THE OPENING',
+  level(3, 'w1-03', 'MOVING_GATE', [gate(2.45, { amplitude: 0.24, speed: 0.24 })], soft, {
+    tutorialHint: 'FOLLOW THE OPENING',
     storyBeat: 'LOCKING DOWN',
   }),
-  level(4, 'w1-04', 'BASIC_ROTOR', [rotor(0.62)], center, {
+  level(4, 'w1-04', 'BASIC_ROTOR', [rotor(0.28, { blades: 1 })], soft, {
+    tutorialHint: 'THROW AFTER THE ARM PASSES',
     storyBeat: 'FIRST ROTOR',
   }),
-  level(5, 'w1-05', 'OFFSET_TARGET', [rotor(0.55)], offset, {
-    tutorialHint: 'AIM OFF-CENTER',
+  level(5, 'w1-05', 'BASIC_ROTOR', [rotor(0.38, { blades: 1 })], center, {
+    tutorialHint: 'TIMING BEATS SPEED',
   }),
-  level(6, 'w1-06', 'FAST_ROTOR', [rotor(0.7)], center),
-  level(7, 'w1-07', 'REVERSE_ROTOR', [rotor(0.58, { reverse: true })], center, {
-    tutorialHint: 'IT REVERSES',
+  level(6, 'w1-06', 'BASIC_ROTOR', [rotor(0.36, { blades: 2 })], center, {
+    tutorialHint: 'READ BOTH ARMS',
   }),
-  level(8, 'w1-08', 'OFFSET_TARGET', [rotor(0.64)], offset),
-  level(9, 'w1-09', 'MOVING_TARGET', [rotor(0.6)], {
-    x: 0,
-    y: 3,
-    radius: 1.14,
-    movement: { type: 'horizontal', amplitude: 0.4, speed: 0.42, phase: 0 },
+  level(7, 'w1-07', 'REVERSE_ROTOR', [rotor(0.4, { reverse: true })], center, {
+    tutorialHint: 'WATCH THE DIRECTION',
+    storyBeat: 'SECURITY ROTATION',
   }),
 
-  // Security lasers — one new idea at a time
-  level(10, 'w1-10', 'LASER_VERTICAL', [lasers('vertical', { openingSize: 1.35 })], soft, {
-    tutorialHint: 'THREAD THE GAP',
-    storyBeat: 'SECURITY BARS',
-  }),
-  level(11, 'w1-11', 'LASER_HORIZONTAL', [lasers('horizontal', { openingSize: 1.3 })], center, {
-    tutorialHint: 'HORIZONTAL SWEEP',
-  }),
+  // Security lasers: each layout is introduced alone before combinations.
   level(
-    12,
-    'w1-12',
+    8,
+    'w1-08',
+    'LASER_VERTICAL',
+    [
+      lasers('vertical', {
+        openingSize: 1.55,
+        movement: { axis: 'horizontal', amplitude: 0.78, speed: 0.5 },
+      }),
+    ],
+    soft,
+    {
+      tutorialHint: 'FOLLOW THE GAP LEFT TO RIGHT',
+      storyBeat: 'SECURITY BARS',
+    },
+  ),
+  level(
+    9,
+    'w1-09',
+    'LASER_HORIZONTAL',
+    [
+      lasers('horizontal', {
+        openingSize: 1.5,
+        movement: { axis: 'vertical', amplitude: 0.82, speed: 0.56 },
+      }),
+    ],
+    soft,
+    {
+      tutorialHint: 'FOLLOW THE GAP UP AND DOWN',
+    },
+  ),
+  level(
+    10,
+    'w1-10',
     'LASER_PULSE',
-    [lasers('vertical', { openingSize: 1.2, mode: 'pulse', speed: 0.6, onRatio: 0.52 })],
+    [
+      lasers('vertical', {
+        openingSize: 1.45,
+        mode: 'pulse',
+        speed: 0.42,
+        onRatio: 0.46,
+        movement: { axis: 'horizontal', amplitude: 0.9, speed: 0.62 },
+      }),
+    ],
     center,
     {
-      tutorialHint: 'WAIT FOR THE DROP',
+      tutorialHint: 'TRACK THE GAP · THROW WHILE OFF',
       storyBeat: 'TIMING SEQUENCE',
     },
   ),
   level(
-    13,
-    'w1-13',
+    11,
+    'w1-11',
     'LASER_CROSS',
-    [lasers('both', { openingSize: 1.22, mode: 'pulse', speed: 0.55, onRatio: 0.48 })],
+    [
+      lasers('both', {
+        openingSize: 1.4,
+        mode: 'pulse',
+        speed: 0.38,
+        onRatio: 0.44,
+        movement: { axis: 'both', amplitude: 0.55, speed: 0.58 },
+      }),
+    ],
     center,
     {
-      tutorialHint: 'CROSSFIRE',
+      tutorialHint: 'FOLLOW THE MOVING CROSSING',
       storyBeat: 'FULL SECURITY GRID',
     },
   ),
-
-  // Dual planes then escape
+  level(
+    12,
+    'w1-12',
+    'ROTOR_GATE',
+    [rotor(0.38, { blades: 2, z: Z_A }), gate(2.15, { amplitude: 0.18, speed: 0.24, z: Z_B })],
+    center,
+    { tutorialHint: 'READ THE NEAR PLANE FIRST', storyBeat: 'DOUBLE LOCK' },
+  ),
+  level(
+    13,
+    'w1-13',
+    'COMBINED_HAZARD',
+    [lasers('vertical', { openingSize: 1.5, z: Z_A }), rotor(0.4, { blades: 2, z: Z_B })],
+    center,
+    { tutorialHint: 'ONE OPENING AT A TIME', storyBeat: 'SECURITY OVERRIDE' },
+  ),
   level(
     14,
     'w1-14',
     'DUAL_ROTOR',
-    [rotor(0.52, { blades: 3, z: Z_A }), rotor(0.46, { blades: 2, z: Z_B })],
+    [rotor(0.42, { blades: 2, z: Z_A }), rotor(0.36, { blades: 2, reverse: true, z: Z_B })],
     center,
-    { tutorialHint: 'TWO PLANES', storyBeat: 'FULL LOCKDOWN' },
+    { tutorialHint: 'WAIT FOR BOTH PATHS', storyBeat: 'FULL LOCKDOWN' },
   ),
   level(
     15,
     'w1-15',
     'ROTOR_GATE',
     [
-      rotor(0.6, { blades: 3, z: Z_A }),
-      {
-        type: 'slidingGate',
-        z: Z_B,
-        openingWidth: 1.75,
-        openingHeight: 2.8,
-        baseX: 0,
-        amplitude: 0.45,
-        speed: 0.42,
-      },
+      rotor(0.46, { blades: 2, z: Z_A }),
+      gate(1.95, { amplitude: 0.28, speed: 0.3, z: Z_B, openingHeight: 3 }),
     ],
     late,
     {

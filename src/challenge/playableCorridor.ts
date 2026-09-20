@@ -1,24 +1,37 @@
 import type { ChallengeConfig } from '../config/ChallengeConfig';
+import { sampleMovement } from '../config/MovementConfig';
 import type { ObstacleConfig } from '../config/ObstacleConfig';
 import { isRotorConfig, obstacleTypeOf } from '../config/ObstacleConfig';
 import { GAME_TUNING } from '../game/gameTuning';
 import {
+  evaluateBlockerCollision,
   evaluateGateCollision,
   evaluateIrisCollision,
+  evaluateLaserCollision,
   evaluatePendulumCollision,
+  evaluatePhaseCollision,
   evaluateRingCollision,
   evaluateRotorCollision,
+  laserBeamsFromLayout,
+  lasersOnAt,
 } from '../obstacles/ObstacleCollision';
+import { driftPosition } from '../obstacles/DriftingBlockerObstacle';
 import { irisRadiusAt } from '../obstacles/IrisObstacle';
 import { pendulumPose } from '../obstacles/PendulumObstacle';
 import { ringPosition } from '../obstacles/MovingRingObstacle';
+import { orbiterPosition } from '../obstacles/OrbiterObstacle';
+import { phaseOpen } from '../obstacles/PhaseFieldObstacle';
+import { apertureState } from '../obstacles/ShiftingApertureObstacle';
+import { integrateMotion, type PhysicsForces } from '../projectile/physics';
 
 const MIN_HUB_CLEARANCE = 0.08;
 const MIN_TARGET_MARGIN = 0.05;
 
-export function hasPlayableCorridor(challenge: ChallengeConfig): boolean {
+export function hasPlayableCorridor(
+  challenge: ChallengeConfig,
+  forces: PhysicsForces = {},
+): boolean {
   const start = GAME_TUNING.projectile.startPosition;
-  const gravity = GAME_TUNING.gravity;
   const ball = GAME_TUNING.projectile.radius;
   const obstacles = challenge.obstacles;
   const target = challenge.target;
@@ -30,7 +43,7 @@ export function hasPlayableCorridor(challenge: ChallengeConfig): boolean {
         vy <= GAME_TUNING.projectile.baseVerticalVelocity + GAME_TUNING.projectile.maxVerticalVelocity;
         vy += 0.4
       ) {
-        if (shotClearsCourse(start, { vx, vy, vz }, gravity, ball, obstacles, target)) {
+        if (shotClearsCourse(start, { vx, vy, vz }, forces, ball, obstacles, target)) {
           return true;
         }
       }
@@ -42,29 +55,63 @@ export function hasPlayableCorridor(challenge: ChallengeConfig): boolean {
 function shotClearsCourse(
   start: { x: number; y: number; z: number },
   velocity: { vx: number; vy: number; vz: number },
-  gravity: number,
+  forces: PhysicsForces,
   ball: number,
   obstacles: ObstacleConfig[],
   target: ChallengeConfig['target'],
 ): boolean {
   for (const obstacle of obstacles) {
-    const t = (obstacle.z - start.z) / velocity.vz;
-    if (t <= 0) {
+    const at = simulateToPlane(start, velocity, obstacle.z, forces);
+    if (!at) {
       return false;
     }
-    const x = start.x + velocity.vx * t;
-    const y = start.y + velocity.vy * t - 0.5 * gravity * t * t;
-    if (!clearsObstacle(obstacle, x, y, ball, t)) {
+    if (!clearsObstacle(obstacle, at.x, at.y, ball, at.time)) {
       return false;
     }
   }
 
   const targetZ = target.z ?? GAME_TUNING.target.z;
-  const t = (targetZ - start.z) / velocity.vz;
-  const x = start.x + velocity.vx * t;
-  const y = start.y + velocity.vy * t - 0.5 * gravity * t * t;
-  const distance = Math.hypot(x - target.x, y - target.y);
+  const at = simulateToPlane(start, velocity, targetZ, forces);
+  if (!at) {
+    return false;
+  }
+  const targetX =
+    target.movement?.type === 'horizontal'
+      ? sampleMovement(target.movement, target.x, at.time)
+      : target.x;
+  const targetY =
+    target.movement?.type === 'vertical'
+      ? sampleMovement(target.movement, target.y, at.time)
+      : target.y;
+  const distance = Math.hypot(at.x - targetX, at.y - targetY);
   return distance <= target.radius - MIN_TARGET_MARGIN;
+}
+
+function simulateToPlane(
+  start: { x: number; y: number; z: number },
+  velocity: { vx: number; vy: number; vz: number },
+  planeZ: number,
+  forces: PhysicsForces,
+): { x: number; y: number; time: number } | null {
+  if (velocity.vz <= 0.001 || start.z >= planeZ) {
+    return null;
+  }
+  const state = { ...start, ...velocity };
+  const dt = 1 / 90;
+  let previous = { x: state.x, y: state.y, z: state.z };
+  let time = 0;
+  while (state.z < planeZ && time < GAME_TUNING.projectile.maxFlightTime) {
+    previous = { x: state.x, y: state.y, z: state.z };
+    integrateMotion(state, dt, forces);
+    time += dt;
+  }
+  const span = state.z - previous.z;
+  const u = span === 0 ? 1 : (planeZ - previous.z) / span;
+  return {
+    x: previous.x + (state.x - previous.x) * u,
+    y: previous.y + (state.y - previous.y) * u,
+    time: time - dt + u * dt,
+  };
 }
 
 function clearsObstacle(
@@ -123,23 +170,71 @@ function clearsObstacle(
     return !result.hit && result.clearance >= 0.05;
   }
   if (type === 'laserGrid' && obstacle.type === 'laserGrid') {
-    const cx = obstacle.centerX ?? 0;
-    const cy = obstacle.centerY ?? 3;
-    const half = obstacle.openingSize / 2;
-    if (obstacle.mode === 'pulse') {
-      // Pulsing grids are fair if a clear center throw exists while on, or any throw while off.
-      return Math.abs(x - cx) <= half - ball - 0.05 && Math.abs(y - cy) <= half - ball - 0.05;
-    }
-    if (obstacle.orientation === 'vertical') {
-      return Math.abs(x - cx) <= half - ball - 0.05;
-    }
-    if (obstacle.orientation === 'horizontal') {
-      return Math.abs(y - cy) <= half - ball - 0.05;
-    }
-    return Math.abs(x - cx) <= half - ball - 0.05 && Math.abs(y - cy) <= half - ball - 0.05;
+    const beams = laserBeamsFromLayout({
+      orientation: obstacle.orientation,
+      openingSize: obstacle.openingSize,
+      spacing: obstacle.spacing,
+      span: obstacle.span,
+      thickness: obstacle.thickness,
+      centerX: obstacle.centerX ?? 0,
+      centerY: obstacle.centerY ?? 3,
+    });
+    const on =
+      obstacle.mode !== 'pulse' ||
+      lasersOnAt(
+        arrivalTime,
+        obstacle.speed ?? 0.6,
+        obstacle.phase ?? 0,
+        obstacle.onRatio ?? 0.55,
+      );
+    const result = evaluateLaserCollision(x, y, ball, beams, on);
+    return !result.hit && result.clearance >= 0.04;
+  }
+  if (type === 'orbiter' && obstacle.type === 'orbiter') {
+    const pos = orbiterPosition(obstacle, arrivalTime);
+    const result = evaluateBlockerCollision(
+      x,
+      y,
+      ball,
+      pos.x,
+      pos.y,
+      obstacle.blockerRadius,
+      'orbiter',
+    );
+    return !result.hit && result.clearance >= 0.04;
+  }
+  if (type === 'driftingBlocker' && obstacle.type === 'driftingBlocker') {
+    const pos = driftPosition(obstacle, arrivalTime);
+    const result = evaluateBlockerCollision(
+      x,
+      y,
+      ball,
+      pos.x,
+      pos.y,
+      obstacle.blockerRadius,
+      'drift',
+    );
+    return !result.hit && result.clearance >= 0.04;
+  }
+  if (type === 'phaseField' && obstacle.type === 'phaseField') {
+    const result = evaluatePhaseCollision(
+      x,
+      y,
+      ball,
+      obstacle.centerX,
+      obstacle.centerY,
+      obstacle.fieldRadius,
+      phaseOpen(obstacle, arrivalTime),
+    );
+    return !result.hit && result.clearance >= 0.04;
+  }
+  if (type === 'shiftingAperture' && obstacle.type === 'shiftingAperture') {
+    const state = apertureState(obstacle, arrivalTime);
+    const result = evaluateIrisCollision(x, y, ball, state.x, state.y, state.radius);
+    return !result.hit && result.clearance >= 0.05;
   }
   if (!isRotorConfig(obstacle)) {
-    return true;
+    return false;
   }
   const cx = GAME_TUNING.rotor.center.x;
   const cy = GAME_TUNING.rotor.center.y;

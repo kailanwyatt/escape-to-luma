@@ -9,6 +9,7 @@ import {
   type PersistentGameData,
 } from '../persistence/GameSave';
 import { regenerateEnergy } from '../economy/energy';
+import { RELEASE_POLICY } from '../config/release';
 
 export function syncCampaignEnergy(campaign: CampaignSave, now = Date.now()): CampaignSave {
   const unlimited = hasUnlimitedEnergy(campaign, now);
@@ -24,6 +25,9 @@ export function canStartLevel(campaign: CampaignSave, levelNumber: number, now =
   ok: boolean;
   reason?: 'locked' | 'missing' | 'energy' | 'stub';
 } {
+  if (!Number.isInteger(levelNumber) || levelNumber < 1 || levelNumber > RELEASE_POLICY.campaignMaxLevel) {
+    return { ok: false, reason: 'missing' };
+  }
   const synced = syncCampaignEnergy(campaign, now);
   if (levelNumber > synced.highestUnlockedLevel) {
     return { ok: false, reason: 'locked' };
@@ -37,7 +41,12 @@ export function canStartLevel(campaign: CampaignSave, levelNumber: number, now =
     return { ok: false, reason: 'missing' };
   }
   const replay = Boolean(synced.completedLevels[def.id]?.cleared);
-  if (!replay && !hasUnlimitedEnergy(synced, now) && synced.currentEnergy <= 0) {
+  if (
+    !RELEASE_POLICY.freeRetries &&
+    !replay &&
+    !hasUnlimitedEnergy(synced, now) &&
+    synced.currentEnergy <= 0
+  ) {
     return { ok: false, reason: 'energy' };
   }
   return { ok: true };
@@ -89,7 +98,7 @@ export function applyLevelSuccess(
     campaign.highestUnlockedLevel = Math.min(150, nextLevel);
   }
 
-  if (definition.isWorldFinale) {
+  if (definition.isWorldFinale && !prev.cleared) {
     const world = worldById(definition.worldId);
     if (world) {
       worldComplete = true;
@@ -108,7 +117,7 @@ export function applyLevelSuccess(
   }
 
   let campaignComplete = campaign.campaignCompleted;
-  if (definition.levelNumber >= 150) {
+  if (definition.levelNumber >= RELEASE_POLICY.campaignMaxLevel) {
     campaign.campaignCompleted = true;
     campaignComplete = true;
   }
@@ -139,7 +148,12 @@ export function applyLevelFailure(
   campaign.stats.failures += 1;
   campaign.consecutiveFailuresOnLevel += 1;
   campaign.lastPlayedLevel = definition.levelNumber;
-  if (options.consumeEnergy && !hasUnlimitedEnergy(campaign) && !options.usedSecondChance) {
+  if (
+    !RELEASE_POLICY.freeRetries &&
+    options.consumeEnergy &&
+    !hasUnlimitedEnergy(campaign) &&
+    !options.usedSecondChance
+  ) {
     const replay = prev.cleared;
     if (!replay) {
       campaign.currentEnergy = Math.max(0, campaign.currentEnergy - 1);

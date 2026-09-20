@@ -9,7 +9,7 @@
 
 ## 1. Art direction (one paragraph)
 
-**SPARK** is a **campaign-driven precision throw** game. The player guides a **living energy Spark** from underground containment across city, sky, and deep space to **get home**. Visuals should feel industrial → atmospheric → cosmic, always **readable at a glance**. Silhouette and opening clarity beat detail. Never decorate over the play corridor. Spark is alive (pulse, trail, emissive) — not a toy ball with a face. Palette anchors: ink `#0A0807`, cream `#F4EFE6`, amber `#FFD24A`, copper `#D06A32`, cyan `#7EF0FF`, heart `#FF5D6C`, energy `#7EFFB0`, shard `#FFE08A`.
+**SPARK** is a **campaign-driven precision throw** game. The player guides a **living energy Spark** from underground containment across city, sky, and deep space to **get home**. Visuals should feel industrial → atmospheric → cosmic, always **readable at a glance**. Silhouette and opening clarity beat detail. Never decorate over the play corridor. Spark is alive (pulse, trail, emissive) — not a toy ball with a face. Palette anchors: ink `#050B15`, cream `#F4EFE6`, amber `#FFB800`, copper `#FF8A00`, cyan `#00CCFF`, heart `#FF5D6C`, energy `#FFD54A`, shard `#7EF0FF`.
 
 ---
 
@@ -132,7 +132,7 @@ Audio WAVs under `assets/sfx/` — out of scope for this graphics brief.
 7. **Three technical environments** — Workshop / Rooftop / Space; **ten story worlds** dress those sets. Obstacles re-skin; same collision logic.
 8. **All Sparks** — same hitbox; personality via materials/FX only.
 9. **Wind & gravity wells** — must be visually communicated whenever active.
-10. **Nine obstacle families** — rotor, slidingGate, iris, pendulum, movingRing, orbiter, driftingBlocker, phaseField, shiftingAperture.
+10. **Ten obstacle families** — rotor, slidingGate, iris, pendulum, movingRing, orbiter, driftingBlocker, phaseField, shiftingAperture, laserGrid.
 
 ---
 

@@ -1,22 +1,8 @@
-import { requestTrackingPermissionsAsync, isAvailable } from 'expo-tracking-transparency';
-
-let asked = false;
-
 /**
- * Request ATT only immediately before a real (non-simulated) ad.
- * Never called on first launch. Does not send the advertising ID to analytics.
+ * TestFlight deliberately ships without tracking or an ATT prompt.
+ * Keep the service seam so a future real ad provider can implement consent
+ * without touching gameplay callers.
  */
 export async function requestTrackingIfNeeded(): Promise<void> {
-  if (asked) {
-    return;
-  }
-  asked = true;
-  if (!isAvailable()) {
-    return;
-  }
-  try {
-    await requestTrackingPermissionsAsync();
-  } catch {
-    // Permission is optional; ads still function as non-personalized.
-  }
+  return Promise.resolve();
 }

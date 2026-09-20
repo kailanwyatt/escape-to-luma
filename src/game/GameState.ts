@@ -17,6 +17,8 @@ export type GamePhase =
   | 'LEVEL_COMPLETE'
   | 'LEVEL_FAILED'
   | 'WORLD_COMPLETE'
+  | 'SPARK_UNLOCKED'
+  | 'CAMPAIGN_COMPLETE'
   | 'OUT_OF_ENERGY';
 
 export type ShotResultKind =
@@ -40,6 +42,8 @@ export class GameState {
 }
 
 export type HudSnapshot = {
+  hydrated: boolean;
+  openingStage: number;
   phase: GamePhase;
   lives: number;
   score: number;
@@ -49,6 +53,7 @@ export type HudSnapshot = {
   resultText: string | null;
   showOnboarding: boolean;
   onboardingText: string | null;
+  firstLevelOnboarding: boolean;
   shotsReached: number;
   hits: number;
   greats: number;
@@ -100,6 +105,7 @@ export type HudSnapshot = {
   storyBeat: string | null;
   windActive: boolean;
   helpOffer: boolean;
+  unlockedSparkName: string | null;
 };
 
 export type ObstacleDebug = {

@@ -15,26 +15,45 @@ function palette(environment: EnvironmentId) {
   }
 }
 
-export function createGateVisual(environment: EnvironmentId): THREE.Group {
+export function createGateVisual(
+  environment: EnvironmentId,
+  appearance: 'standard' | 'containmentGlass' = 'standard',
+): THREE.Group {
   const group = new THREE.Group();
   const colors = palette(environment);
   const t = GAME_TUNING.gate;
   const depth = 0.12;
+  const glass = appearance === 'containmentGlass';
+  const panelMaterial = glass
+    ? new THREE.MeshPhongMaterial({
+        color: 0x7de7ff,
+        emissive: 0x0b6688,
+        emissiveIntensity: 0.28,
+        transparent: true,
+        opacity: 0.34,
+        shininess: 100,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      })
+    : new THREE.MeshLambertMaterial({ color: colors.panel });
+  const edgeMaterial = glass
+    ? panelMaterial
+    : new THREE.MeshLambertMaterial({ color: colors.accent });
   const left = new THREE.Mesh(
     new THREE.BoxGeometry(1, t.panelHeight, depth),
-    new THREE.MeshLambertMaterial({ color: colors.panel }),
+    panelMaterial,
   );
   left.name = 'left';
   const right = left.clone();
   right.name = 'right';
   const top = new THREE.Mesh(
     new THREE.BoxGeometry(t.panelWidth, 1, depth),
-    new THREE.MeshLambertMaterial({ color: colors.accent }),
+    edgeMaterial,
   );
   top.name = 'top';
   const bottom = top.clone();
   bottom.name = 'bottom';
-  if (environment === 'space') {
+  if (environment === 'space' && !glass) {
     for (const mesh of [left, right, top, bottom]) {
       (mesh.material as THREE.MeshLambertMaterial).emissive = new THREE.Color(colors.energy);
       (mesh.material as THREE.MeshLambertMaterial).emissiveIntensity = 0.25;

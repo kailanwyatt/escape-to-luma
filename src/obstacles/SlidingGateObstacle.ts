@@ -24,6 +24,7 @@ export class SlidingGateObstacle {
   private config: SlidingGateConfig | null = null;
   private visual: THREE.Group | null = null;
   private environment: EnvironmentId = 'workshop';
+  private appearance: NonNullable<SlidingGateConfig['appearance']> = 'standard';
   private elapsed = 0;
   openingX = 0;
   openingY = GAME_TUNING.gate.baseY;
@@ -40,9 +41,19 @@ export class SlidingGateObstacle {
     this.z = config.z;
     this.elapsed = 0;
     this.openingY = config.baseY ?? GAME_TUNING.gate.baseY;
-    if (!this.visual || environment !== this.environment) {
+    const appearance = config.appearance ?? 'standard';
+    if (
+      !this.visual ||
+      environment !== this.environment ||
+      appearance !== this.appearance
+    ) {
       this.environment = environment;
-      this.visual = replaceVisual(this.group, this.visual, createGateVisual(environment));
+      this.appearance = appearance;
+      this.visual = replaceVisual(
+        this.group,
+        this.visual,
+        createGateVisual(environment, appearance),
+      );
     }
     this.update(0, 0);
   }

@@ -2,18 +2,22 @@ import { StatusBar } from 'expo-status-bar';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, AppState, PanResponder, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, AppState, PanResponder, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { canStartLevel } from './src/campaign/CampaignPlay';
+import { getCampaignLevel } from './src/campaign/levels';
 import { ECONOMY } from './src/config/economy';
-import { msUntilNextEnergy } from './src/economy/energy';
 import { Game } from './src/game/Game';
+import { preloadAssetGroup } from './src/graphics/assetRegistry';
+import { buildDiagnosticReport } from './src/debug/Diagnostics';
 import type { DebugSnapshot, HudSnapshot } from './src/game/GameState';
 import { emptySave, type GameSettings, type PersistentGameData } from './src/persistence/GameSave';
 import { GameHaptics } from './src/feedback/Haptics';
 import { AudioManager } from './src/feedback/AudioManager';
 import { DebugOverlay } from './src/ui/DebugOverlay';
+import { AppErrorBoundary } from './src/ui/AppErrorBoundary';
+import { FirstRunStoryScreen } from './src/ui/FirstRunStoryScreen';
 import { GraphicsScreen } from './src/ui/GraphicsScreen';
 import { HomeScreen } from './src/ui/HomeScreen';
 import { HUD } from './src/ui/HUD';
@@ -27,6 +31,7 @@ import { SparksScreen } from './src/ui/SparksScreen';
 import { StatsScreen } from './src/ui/StatsScreen';
 
 type AppScreen =
+  | 'opening'
   | 'home'
   | 'play'
   | 'journey'
@@ -48,6 +53,8 @@ const EMPTY_RECORDS = {
 };
 
 const INITIAL_HUD: HudSnapshot = {
+  hydrated: false,
+  openingStage: 0,
   phase: 'READY',
   lives: 3,
   score: 0,
@@ -57,6 +64,7 @@ const INITIAL_HUD: HudSnapshot = {
   resultText: null,
   showOnboarding: true,
   onboardingText: 'DRAG TO AIM',
+  firstLevelOnboarding: false,
   shotsReached: 0,
   hits: 0,
   greats: 0,
@@ -108,24 +116,38 @@ const INITIAL_HUD: HudSnapshot = {
   storyBeat: null,
   windActive: false,
   helpOffer: false,
+  unlockedSparkName: null,
 };
 
 function continueLevelNumber(save: PersistentGameData): number {
   const c = save.campaign;
-  const level = c.lastPlayedLevel >= 1 ? c.lastPlayedLevel : c.highestUnlockedLevel;
-  return Math.min(150, Math.max(1, Math.min(level, c.highestUnlockedLevel)));
+  if (c.campaignCompleted) {
+    return 1;
+  }
+  const highest = Math.min(150, Math.max(1, c.highestUnlockedLevel));
+  for (let level = 1; level <= highest; level += 1) {
+    const definition = getCampaignLevel(level);
+    if (definition && !c.completedLevels[definition.id]?.cleared) {
+      return level;
+    }
+  }
+  return highest;
 }
 
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AppShell />
+      <AppErrorBoundary>
+        <AppShell />
+      </AppErrorBoundary>
     </SafeAreaProvider>
   );
 }
 
 function AppShell() {
   const gameRef = useRef<Game | null>(null);
+  const playingRef = useRef(false);
+  const openingRoutedRef = useRef(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
   const [save, setSave] = useState<PersistentGameData>(emptySave());
@@ -136,6 +158,8 @@ function AppShell() {
   const [systemReduceMotion, setSystemReduceMotion] = useState(false);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
 
   const refreshSave = useCallback(() => {
     const game = gameRef.current;
@@ -153,7 +177,9 @@ function AppShell() {
       setHud(snapshot);
       setSave(game.getSave());
     });
-    game.start();
+    if (playingRef.current) {
+      game.start();
+    }
   }, [systemReduceMotion]);
 
   const onContextCreate = useCallback(
@@ -179,6 +205,7 @@ function AppShell() {
   }, []);
 
   useEffect(() => {
+    void preloadAssetGroup('boot');
     void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {
       // Orientation lock is best-effort in Expo Go / web.
     });
@@ -205,7 +232,9 @@ function AppShell() {
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       if (next === 'active') {
-        gameRef.current?.resume();
+        if (playingRef.current && !pausedRef.current) {
+          gameRef.current?.resume();
+        }
       } else {
         gameRef.current?.onTouchCancel();
         gameRef.current?.pause();
@@ -229,6 +258,25 @@ function AppShell() {
   }, [debugEnabled]);
 
   const playing = screen === 'play';
+
+  useEffect(() => {
+    if (!hud.hydrated || openingRoutedRef.current) {
+      return;
+    }
+    openingRoutedRef.current = true;
+    if (!save.campaign.hasSeenOpening) {
+      setScreen('opening');
+    }
+  }, [hud.hydrated, save.campaign.hasSeenOpening]);
+
+  useEffect(() => {
+    playingRef.current = playing;
+    if (playing && !paused) {
+      gameRef.current?.resume();
+    } else {
+      gameRef.current?.pause();
+    }
+  }, [paused, playing]);
 
   const panResponder = useMemo(
     () =>
@@ -310,6 +358,8 @@ function AppShell() {
 
   const onHome = useCallback(() => {
     tap(() => {
+      pausedRef.current = false;
+      setPaused(false);
       refreshSave();
       setScreen('home');
     });
@@ -326,7 +376,6 @@ function AppShell() {
     [refreshSave, save.settings],
   );
 
-  const nextEnergyMs = msUntilNextEnergy(save.campaign.currentEnergy, save.campaign.energyUpdatedAt);
   const showOutOfEnergyOverlay =
     (screen === 'play' && hud.phase === 'OUT_OF_ENERGY') || screen === 'outOfEnergy';
 
@@ -351,6 +400,9 @@ function AppShell() {
           onToggleDebug={onToggleDebug}
           onRestart={() => {
             GameHaptics.forUi();
+            pausedRef.current = false;
+            setPaused(false);
+            gameRef.current?.resume();
             gameRef.current?.requestRetry();
           }}
           onHome={onHome}
@@ -378,32 +430,34 @@ function AppShell() {
             GameHaptics.forUi();
             gameRef.current?.declineHelp();
           }}
+          paused={paused}
+          onPause={() => {
+            GameHaptics.forUi();
+            pausedRef.current = true;
+            setPaused(true);
+            gameRef.current?.onTouchCancel();
+            gameRef.current?.pause();
+          }}
+          onResume={() => {
+            GameHaptics.forUi();
+            pausedRef.current = false;
+            setPaused(false);
+            gameRef.current?.resume();
+          }}
+          onSkipOpening={() => {
+            GameHaptics.forUi();
+            gameRef.current?.skipCampaignOpening();
+          }}
         />
       ) : null}
       {showOutOfEnergyOverlay ? (
         <OutOfEnergyScreen
-          nextEnergyMs={nextEnergyMs}
-          onWatchAd={() =>
+          onRetry={() =>
             tap(() => {
-              gameRef.current?.watchRewardedEnergy();
-              refreshSave();
-            })
-          }
-          onUnlimited24={() =>
-            tap(() => {
-              gameRef.current?.activateUnlimitedEnergy(ECONOMY.unlimitedEnergy24hMs);
-              refreshSave();
               if (screen === 'outOfEnergy') {
                 tryOpenLevelReady(pendingLevel);
-              }
-            })
-          }
-          onUnlimited7={() =>
-            tap(() => {
-              gameRef.current?.activateUnlimitedEnergy(ECONOMY.unlimitedEnergy7dMs);
-              refreshSave();
-              if (screen === 'outOfEnergy') {
-                tryOpenLevelReady(pendingLevel);
+              } else {
+                gameRef.current?.retryCampaignLevel();
               }
             })
           }
@@ -465,6 +519,23 @@ function AppShell() {
         onForceContinueSuccess={() => gameRef.current?.debugForceContinueSuccess()}
         onForceContinueFail={() => gameRef.current?.debugForceContinueFailure()}
       />
+      {screen === 'opening' ? (
+        <FirstRunStoryScreen
+          onComplete={() =>
+            tap(() => {
+              gameRef.current?.completeFirstRunStory();
+              void preloadAssetGroup('world1');
+              pausedRef.current = false;
+              setPaused(false);
+              setPendingLevel(1);
+              gameRef.current?.resume();
+              setScreen('play');
+              gameRef.current?.startCampaignLevel(1, {});
+              refreshSave();
+            })
+          }
+        />
+      ) : null}
       {screen === 'home' ? (
         <HomeScreen
           save={save}
@@ -518,6 +589,9 @@ function AppShell() {
           }
           onEndless={() =>
             tap(() => {
+              pausedRef.current = false;
+              setPaused(false);
+              gameRef.current?.resume();
               setScreen('play');
               gameRef.current?.startEndlessVoyage();
             })
@@ -540,6 +614,10 @@ function AppShell() {
           levelNumber={pendingLevel}
           onPlay={(boosts) =>
             tap(() => {
+              void preloadAssetGroup(pendingLevel <= 15 ? 'world1' : pendingLevel <= 30 ? 'world2' : 'optional');
+              pausedRef.current = false;
+              setPaused(false);
+              gameRef.current?.resume();
               setScreen('play');
               gameRef.current?.startCampaignLevel(pendingLevel, boosts);
             })
@@ -630,8 +708,21 @@ function AppShell() {
               setPurchaseMessage(entitled ? 'Purchases restored.' : 'No purchases to restore.');
             });
           }}
+          onShareDiagnostics={() => {
+            const currentSave = gameRef.current?.getSave() ?? save;
+            void Share.share({
+              title: 'SPARK diagnostics',
+              message: buildDiagnosticReport(currentSave, hud),
+            });
+          }}
           onBack={() => tap(() => setScreen('home'))}
         />
+      ) : null}
+      {!hud.hydrated ? (
+        <View style={styles.loading} accessibilityRole="progressbar" accessibilityLabel="Loading saved journey">
+          <Text style={styles.loadingBrand}>SPARK</Text>
+          <Text style={styles.loadingText}>RESTORING JOURNEY…</Text>
+        </View>
       ) : null}
     </View>
   );
@@ -647,5 +738,24 @@ const styles = StyleSheet.create({
   },
   touch: {
     ...StyleSheet.absoluteFill,
+  },
+  loading: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#050b15',
+  },
+  loadingBrand: {
+    color: '#f8fbff',
+    fontSize: 36,
+    fontWeight: '900',
+    letterSpacing: 8,
+  },
+  loadingText: {
+    marginTop: 14,
+    color: '#00ccff',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
 });

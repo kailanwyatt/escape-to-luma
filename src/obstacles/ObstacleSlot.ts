@@ -18,6 +18,7 @@ import { PhaseFieldObstacle } from './PhaseFieldObstacle';
 import { RotorObstacle } from './RotorObstacle';
 import { ShiftingApertureObstacle } from './ShiftingApertureObstacle';
 import { interpolateAtZ, SlidingGateObstacle } from './SlidingGateObstacle';
+import { disposeThreeObject } from '../utils/disposeThree';
 
 type ObstacleImpl =
   | RotorObstacle
@@ -71,6 +72,7 @@ export class ObstacleSlot {
     if (this.impl.type !== nextType) {
       this.group.remove(this.impl.group);
       this.impl.hide();
+      disposeThreeObject(this.impl.group);
       this.impl = createImpl(this.id, nextType);
       this.group.add(this.impl.group);
     }
@@ -79,6 +81,12 @@ export class ObstacleSlot {
 
   hide(): void {
     this.impl.hide();
+  }
+
+  dispose(): void {
+    this.impl.hide();
+    disposeThreeObject(this.impl.group);
+    this.group.clear();
   }
 
   update(dt: number, elapsedTime: number): void {

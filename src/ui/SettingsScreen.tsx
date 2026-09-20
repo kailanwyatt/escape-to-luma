@@ -1,6 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 
+import { RELEASE_POLICY } from '../config/release';
+import { BackButton, Screen, ScreenTitle, color, space } from '../design';
 import type { GameSettings } from '../persistence/GameSave';
 
 type Props = {
@@ -12,6 +14,7 @@ type Props = {
   onToggle: (key: keyof GameSettings) => void;
   onRemoveAds: () => void;
   onRestore: () => void;
+  onShareDiagnostics: () => void;
   onBack: () => void;
 };
 
@@ -24,12 +27,12 @@ export function SettingsScreen({
   onToggle,
   onRemoveAds,
   onRestore,
+  onShareDiagnostics,
   onBack,
 }: Props) {
-  const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.root, { paddingTop: Math.max(insets.top, 24) + 48, paddingBottom: insets.bottom }]}>
-      <Text style={styles.title}>SETTINGS</Text>
+    <Screen>
+      <ScreenTitle title="SETTINGS" />
       <Toggle
         label="SOUND EFFECTS"
         value={settings.soundEnabled}
@@ -49,31 +52,41 @@ export function SettingsScreen({
       {systemReduceMotion ? (
         <Text style={styles.note}>System Reduce Motion is on</Text>
       ) : null}
-      <Text style={styles.section}>ADS</Text>
-      <Text style={styles.blurb}>
-        {removeAds
-          ? 'Interstitials removed. Optional Continue ads still available.'
-          : 'Enjoy uninterrupted runs. Optional Continue ads stay available.'}
-      </Text>
-      {removeAds ? (
-        <Text style={styles.owned}>REMOVE ADS OWNED</Text>
+      {RELEASE_POLICY.purchasesEnabled || RELEASE_POLICY.adsEnabled ? (
+        <>
+          <Text style={styles.section}>ADS</Text>
+          <Text style={styles.blurb}>
+            {removeAds
+              ? 'Interstitials removed. Optional Continue ads still available.'
+              : 'Enjoy uninterrupted runs. Optional Continue ads stay available.'}
+          </Text>
+          {removeAds ? (
+            <Text style={styles.owned}>REMOVE ADS OWNED</Text>
+          ) : (
+            <Pressable
+              style={[styles.purchase, purchaseBusy && styles.purchaseBusy]}
+              disabled={purchaseBusy}
+              onPress={onRemoveAds}
+            >
+              <Text style={styles.purchaseText}>{purchaseBusy ? 'WORKING…' : 'REMOVE ADS'}</Text>
+            </Pressable>
+          )}
+          <Pressable style={styles.restore} disabled={purchaseBusy} onPress={onRestore}>
+            <Text style={styles.restoreText}>RESTORE PURCHASES</Text>
+          </Pressable>
+          {purchaseMessage ? <Text style={styles.note}>{purchaseMessage}</Text> : null}
+        </>
       ) : (
-        <Pressable
-          style={[styles.purchase, purchaseBusy && styles.purchaseBusy]}
-          disabled={purchaseBusy}
-          onPress={onRemoveAds}
-        >
-          <Text style={styles.purchaseText}>{purchaseBusy ? 'WORKING…' : 'REMOVE ADS'}</Text>
-        </Pressable>
+        <Text style={styles.betaNote}>BETA · NO ADS OR PURCHASES</Text>
       )}
-      <Pressable style={styles.restore} disabled={purchaseBusy} onPress={onRestore}>
-        <Text style={styles.restoreText}>RESTORE PURCHASES</Text>
+      <Pressable style={styles.diagnostics} onPress={onShareDiagnostics}>
+        <Text style={styles.restoreText}>SHARE DIAGNOSTICS</Text>
       </Pressable>
-      {purchaseMessage ? <Text style={styles.note}>{purchaseMessage}</Text> : null}
-      <Pressable style={styles.back} onPress={onBack}>
-        <Text style={styles.backText}>BACK</Text>
-      </Pressable>
-    </View>
+      <Text style={styles.build}>
+        VERSION {Constants.expoConfig?.version ?? 'LOCAL'} · BUILD {Constants.expoConfig?.ios?.buildNumber ?? 'DEV'}
+      </Text>
+      <BackButton onPress={onBack} />
+    </Screen>
   );
 }
 
@@ -97,67 +110,61 @@ function Toggle({
 }
 
 const styles = StyleSheet.create({
-  root: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(10,8,7,0.94)',
-    paddingTop: 72,
-    paddingHorizontal: 28,
-  },
-  title: {
-    color: '#ffd24a',
-    fontSize: 26,
-    fontWeight: '900',
-    letterSpacing: 3,
-    textAlign: 'center',
-    marginBottom: 28,
-  },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: space.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(244,239,230,0.12)',
+    borderBottomColor: color.stroke,
   },
   label: {
-    color: '#f4efe6',
+    color: color.cream,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 1,
   },
   value: {
-    color: 'rgba(244,239,230,0.45)',
+    color: color.creamFaint,
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 2,
   },
   on: {
-    color: '#7ef0ff',
+    color: color.cyanBright,
   },
   note: {
     marginTop: 16,
-    color: 'rgba(244,239,230,0.5)',
+    color: color.creamFaint,
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
   },
+  betaNote: {
+    marginTop: 36,
+    color: 'rgba(126,240,255,0.7)',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textAlign: 'center',
+  },
   section: {
     marginTop: 36,
-    color: '#ffd24a',
+    color: color.amberBright,
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 3,
   },
   blurb: {
     marginTop: 10,
-    color: 'rgba(244,239,230,0.62)',
+    color: color.creamMuted,
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
   },
   owned: {
     marginTop: 18,
-    color: '#7ef0ff',
+    color: color.cyanBright,
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 2,
@@ -165,7 +172,7 @@ const styles = StyleSheet.create({
   purchase: {
     marginTop: 18,
     alignSelf: 'flex-start',
-    backgroundColor: '#d06a32',
+    backgroundColor: color.copper,
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 12,
@@ -174,7 +181,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   purchaseText: {
-    color: '#fff8ef',
+    color: color.white,
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 1,
@@ -183,21 +190,27 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingVertical: 8,
   },
+  diagnostics: {
+    marginTop: space.lg,
+    alignSelf: 'center',
+    paddingVertical: space.sm,
+    paddingHorizontal: space.md,
+    borderWidth: 1,
+    borderColor: color.panelBorder,
+    borderRadius: 12,
+  },
+  build: {
+    marginTop: space.md,
+    color: color.creamFaint,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    textAlign: 'center',
+  },
   restoreText: {
-    color: '#7ef0ff',
+    color: color.cyanBright,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1.5,
-  },
-  back: {
-    alignSelf: 'center',
-    marginTop: 36,
-    paddingVertical: 12,
-  },
-  backText: {
-    color: '#7ef0ff',
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 2,
   },
 });

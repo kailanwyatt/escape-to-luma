@@ -209,8 +209,20 @@ export function lasers(
     onRatio?: number;
     phase?: number;
     z?: number;
+    movement?: {
+      axis: 'horizontal' | 'vertical' | 'both';
+      amplitude: number;
+      speed: number;
+      phase?: number;
+    };
   },
 ): ObstacleConfig {
+  const defaultAxis =
+    orientation === 'vertical'
+      ? 'horizontal'
+      : orientation === 'horizontal'
+        ? 'vertical'
+        : 'both';
   return {
     type: 'laserGrid',
     z: opts?.z ?? Z_A,
@@ -225,5 +237,10 @@ export function lasers(
     phase: opts?.phase,
     centerX: 0,
     centerY: 3,
+    movement: opts?.movement ?? {
+      axis: defaultAxis,
+      amplitude: orientation === 'both' ? 0.5 : 0.72,
+      speed: orientation === 'both' ? 0.62 : 0.58,
+    },
   };
 }

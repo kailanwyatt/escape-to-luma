@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { ShotResultKind } from '../game/GameState';
+import { color } from '../design';
 
 type Props = {
   text: string | null;
@@ -40,7 +41,7 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
   },
   text: {
-    color: '#f4efe6',
+    color: color.cream,
     fontSize: 34,
     fontWeight: '900',
     letterSpacing: 1.5,
@@ -49,14 +50,14 @@ const styles = StyleSheet.create({
     textShadowRadius: 8,
   },
   bullseye: {
-    color: '#7ef0ff',
+    color: color.cyanBright,
   },
   great: {
-    color: '#c8f4a8',
+    color: color.success,
     fontSize: 32,
   },
   perfect: {
-    color: '#ffd24a',
+    color: color.amberBright,
     fontSize: 40,
   },
 });

@@ -1,3 +1,5 @@
+import { RELEASE_POLICY } from './release';
+
 export type CommercialConfig = {
   analyticsEnabled: boolean;
   adsEnabled: boolean;
@@ -27,11 +29,11 @@ export const ADMOB_TEST = {
 } as const;
 
 const runtime: CommercialConfig = {
-  analyticsEnabled: true,
-  adsEnabled: true,
-  rewardedContinueEnabled: true,
-  interstitialEnabled: true,
-  purchasesEnabled: true,
+  analyticsEnabled: RELEASE_POLICY.analyticsEnabled,
+  adsEnabled: RELEASE_POLICY.adsEnabled,
+  rewardedContinueEnabled: RELEASE_POLICY.adsEnabled,
+  interstitialEnabled: RELEASE_POLICY.adsEnabled,
+  purchasesEnabled: RELEASE_POLICY.purchasesEnabled,
   useTestAds: true,
 };
 

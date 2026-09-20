@@ -16,6 +16,8 @@ export const LEGAL_PAIRS: ReadonlyArray<readonly [ObstacleType, ObstacleType]> =
   ['iris', 'iris'],
   ['iris', 'slidingGate'],
   ['slidingGate', 'iris'],
+  ['iris', 'pendulum'],
+  ['pendulum', 'iris'],
   ['orbiter', 'orbiter'],
   ['orbiter', 'rotor'],
   ['rotor', 'orbiter'],

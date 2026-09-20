@@ -28,8 +28,10 @@ export class LaserGridObstacle {
   active = false;
   lasersOn = true;
   private config: LaserGridConfig | null = null;
+  private baseBeams: LaserBeam[] = [];
   private beams: LaserBeam[] = [];
   private meshes: THREE.Mesh[] = [];
+  private elapsed = 0;
 
   constructor(id: string) {
     this.id = id;
@@ -41,11 +43,12 @@ export class LaserGridObstacle {
     this.active = true;
     this.group.visible = true;
     this.z = config.z;
+    this.elapsed = 0;
     this.clearMeshes();
 
     const centerX = config.centerX ?? 0;
     const centerY = config.centerY ?? 3;
-    this.beams = laserBeamsFromLayout({
+    this.baseBeams = laserBeamsFromLayout({
       orientation: config.orientation,
       openingSize: config.openingSize,
       spacing: config.spacing,
@@ -54,6 +57,7 @@ export class LaserGridObstacle {
       centerX,
       centerY,
     });
+    this.beams = this.baseBeams.map((beam) => ({ ...beam }));
 
     for (const beam of this.beams) {
       const mesh = new THREE.Mesh(
@@ -84,6 +88,7 @@ export class LaserGridObstacle {
     this.active = false;
     this.group.visible = false;
     this.config = null;
+    this.baseBeams = [];
     this.beams = [];
     this.clearMeshes();
   }
@@ -92,6 +97,7 @@ export class LaserGridObstacle {
     if (!this.active || !this.config) {
       return;
     }
+    this.elapsed = elapsedTime;
     this.lasersOn =
       (this.config.mode ?? 'static') === 'static'
         ? true
@@ -102,7 +108,25 @@ export class LaserGridObstacle {
             this.config.onRatio ?? 0.55,
           );
 
-    for (const mesh of this.meshes) {
+    const center = this.centerAt(elapsedTime);
+    const baseX = this.config.centerX ?? 0;
+    const baseY = this.config.centerY ?? 3;
+    const dx = center.x - baseX;
+    const dy = center.y - baseY;
+
+    for (let index = 0; index < this.meshes.length; index += 1) {
+      const mesh = this.meshes[index];
+      const base = this.baseBeams[index];
+      const beam = this.beams[index];
+      beam.position =
+        base.position + (beam.orientation === 'vertical' ? dx : dy);
+      beam.centerX = base.centerX + dx;
+      beam.centerY = base.centerY + dy;
+      if (beam.orientation === 'vertical') {
+        mesh.position.set(beam.position, beam.centerY, 0);
+      } else {
+        mesh.position.set(beam.centerX, beam.position, 0);
+      }
       const material = mesh.material as THREE.MeshBasicMaterial;
       material.color.setHex(this.lasersOn ? LASER_ON : LASER_OFF);
       material.opacity = this.lasersOn ? 0.9 : 0.18;
@@ -135,8 +159,9 @@ export class LaserGridObstacle {
             this.config.phase ?? 0,
             this.config.onRatio ?? 0.55,
           );
-    predicted.openingX = this.config.centerX ?? 0;
-    predicted.openingY = this.config.centerY ?? 3;
+    const center = this.centerAt(simTime + deltaSeconds);
+    predicted.openingX = center.x;
+    predicted.openingY = center.y;
     predicted.openingWidth = this.config.openingSize;
     predicted.openingHeight = this.config.openingSize;
     // Encode on/off for trajectory: large opening when off.
@@ -151,15 +176,49 @@ export class LaserGridObstacle {
     predicted: ObstaclePredictedState,
   ): ObstacleCollisionResult {
     const on = predicted.openingRadius < 50;
-    return evaluateLaserCollision(x, y, projectileRadius, this.beams, on);
+    if (!this.config) {
+      return { hit: null, nearMiss: false, clearance: 1 };
+    }
+    const beams = laserBeamsFromLayout({
+      orientation: this.config.orientation,
+      openingSize: this.config.openingSize,
+      spacing: this.config.spacing,
+      span: this.config.span,
+      thickness: this.config.thickness,
+      centerX: predicted.openingX,
+      centerY: predicted.openingY,
+    });
+    return evaluateLaserCollision(x, y, projectileRadius, beams, on);
   }
 
   getDebugInfo(): ObstacleDebugInfo {
-    const predicted = this.predictState(0, 0);
+    const predicted = this.predictState(0, this.elapsed);
     return {
       ...predicted,
       speed: this.config?.speed ?? 0,
       extra: `${this.config?.orientation ?? '?'} ${this.lasersOn ? 'ON' : 'OFF'} n${this.beams.length}`,
+    };
+  }
+
+  private centerAt(elapsedTime: number): { x: number; y: number } {
+    const config = this.config;
+    const x = config?.centerX ?? 0;
+    const y = config?.centerY ?? 3;
+    const movement = config?.movement;
+    if (!movement || movement.amplitude === 0) {
+      return { x, y };
+    }
+    const angle = elapsedTime * movement.speed + (movement.phase ?? 0);
+    const offset = Math.sin(angle) * movement.amplitude;
+    if (movement.axis === 'horizontal') {
+      return { x: x + offset, y };
+    }
+    if (movement.axis === 'vertical') {
+      return { x, y: y + offset };
+    }
+    return {
+      x: x + offset,
+      y: y + Math.cos(angle) * movement.amplitude * 0.65,
     };
   }
 

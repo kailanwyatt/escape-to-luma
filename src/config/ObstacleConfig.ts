@@ -17,6 +17,7 @@ export type RingMovementType = 'horizontal' | 'vertical' | 'ellipse';
 export interface SlidingGateConfig {
   type: 'slidingGate';
   z: number;
+  appearance?: 'standard' | 'containmentGlass';
   openingWidth: number;
   openingHeight: number;
   baseX: number;
@@ -128,6 +129,13 @@ export interface LaserGridConfig {
   thickness: number;
   centerX?: number;
   centerY?: number;
+  /** Optional translation of the full beam array and its safe opening. */
+  movement?: {
+    axis: 'horizontal' | 'vertical' | 'both';
+    amplitude: number;
+    speed: number;
+    phase?: number;
+  };
   /**
    * `static` — always on (aim through gap).
    * `pulse` — lasers cycle on/off; throw while off or through gap while on.

@@ -5,14 +5,15 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.24",
+    "expo-asset": "~57.0.18",
     "expo-audio": "~57.0.5",
     "expo-constants": "~57.0.19",
     "expo-gl": "~57.0.2",
     "expo-haptics": "~57.0.3",
     "expo-linear-gradient": "~57.0.2",
     "expo-screen-orientation": "~57.0.2",
+    "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
-    "expo-tracking-transparency": "~57.0.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
@@ -23,7 +24,9 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "@types/three": "^0.186.0",
-    "typescript": "~6.0.3"
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "vitest": "^3.2.7"
   },
   "scripts": {
     "start": "expo start",
@@ -31,6 +34,11 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "audit:campaign": "tsx scripts/audit-campaign.ts",
+    "quality": "npm run typecheck && npm run test:run && npm run audit:campaign",
+    "doctor": "expo-doctor",
     "build:web": "expo export --platform web",
     "zip:web": "expo export --platform web && rm -f aperture-web-test.zip && cd dist && zip -r ../aperture-web-test.zip ."
   },

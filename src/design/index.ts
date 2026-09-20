@@ -7,4 +7,5 @@ export { MetaStrip } from './components/MetaStrip';
 export { StatusPanel } from './components/StatusPanel';
 export { BottomNav } from './components/BottomNav';
 export { ContinueJourneyButton } from './components/ContinueJourneyButton';
+export { BackButton, GlassPanel, ScreenTitle } from './components/ScreenChrome';
 export type { NavItem } from './components/BottomNav';

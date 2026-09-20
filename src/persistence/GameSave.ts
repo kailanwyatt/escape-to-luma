@@ -14,12 +14,17 @@ import { playerLevelFromXp, xpForLevel } from '../progression/xp';
 import { GameLog } from '../debug/GameLog';
 import { ECONOMY } from '../config/economy';
 import type { LevelProgress } from '../campaign/types';
+import { WORLDS } from '../campaign/worlds';
 import { DEFAULT_SPARK_ID } from '../customization/sparks';
 import { DEFAULT_TRAIL_ID } from '../customization/trails';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 const STORAGE_KEY = 'ball-game-cs.save.v1';
+const BACKUP_KEY = 'ball-game-cs.save.v1.backup';
 const LEGACY_BESTS_KEY = 'ball-game-cs.personal-bests.v1';
+const MAX_CAMPAIGN_LEVEL = 150;
+let writeQueue: Promise<boolean> = Promise.resolve(true);
+let lastSaveError: string | null = null;
 
 export type PlayerProgress = {
   totalXP: number;
@@ -203,50 +208,171 @@ export function emptySave(): PersistentGameData {
   };
 }
 
-export function migrateSaveData(oldVersion: number, data: Partial<PersistentGameData>): PersistentGameData {
+function finiteNumber(value: unknown, fallback: number, min: number, max: number): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(max, Math.max(min, value))
+    : fallback;
+}
+
+function integer(value: unknown, fallback: number, min: number, max: number): number {
+  return Math.round(finiteNumber(value, fallback, min, max));
+}
+
+function stringArray(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) {
+    return [...fallback];
+  }
+  return Array.from(new Set(value.filter((entry): entry is string => typeof entry === 'string')));
+}
+
+function normalizeLevelProgress(value: unknown): LevelProgress | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  const raw = value as Partial<LevelProgress>;
+  const rank =
+    raw.bestRank === 'GREAT' || raw.bestRank === 'BULLSEYE' || raw.bestRank === 'PERFECT'
+      ? raw.bestRank
+      : 'CLEAR';
+  const rewards = raw.rewardsGranted;
+  return {
+    bestRank: rank,
+    bestScore: integer(raw.bestScore, 0, 0, 1_000_000),
+    attempts: integer(raw.attempts, 0, 0, 1_000_000),
+    cleared: Boolean(raw.cleared),
+    rewardsGranted: {
+      clear: Boolean(rewards?.clear),
+      great: Boolean(rewards?.great),
+      bullseye: Boolean(rewards?.bullseye),
+      perfect: Boolean(rewards?.perfect),
+    },
+  };
+}
+
+function normalizeCompletedLevels(value: unknown): Record<string, LevelProgress> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  const normalized: Record<string, LevelProgress> = {};
+  for (const [id, progress] of Object.entries(value)) {
+    const level = normalizeLevelProgress(progress);
+    if (id.length <= 80 && level) {
+      normalized[id] = level;
+    }
+  }
+  return normalized;
+}
+
+function normalizeSave(data: Partial<PersistentGameData>): PersistentGameData {
   const next = emptySave();
-  if (data.playerProgress) {
-    next.playerProgress = { ...EMPTY_PROGRESS, ...data.playerProgress };
+  const player = data.playerProgress;
+  if (player && typeof player === 'object') {
+    next.playerProgress = {
+      ...EMPTY_PROGRESS,
+      ...player,
+      totalXP: integer(player.totalXP, 0, 0, 100_000_000),
+      playerLevel: 1,
+      totalRuns: integer(player.totalRuns, 0, 0, 10_000_000),
+      totalShotsCleared: integer(player.totalShotsCleared, 0, 0, 100_000_000),
+      totalBullseyes: integer(player.totalBullseyes, 0, 0, 100_000_000),
+      totalPerfects: integer(player.totalPerfects, 0, 0, 100_000_000),
+      totalCloseCalls: integer(player.totalCloseCalls, 0, 0, 100_000_000),
+      highestScore: integer(player.highestScore, 0, 0, 1_000_000_000),
+      longestRun: integer(player.longestRun, 0, 0, 1_000_000),
+      bestStreak: integer(player.bestStreak, 0, 0, 1_000_000),
+      unlockedProjectileIds: stringArray(
+        player.unlockedProjectileIds,
+        EMPTY_PROGRESS.unlockedProjectileIds,
+      ),
+    };
   }
-  if (data.selectedProjectileId) {
-    next.selectedProjectileId = data.selectedProjectileId;
-  }
-  if (data.personalBests) {
-    next.personalBests = { ...EMPTY_BESTS, ...data.personalBests };
-  }
-  if (data.milestoneRecords) {
-    next.milestoneRecords = { ...EMPTY_MILESTONES, ...data.milestoneRecords };
-  }
-  if (data.lifetimeStats) {
-    next.lifetimeStats = { ...EMPTY_LIFETIME, ...data.lifetimeStats };
-  }
-  if (data.settings) {
-    next.settings = { ...DEFAULT_SETTINGS, ...data.settings };
-  }
-  if (typeof data.hasCompletedOnboarding === 'boolean') {
-    next.hasCompletedOnboarding = data.hasCompletedOnboarding;
-  }
-  if (data.commercial) {
-    next.commercial = { ...EMPTY_COMMERCIAL, ...data.commercial };
-  }
-  if (data.campaign) {
+  next.selectedProjectileId =
+    typeof data.selectedProjectileId === 'string'
+      ? data.selectedProjectileId
+      : DEFAULT_PROJECTILE_ID;
+  next.personalBests = { ...EMPTY_BESTS, ...(data.personalBests ?? {}) };
+  next.milestoneRecords = { ...EMPTY_MILESTONES, ...(data.milestoneRecords ?? {}) };
+  next.lifetimeStats = { ...EMPTY_LIFETIME, ...(data.lifetimeStats ?? {}) };
+  next.settings = { ...DEFAULT_SETTINGS, ...(data.settings ?? {}) };
+  next.hasCompletedOnboarding = Boolean(data.hasCompletedOnboarding);
+  next.commercial = { ...EMPTY_COMMERCIAL, ...(data.commercial ?? {}) };
+
+  const campaign = data.campaign;
+  if (campaign && typeof campaign === 'object') {
+    const highestUnlockedLevel = integer(
+      campaign.highestUnlockedLevel,
+      1,
+      1,
+      MAX_CAMPAIGN_LEVEL,
+    );
+    const unlockedFromProgress = WORLDS
+      .filter((world) => world.firstLevel <= highestUnlockedLevel)
+      .map((world) => world.id);
+    const allowedWorldIds = new Set(WORLDS.map((world) => world.id));
+    const unlockedWorldIds = stringArray(campaign.unlockedWorldIds, unlockedFromProgress)
+      .filter((id) => allowedWorldIds.has(id as (typeof WORLDS)[number]['id']));
     next.campaign = {
       ...EMPTY_CAMPAIGN,
-      ...data.campaign,
-      completedLevels: { ...(data.campaign.completedLevels ?? {}) },
-      unlockedWorldIds: data.campaign.unlockedWorldIds?.length
-        ? [...data.campaign.unlockedWorldIds]
-        : ['containment'],
-      ownedSparkIds: data.campaign.ownedSparkIds?.length
-        ? [...data.campaign.ownedSparkIds]
-        : [DEFAULT_SPARK_ID],
-      ownedTrailIds: data.campaign.ownedTrailIds?.length
-        ? [...data.campaign.ownedTrailIds]
-        : [DEFAULT_TRAIL_ID],
-      boostInventory: { ...EMPTY_CAMPAIGN.boostInventory, ...data.campaign.boostInventory },
-      stats: { ...EMPTY_CAMPAIGN_STATS, ...data.campaign.stats },
+      ...campaign,
+      highestUnlockedLevel,
+      completedLevels: normalizeCompletedLevels(campaign.completedLevels),
+      unlockedWorldIds: Array.from(new Set(['containment', ...unlockedFromProgress, ...unlockedWorldIds])),
+      campaignCompleted: Boolean(campaign.campaignCompleted),
+      hasSeenOpening: Boolean(campaign.hasSeenOpening),
+      shards: integer(campaign.shards, 0, 0, 100_000_000),
+      currentEnergy: integer(campaign.currentEnergy, ECONOMY.maxEnergy, 0, ECONOMY.maxEnergy),
+      energyUpdatedAt: finiteNumber(campaign.energyUpdatedAt, Date.now(), 0, Number.MAX_SAFE_INTEGER),
+      ownedSparkIds: stringArray(campaign.ownedSparkIds, [DEFAULT_SPARK_ID]),
+      equippedSparkId:
+        typeof campaign.equippedSparkId === 'string'
+          ? campaign.equippedSparkId
+          : DEFAULT_SPARK_ID,
+      ownedTrailIds: stringArray(campaign.ownedTrailIds, [DEFAULT_TRAIL_ID]),
+      equippedTrailId:
+        typeof campaign.equippedTrailId === 'string'
+          ? campaign.equippedTrailId
+          : DEFAULT_TRAIL_ID,
+      boostInventory: {
+        guidance: integer(campaign.boostInventory?.guidance, 0, 0, 999),
+        slowField: integer(campaign.boostInventory?.slowField, 0, 0, 999),
+        secondChance: integer(campaign.boostInventory?.secondChance, 0, 0, 999),
+        hyperjump: integer(campaign.boostInventory?.hyperjump, 0, 0, 999),
+      },
+      unlimitedEnergyExpiresAt: finiteNumber(
+        campaign.unlimitedEnergyExpiresAt,
+        0,
+        0,
+        Number.MAX_SAFE_INTEGER,
+      ),
+      consecutiveFailuresOnLevel: integer(campaign.consecutiveFailuresOnLevel, 0, 0, 999),
+      lastPlayedLevel: integer(
+        campaign.lastPlayedLevel,
+        1,
+        1,
+        highestUnlockedLevel,
+      ),
+      stats: {
+        levelsCompleted: integer(campaign.stats?.levelsCompleted, 0, 0, MAX_CAMPAIGN_LEVEL),
+        worldsCompleted: integer(campaign.stats?.worldsCompleted, 0, 0, WORLDS.length),
+        totalAttempts: integer(campaign.stats?.totalAttempts, 0, 0, 100_000_000),
+        failures: integer(campaign.stats?.failures, 0, 0, 100_000_000),
+        perfects: integer(campaign.stats?.perfects, 0, 0, 100_000_000),
+        bullseyes: integer(campaign.stats?.bullseyes, 0, 0, 100_000_000),
+        greats: integer(campaign.stats?.greats, 0, 0, 100_000_000),
+        closeCalls: integer(campaign.stats?.closeCalls, 0, 0, 100_000_000),
+        shardsEarned: integer(campaign.stats?.shardsEarned, 0, 0, 100_000_000),
+        boostsUsed: integer(campaign.stats?.boostsUsed, 0, 0, 100_000_000),
+      },
+      endlessUnlockedDev: Boolean(campaign.endlessUnlockedDev),
     };
-  } else if (oldVersion < 4) {
+  }
+  next.playerProgress.playerLevel = playerLevelFromXp(next.playerProgress.totalXP);
+  return next;
+}
+
+export function migrateSaveData(oldVersion: number, data: Partial<PersistentGameData>): PersistentGameData {
+  const next = normalizeSave(data);
+  if (!data.campaign && oldVersion < 4) {
     // Prototype → SPARK: keep endless progress; start journey at level 1 with full energy.
     next.campaign.hasSeenOpening = false;
   }
@@ -259,8 +385,17 @@ export function migrateSaveData(oldVersion: number, data: Partial<PersistentGame
   if (!next.playerProgress.unlockedProjectileIds.includes(next.selectedProjectileId)) {
     next.selectedProjectileId = DEFAULT_PROJECTILE_ID;
   }
+  if (!next.campaign.ownedSparkIds.includes(DEFAULT_SPARK_ID)) {
+    next.campaign.ownedSparkIds.unshift(DEFAULT_SPARK_ID);
+  }
   if (!next.campaign.ownedSparkIds.includes(next.campaign.equippedSparkId)) {
     next.campaign.equippedSparkId = DEFAULT_SPARK_ID;
+  }
+  if (!next.campaign.ownedTrailIds.includes(DEFAULT_TRAIL_ID)) {
+    next.campaign.ownedTrailIds.unshift(DEFAULT_TRAIL_ID);
+  }
+  if (!next.campaign.ownedTrailIds.includes(next.campaign.equippedTrailId)) {
+    next.campaign.equippedTrailId = DEFAULT_TRAIL_ID;
   }
   next.saveVersion = SAVE_VERSION;
   return next;
@@ -270,19 +405,18 @@ export async function loadGameSave(): Promise<PersistentGameData> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (raw) {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        GameLog.warnOnce('corrupt-save', 'Save data could not be parsed; using defaults');
-        return emptySave();
+      const loaded = parseStoredSave(raw);
+      if (loaded) {
+        return loaded;
       }
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        GameLog.warnOnce('corrupt-save-shape', 'Save data was not an object; using defaults');
-        return emptySave();
+      const backup = await AsyncStorage.getItem(BACKUP_KEY);
+      const recovered = backup ? parseStoredSave(backup) : null;
+      if (recovered) {
+        GameLog.warnOnce('save-backup-recovered', 'Recovered progress from the save backup');
+        return recovered;
       }
-      const data = parsed as Partial<PersistentGameData> & { saveVersion?: number };
-      return migrateSaveData(data.saveVersion ?? 0, data);
+      GameLog.warnOnce('corrupt-save', 'Save data was invalid; using defaults');
+      return emptySave();
     }
     const legacy = await AsyncStorage.getItem(LEGACY_BESTS_KEY);
     if (legacy) {
@@ -302,12 +436,51 @@ export async function loadGameSave(): Promise<PersistentGameData> {
   }
 }
 
-export async function saveGameSave(save: PersistentGameData): Promise<void> {
+function parseStoredSave(raw: string): PersistentGameData | null {
   try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ ...save, saveVersion: SAVE_VERSION }));
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+    const data = parsed as Partial<PersistentGameData> & { saveVersion?: number };
+    const version = integer(data.saveVersion, 0, 0, Number.MAX_SAFE_INTEGER);
+    if (version > SAVE_VERSION) {
+      GameLog.warnOnce('future-save', 'Save data is from a newer version; ignoring it safely');
+      return null;
+    }
+    return migrateSaveData(version, data);
   } catch {
-    // Persistence is best-effort.
+    return null;
   }
+}
+
+export function saveGameSave(save: PersistentGameData): Promise<boolean> {
+  const snapshot = JSON.stringify({ ...normalizeSave(save), saveVersion: SAVE_VERSION });
+  const write = async (): Promise<boolean> => {
+    try {
+      const previous = await AsyncStorage.getItem(STORAGE_KEY);
+      if (previous && parseStoredSave(previous)) {
+        await AsyncStorage.setItem(BACKUP_KEY, previous);
+      }
+      await AsyncStorage.setItem(STORAGE_KEY, snapshot);
+      lastSaveError = null;
+      return true;
+    } catch (error) {
+      lastSaveError = error instanceof Error ? error.message : 'Unknown save write failure';
+      GameLog.warnOnce('save-write', `Save write failed: ${lastSaveError}`);
+      return false;
+    }
+  };
+  writeQueue = writeQueue.then(write, write);
+  return writeQueue;
+}
+
+export function getLastSaveError(): string | null {
+  return lastSaveError;
+}
+
+export async function flushGameSaveWrites(): Promise<boolean> {
+  return writeQueue;
 }
 
 export async function resetGameSave(): Promise<PersistentGameData> {

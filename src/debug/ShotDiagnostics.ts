@@ -5,6 +5,7 @@ import type { ObstacleSlot } from '../obstacles/ObstacleSlot';
 import { scoreTarget } from '../target/TargetScoring';
 import { distanceToTarget } from '../target/TargetCollision';
 import type { Target } from '../target/Target';
+import { integrateMotion, type PhysicsForces } from '../projectile/physics';
 
 export type Vec3 = { x: number; y: number; z: number };
 export type Velocity = { vx: number; vy: number; vz: number };
@@ -73,34 +74,28 @@ export function simulateToZ(
   velocity: Velocity,
   planeZ: number,
   dt = 1 / 60,
+  forces: PhysicsForces = {},
 ): { x: number; y: number; z: number; time: number } | null {
   if (velocity.vz <= 0.001 || start.z >= planeZ) {
     return null;
   }
-  const g = GAME_TUNING.gravity;
-  let x = start.x;
-  let y = start.y;
-  let z = start.z;
-  let vy = velocity.vy;
-  let prevX = x;
-  let prevY = y;
-  let prevZ = z;
+  const state = { ...start, ...velocity };
+  let prevX = state.x;
+  let prevY = state.y;
+  let prevZ = state.z;
   let time = 0;
-  while (z < planeZ && time < GAME_TUNING.projectile.maxFlightTime) {
-    prevX = x;
-    prevY = y;
-    prevZ = z;
-    vy -= g * dt;
-    x += velocity.vx * dt;
-    y += vy * dt;
-    z += velocity.vz * dt;
+  while (state.z < planeZ && time < GAME_TUNING.projectile.maxFlightTime) {
+    prevX = state.x;
+    prevY = state.y;
+    prevZ = state.z;
+    integrateMotion(state, dt, forces);
     time += dt;
   }
-  const span = z - prevZ;
+  const span = state.z - prevZ;
   const u = span === 0 ? 1 : (planeZ - prevZ) / span;
   return {
-    x: prevX + (x - prevX) * u,
-    y: prevY + (y - prevY) * u,
+    x: prevX + (state.x - prevX) * u,
+    y: prevY + (state.y - prevY) * u,
     z: planeZ,
     time: time - dt + u * dt,
   };
@@ -112,6 +107,8 @@ export function predictShot(
   obstacles: ObstacleSlot[],
   target: Target,
   simTime: number,
+  obstacleTimeScale = 1,
+  forces: PhysicsForces = {},
 ): ShotPrediction {
   const projectileRadius = GAME_TUNING.projectile.radius;
   const rotors = [0, 1].map((index) => {
@@ -122,9 +119,9 @@ export function predictShot(
     }
     const analyticT = (obstacle.z - start.z) / Math.max(0.001, velocity.vz);
     const analytic = analyticPosition(start, velocity, analyticT);
-    const simulated = simulateToZ(start, velocity, obstacle.z);
+    const simulated = simulateToZ(start, velocity, obstacle.z, 1 / 120, forces);
     const time = simulated?.time ?? analyticT;
-    const predicted = obstacle.predictState(time, simTime);
+    const predicted = obstacle.predictState(time * obstacleTimeScale, simTime);
     const at = simulated ?? analytic;
     const collision = obstacle.evaluateAt(at.x, at.y, projectileRadius, predicted);
     const debug = obstacle.getDebugInfo();
@@ -156,7 +153,7 @@ export function predictShot(
 
   const analyticT = (target.z - start.z) / Math.max(0.001, velocity.vz);
   const analytic = analyticPosition(start, velocity, analyticT);
-  const simulated = simulateToZ(start, velocity, target.z);
+  const simulated = simulateToZ(start, velocity, target.z, 1 / 120, forces);
   const time = simulated?.time ?? analyticT;
   const at = simulated ?? analytic;
   const futureTarget = target.predictPosition(simTime + time);
@@ -165,8 +162,11 @@ export function predictShot(
 
   const path: Vec3[] = [];
   const samples = 32;
+  const pathState = { ...start, ...velocity };
+  const pathDt = analyticT / samples;
   for (let i = 1; i <= samples; i += 1) {
-    path.push(analyticPosition(start, velocity, (i / samples) * analyticT));
+    integrateMotion(pathState, pathDt, forces);
+    path.push({ x: pathState.x, y: pathState.y, z: pathState.z });
   }
 
   let analyticVsSimMaxY = 0;

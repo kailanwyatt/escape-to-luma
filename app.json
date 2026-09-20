@@ -3,22 +3,31 @@
     "name": "SPARK",
     "slug": "ball-game-cs",
     "version": "0.1.0",
+    "scheme": "spark",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#1a1612",
+    "backgroundColor": "#050B15",
     "ios": {
+      "bundleIdentifier": "com.kurt.sparkescapetoluma",
+      "buildNumber": "1",
       "supportsTablet": true,
-      "requireFullScreen": true
+      "requireFullScreen": true,
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#1a1612",
+        "backgroundColor": "#050B15",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -43,7 +52,20 @@
           "initialOrientation": "PORTRAIT_UP"
         }
       ],
-      "expo-tracking-transparency"
+      "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#050B15",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#050B15",
+            "image": "./assets/splash-icon.png"
+          }
+        }
+      ]
     ]
   }
 }

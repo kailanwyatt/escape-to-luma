@@ -13,6 +13,8 @@ type Props = {
   onPress: () => void;
   label?: string;
   style?: StyleProp<ViewStyle>;
+  disabled?: boolean;
+  playIcon?: boolean;
 };
 
 /**
@@ -24,14 +26,22 @@ export function ContinueJourneyButton({
   onPress,
   label = 'CONTINUE JOURNEY',
   style,
+  disabled = false,
+  playIcon = true,
 }: Props) {
   const { width } = useWindowDimensions();
   const labelSize = width < 360 ? 16 : 20;
   return (
     <Pressable
       accessibilityRole="button"
+      disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.wrapper, style, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.wrapper,
+        style,
+        pressed && !disabled && styles.pressed,
+        disabled && styles.disabled,
+      ]}
     >
       <LinearGradient
         colors={['#FFE05B', '#FFC83D', '#F5A623']}
@@ -40,7 +50,7 @@ export function ContinueJourneyButton({
         end={{ x: 0.5, y: 1 }}
         style={styles.button}
       >
-        <View style={styles.playIcon} />
+        {playIcon ? <View style={styles.playIcon} /> : null}
         <Text style={[styles.label, { fontSize: labelSize }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
           {label}
         </Text>
@@ -95,5 +105,8 @@ const styles = StyleSheet.create({
   pressed: {
     transform: [{ scale: 0.975 }],
     opacity: 0.94,
+  },
+  disabled: {
+    opacity: 0.42,
   },
 });

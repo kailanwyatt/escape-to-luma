@@ -255,7 +255,7 @@ export function buildWorld7(): CampaignLevelDefinition[] {
         ? [drift(speed, r, ampX * 0.85, 0.28, -0.55, Z_A), ring(1.28, 0.48, 0.3, 'horizontal', Z_B)]
         : [
             drift(speed, r, ampX, 0.3, -0.55),
-            drift(speed * 0.92, r, ampX, 0.3, 0.55),
+            drift(speed * 0.92, r, ampX, 0.3, 0.55, Z_B),
           ];
     levels.push(
       makeLevel(
@@ -364,7 +364,7 @@ export function buildWorld10(): CampaignLevelDefinition[] {
       obstacles: [phase(0.7, 2.25, 0.48), aperture(0.48, 1.55, 0.4, { pulse: 0.7, shift: 0.55 }, Z_B)],
     }),
     () => ({
-      obstacles: [drift(0.6, 0.32, 0.7, 0.25, -0.5), drift(0.62, 0.32, 0.7, 0.25, 0.5)],
+      obstacles: [drift(0.6, 0.32, 0.7, 0.25, -0.5), drift(0.62, 0.32, 0.7, 0.25, 0.5, Z_B)],
     }),
     () => ({
       obstacles: [orbiter(0.75, 1.25, 0.3), iris(0.48, 1.55, 0.8, Z_B)],

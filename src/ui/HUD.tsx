@@ -3,6 +3,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { HudSnapshot } from '../game/GameState';
 import { formatScore } from '../target/TargetScoring';
+import { color, ContinueJourneyButton } from '../design';
+import { CampaignOpening } from './CampaignOpening';
 
 type Props = {
   hud: HudSnapshot;
@@ -16,6 +18,10 @@ type Props = {
   onRetryLevel: () => void;
   onUseHelp: () => void;
   onDeclineHelp: () => void;
+  paused: boolean;
+  onPause: () => void;
+  onResume: () => void;
+  onSkipOpening: () => void;
 };
 
 const CAMPAIGN_OVERLAY_PHASES = new Set<HudSnapshot['phase']>([
@@ -23,6 +29,8 @@ const CAMPAIGN_OVERLAY_PHASES = new Set<HudSnapshot['phase']>([
   'LEVEL_COMPLETE',
   'LEVEL_FAILED',
   'WORLD_COMPLETE',
+  'SPARK_UNLOCKED',
+  'CAMPAIGN_COMPLETE',
   'OUT_OF_ENERGY',
 ]);
 
@@ -38,6 +46,10 @@ export function HUD({
   onRetryLevel,
   onUseHelp,
   onDeclineHelp,
+  paused,
+  onPause,
+  onResume,
+  onSkipOpening,
 }: Props) {
   const insets = useSafeAreaInsets();
   const campaign = hud.sessionMode === 'campaign';
@@ -55,13 +67,19 @@ export function HUD({
     <View style={styles.root}>
       {showCampaignTop ? (
         <View style={[styles.top, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
-          <Text style={styles.campaignMeta}>{energyLabel}</Text>
-          <Text style={styles.campaignCenter}>
-            L{hud.campaignLevel}
-            {hud.campaignWorldName ? ` · ${hud.campaignWorldName.toUpperCase()}` : ''}
-            {hud.windActive ? ' · WIND' : ''}
+          <Text style={styles.campaignMeta}>
+            {hud.firstLevelOnboarding ? 'CONTAINMENT' : energyLabel}
           </Text>
-          <Text style={styles.campaignMeta}>◆ {hud.shards}</Text>
+          <Text style={styles.campaignCenter}>
+            {hud.firstLevelOnboarding
+              ? 'ESCAPE THROUGH THE CRACK'
+              : `L${hud.campaignLevel}${
+                  hud.campaignWorldName ? ` · ${hud.campaignWorldName.toUpperCase()}` : ''
+                }${hud.windActive ? ' · WIND' : ''}`}
+          </Text>
+          <Text style={[styles.campaignMeta, styles.campaignMetaRight]}>
+            {hud.firstLevelOnboarding ? 'NO TIMER' : `◆ ${hud.shards}`}
+          </Text>
         </View>
       ) : !campaign ? (
         <View style={[styles.top, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
@@ -86,9 +104,56 @@ export function HUD({
       {hud.banner ? <Text style={styles.banner}>{hud.banner}</Text> : null}
       {hud.closeCallText ? <Text style={styles.closeCall}>{hud.closeCallText}</Text> : null}
 
-      {hud.cancelReady ? <Text style={styles.cancel}>CANCEL</Text> : null}
+      {showCampaignTop && !hud.firstLevelOnboarding ? (
+        <View style={styles.playControls}>
+          <Pressable accessibilityRole="button" onPress={onHome} hitSlop={10}>
+            <Text style={styles.controlText}>HOME</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={onRestart} hitSlop={10}>
+            <Text style={styles.controlText}>RESTART</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={onPause} hitSlop={10}>
+            <Text style={styles.controlText}>PAUSE</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
-      {hud.onboardingText && !CAMPAIGN_OVERLAY_PHASES.has(hud.phase) ? (
+      {hud.cancelReady && !hud.firstLevelOnboarding ? (
+        <Text style={styles.cancel}>CANCEL</Text>
+      ) : null}
+
+      {hud.firstLevelOnboarding &&
+      (hud.phase === 'READY' || hud.phase === 'AIMING') ? (
+        <View
+          style={[
+            styles.firstTutorial,
+            { bottom: Math.max(insets.bottom, 16) + 18 },
+          ]}
+          pointerEvents="none"
+        >
+          <Text style={styles.firstTutorialEyebrow}>HOW TO ESCAPE</Text>
+          <TutorialRow
+            active={hud.phase === 'READY'}
+            number="1"
+            text="PULL TO POWER UP"
+          />
+          <TutorialRow
+            active={hud.phase === 'AIMING' && !hud.cancelReady}
+            number="2"
+            text="DRAG TO AIM THROUGH THE CRACK"
+          />
+          <TutorialRow
+            active={hud.phase === 'AIMING' && !hud.cancelReady}
+            number="3"
+            text="FINGER UP TO RELEASE"
+          />
+          <TutorialRow
+            active={hud.cancelReady}
+            number="4"
+            text="PULL BACK TO CENTER TO CANCEL"
+          />
+        </View>
+      ) : hud.onboardingText && !CAMPAIGN_OVERLAY_PHASES.has(hud.phase) ? (
         <View style={[styles.onboarding, { bottom: Math.max(insets.bottom, 16) + 28 }]}>
           <Text style={styles.onboardingTitle}>{hud.onboardingText}</Text>
           {hud.onboardingText === 'DRAG TO AIM' ? (
@@ -98,10 +163,7 @@ export function HUD({
       ) : null}
 
       {hud.phase === 'CAMPAIGN_OPENING' ? (
-        <View style={styles.overlay}>
-          {hud.storyBeat ? <Text style={styles.storyBeat}>{hud.storyBeat}</Text> : null}
-          <Text style={styles.tapStart}>TAP TO BEGIN</Text>
-        </View>
+        <CampaignOpening stage={hud.openingStage} onSkip={onSkipOpening} />
       ) : null}
 
       {hud.phase === 'LEVEL_COMPLETE' ? (
@@ -113,9 +175,7 @@ export function HUD({
           {hud.lastShardsGained > 0 ? (
             <Text style={styles.shardGain}>+{hud.lastShardsGained} SHARDS</Text>
           ) : null}
-          <Pressable style={styles.button} onPress={onContinueLevel}>
-            <Text style={styles.buttonText}>NEXT</Text>
-          </Pressable>
+          <ContinueJourneyButton label="NEXT" playIcon={false} style={styles.overlayCta} onPress={onContinueLevel} />
           <Pressable style={styles.homeButton} onPress={onHome}>
             <Text style={styles.homeText}>HOME</Text>
           </Pressable>
@@ -129,12 +189,28 @@ export function HUD({
             <Text style={styles.shardGain}>+{hud.lastShardsGained} SHARDS</Text>
           ) : null}
           <Text style={styles.continueCopy}>The journey continues.</Text>
-          <Pressable style={styles.button} onPress={onContinueLevel}>
-            <Text style={styles.buttonText}>CONTINUE</Text>
-          </Pressable>
+          <ContinueJourneyButton label="CONTINUE" playIcon={false} style={styles.overlayCta} onPress={onContinueLevel} />
           <Pressable style={styles.homeButton} onPress={onHome}>
             <Text style={styles.homeText}>HOME</Text>
           </Pressable>
+        </View>
+      ) : null}
+
+      {hud.phase === 'SPARK_UNLOCKED' ? (
+        <View style={styles.overlay}>
+          <Text style={styles.unlockEyebrow}>NEW SPARK</Text>
+          <Text style={styles.unlockName}>{hud.unlockedSparkName?.toUpperCase() ?? 'SPARK'}</Text>
+          <Text style={styles.continueCopy}>A new energy form joins the journey.</Text>
+          <ContinueJourneyButton label="CONTINUE" playIcon={false} style={styles.overlayCta} onPress={onContinueLevel} />
+        </View>
+      ) : null}
+
+      {hud.phase === 'CAMPAIGN_COMPLETE' ? (
+        <View style={styles.overlay}>
+          <Text style={styles.endTitle}>HOME REACHED</Text>
+          <Text style={styles.rank}>LUMA</Text>
+          <Text style={styles.continueCopy}>Spark found the signal. The network is open.</Text>
+          <ContinueJourneyButton label="RETURN HOME" playIcon={false} style={styles.overlayCta} onPress={onHome} />
         </View>
       ) : null}
 
@@ -146,18 +222,14 @@ export function HUD({
             <View style={styles.helpBanner}>
               <Text style={styles.helpTitle}>NEED A HAND?</Text>
               <Text style={styles.helpCopy}>Try a free slow field on this level.</Text>
-              <Pressable style={styles.helpButton} onPress={onUseHelp}>
-                <Text style={styles.buttonText}>USE SLOW FIELD</Text>
-              </Pressable>
+              <ContinueJourneyButton label="USE SLOW FIELD" playIcon={false} style={styles.overlayCta} onPress={onUseHelp} />
               <Pressable onPress={onDeclineHelp}>
                 <Text style={styles.homeText}>NO THANKS</Text>
               </Pressable>
             </View>
           ) : (
             <>
-              <Pressable style={styles.button} onPress={onRetryLevel}>
-                <Text style={styles.buttonText}>RETRY</Text>
-              </Pressable>
+              <ContinueJourneyButton label="RETRY" playIcon={false} style={styles.overlayCta} onPress={onRetryLevel} />
               <Pressable style={styles.homeButton} onPress={onHome}>
                 <Text style={styles.homeText}>HOME</Text>
               </Pressable>
@@ -180,13 +252,13 @@ export function HUD({
           <Text style={styles.endTitle}>KEEP GOING?</Text>
           <Text style={styles.continueCopy}>Watch an ad to continue this run.</Text>
           {hud.adMessage ? <Text style={styles.adMessage}>{hud.adMessage}</Text> : null}
-          <Pressable
-            style={[styles.button, hud.adBusy && styles.buttonDisabled]}
+          <ContinueJourneyButton
+            label={hud.adBusy ? 'LOADING' : 'CONTINUE'}
+            playIcon={false}
+            style={styles.overlayCta}
             disabled={hud.adBusy}
             onPress={onContinue}
-          >
-            <Text style={styles.buttonText}>{hud.adBusy ? 'LOADING' : 'CONTINUE'}</Text>
-          </Pressable>
+          />
           <Pressable
             style={styles.homeButton}
             disabled={hud.adBusy}
@@ -242,6 +314,42 @@ export function HUD({
           busy={hud.adBusy}
         />
       ) : null}
+
+      {paused ? (
+        <View style={styles.overlay}>
+          <Text style={styles.endTitle}>PAUSED</Text>
+          <ContinueJourneyButton label="RESUME" playIcon={false} style={styles.overlayCta} onPress={onResume} />
+          <Pressable style={styles.homeButton} onPress={onRestart}>
+            <Text style={styles.homeText}>RESTART</Text>
+          </Pressable>
+          <Pressable style={styles.homeButton} onPress={onHome}>
+            <Text style={styles.homeText}>HOME</Text>
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function TutorialRow({
+  active,
+  number,
+  text,
+}: {
+  active: boolean;
+  number: string;
+  text: string;
+}) {
+  return (
+    <View style={styles.tutorialRow}>
+      <View style={[styles.tutorialNumber, active && styles.tutorialNumberActive]}>
+        <Text style={[styles.tutorialNumberText, active && styles.tutorialNumberTextActive]}>
+          {number}
+        </Text>
+      </View>
+      <Text style={[styles.tutorialText, active && styles.tutorialTextActive]}>
+        {text}
+      </Text>
     </View>
   );
 }
@@ -300,9 +408,13 @@ function EndCard({
           <Text style={styles.unlockStatus}>UNLOCKED</Text>
         </View>
       ) : null}
-      <Pressable style={[styles.button, busy && styles.buttonDisabled]} onPress={onAction} disabled={busy}>
-        <Text style={styles.buttonText}>{busy ? 'LOADING' : action}</Text>
-      </Pressable>
+      <ContinueJourneyButton
+        label={busy ? 'LOADING' : action}
+        playIcon={false}
+        style={styles.overlayCta}
+        onPress={onAction}
+        disabled={busy}
+      />
       <Pressable style={styles.homeButton} onPress={onHome}>
         <Text style={styles.homeText}>HOME</Text>
       </Pressable>
@@ -328,7 +440,7 @@ const styles = StyleSheet.create({
     pointerEvents: 'box-none',
   },
   hearts: {
-    color: '#ff5d6c',
+    color: color.heart,
     fontSize: 22,
     fontWeight: '700',
     letterSpacing: 2,
@@ -340,6 +452,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     width: 72,
   },
+  campaignMetaRight: {
+    textAlign: 'right',
+  },
   campaignCenter: {
     flex: 1,
     textAlign: 'center',
@@ -349,7 +464,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   score: {
-    color: '#f4efe6',
+    color: color.cream,
     fontSize: 18,
     fontWeight: '800',
     width: 90,
@@ -362,14 +477,14 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   shotOn: {
-    color: '#7ef0ff',
+    color: color.cyanBright,
   },
   streakWrap: {
     marginTop: 8,
     alignItems: 'center',
   },
   multiplier: {
-    color: '#ffd24a',
+    color: color.amberBright,
     fontSize: 16,
     fontWeight: '900',
     letterSpacing: 1,
@@ -377,7 +492,7 @@ const styles = StyleSheet.create({
   streak: {
     marginTop: 2,
     textAlign: 'center',
-    color: '#ffd24a',
+    color: color.amberBright,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1.5,
@@ -385,7 +500,7 @@ const styles = StyleSheet.create({
   banner: {
     marginTop: 18,
     textAlign: 'center',
-    color: '#f4efe6',
+    color: color.cream,
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: 4,
@@ -393,10 +508,25 @@ const styles = StyleSheet.create({
   closeCall: {
     marginTop: 10,
     textAlign: 'center',
-    color: '#7ef0ff',
+    color: color.cyanBright,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 2,
+  },
+  playControls: {
+    position: 'absolute',
+    top: 104,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    pointerEvents: 'box-none',
+  },
+  controlText: {
+    color: 'rgba(126,240,255,0.8)',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
   },
   cancel: {
     position: 'absolute',
@@ -418,7 +548,7 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
   },
   onboardingTitle: {
-    color: '#f4efe6',
+    color: color.cream,
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: 2,
@@ -429,6 +559,62 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: 1.5,
+  },
+  firstTutorial: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(126,240,255,0.42)',
+    backgroundColor: 'rgba(4,14,26,0.88)',
+  },
+  firstTutorialEyebrow: {
+    marginBottom: 10,
+    color: color.cyanBright,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 2.5,
+    textAlign: 'center',
+  },
+  tutorialRow: {
+    minHeight: 27,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tutorialNumber: {
+    width: 19,
+    height: 19,
+    marginRight: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(126,240,255,0.32)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tutorialNumberActive: {
+    borderColor: color.amberBright,
+    backgroundColor: color.amberBright,
+  },
+  tutorialNumberText: {
+    color: color.cyanDim,
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  tutorialNumberTextActive: {
+    color: color.ink,
+  },
+  tutorialText: {
+    flex: 1,
+    color: 'rgba(244,239,230,0.58)',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  tutorialTextActive: {
+    color: color.amberBright,
   },
   overlay: {
     position: 'absolute',
@@ -443,7 +629,7 @@ const styles = StyleSheet.create({
     pointerEvents: 'auto',
   },
   storyBeat: {
-    color: '#f4efe6',
+    color: color.cream,
     fontSize: 17,
     fontWeight: '600',
     textAlign: 'center',
@@ -451,14 +637,14 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   rank: {
-    color: '#7ef0ff',
+    color: color.cyanBright,
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: 3,
     marginBottom: 8,
   },
   shardGain: {
-    color: '#ffd24a',
+    color: color.amberBright,
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: 1,
@@ -470,7 +656,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   helpTitle: {
-    color: '#ffd24a',
+    color: color.amberBright,
     fontSize: 16,
     fontWeight: '900',
     letterSpacing: 2,
@@ -483,15 +669,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  helpButton: {
-    marginBottom: 12,
-    backgroundColor: '#d06a32',
-    paddingHorizontal: 22,
-    paddingVertical: 12,
-    borderRadius: 14,
-  },
   endTitle: {
-    color: '#ffd24a',
+    color: color.amberBright,
     fontSize: 26,
     fontWeight: '900',
     letterSpacing: 1.5,
@@ -499,7 +678,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   newBest: {
-    color: '#7ef0ff',
+    color: color.cyanBright,
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 3,
@@ -518,7 +697,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   rowValue: {
-    color: '#f4efe6',
+    color: color.cream,
     fontSize: 15,
     fontWeight: '800',
   },
@@ -532,21 +711,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  button: {
+  overlayCta: {
     marginTop: 28,
-    backgroundColor: '#d06a32',
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  buttonDisabled: {
-    opacity: 0.45,
-  },
-  buttonText: {
-    color: '#fff8ef',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 1,
+    width: '100%',
+    maxWidth: 360,
   },
   startOverlay: {
     ...StyleSheet.absoluteFill,
@@ -555,7 +723,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(10,8,7,0.42)',
   },
   startTheme: {
-    color: '#ffd24a',
+    color: color.amberBright,
     fontSize: 28,
     fontWeight: '900',
     letterSpacing: 4,
@@ -569,13 +737,13 @@ const styles = StyleSheet.create({
   },
   startBest: {
     marginTop: 4,
-    color: '#f4efe6',
+    color: color.cream,
     fontSize: 22,
     fontWeight: '800',
   },
   tapStart: {
     marginTop: 36,
-    color: '#7ef0ff',
+    color: color.cyanBright,
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 3,
@@ -590,28 +758,28 @@ const styles = StyleSheet.create({
   },
   adMessage: {
     marginBottom: 12,
-    color: '#ffd24a',
+    color: color.amberBright,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1,
   },
   xpGain: {
     marginTop: 18,
-    color: '#7ef0ff',
+    color: color.cyanBright,
     fontSize: 20,
     fontWeight: '900',
     letterSpacing: 1,
   },
   levelUp: {
     marginTop: 8,
-    color: '#ffd24a',
+    color: color.amberBright,
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 3,
   },
   levelLabel: {
     marginTop: 10,
-    color: '#f4efe6',
+    color: color.cream,
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 2,
@@ -626,7 +794,7 @@ const styles = StyleSheet.create({
   },
   xpFill: {
     height: '100%',
-    backgroundColor: '#7ef0ff',
+    backgroundColor: color.cyanBright,
   },
   xpMeta: {
     marginTop: 6,
@@ -646,14 +814,14 @@ const styles = StyleSheet.create({
   },
   unlockName: {
     marginTop: 4,
-    color: '#ffd24a',
+    color: color.amberBright,
     fontSize: 16,
     fontWeight: '900',
     letterSpacing: 2,
   },
   unlockStatus: {
     marginTop: 2,
-    color: '#7ef0ff',
+    color: color.cyanBright,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 2,
@@ -663,7 +831,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   homeText: {
-    color: '#7ef0ff',
+    color: color.cyanBright,
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 2,

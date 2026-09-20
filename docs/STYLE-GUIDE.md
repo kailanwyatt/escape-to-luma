@@ -32,15 +32,15 @@ Fantasy line:
 
 | Token | Hex / value | Use |
 | --- | --- | --- |
-| `ink` | `#0A0807` | Screen base |
-| `inkElevated` | `#141110` | Chips / panels |
+| `ink` | `#050B15` | Screen base |
+| `inkElevated` | `#0A1524` | Chips / panels |
 | `cream` | `#F4EFE6` | Primary text |
 | `creamMuted` / `creamFaint` | alpha cream | Secondary / kickers |
-| `amber` | `#FFD24A` | Brand display, energy |
-| `copper` | `#D06A32` | Primary CTA |
-| `cyan` | `#7EF0FF` | Spark, links, progress |
-| `energy` | `#7EFFB0` | Energy positive |
-| `shard` | `#FFE08A` | Currency |
+| `amber` | `#FFB800` | Primary CTA / energy |
+| `copper` | `#FF8A00` | CTA gradient depth |
+| `cyan` | `#00CCFF` | Spark, links, progress |
+| `energy` | `#FFD54A` | Energy |
+| `shard` | `#7EF0FF` | Currency |
 | `danger` | `#FF3B3B` | Lasers / fail |
 
 Avoid default AI purple gradients. Keep space washes subtle (cyan/copper at ≤8% opacity).
@@ -65,9 +65,9 @@ Fonts are system for now. Later: one display + one condensed UI via `expo-font`.
 
 ## 5. Space & radius
 
-- Screen gutter: `space.screenX` (28)
+- Screen gutter: `space.screenX` (20)
 - Stack rhythm: `xs → sm → md → lg`
-- Controls: `radius.lg` (16); chips: `radius.sm` (8)
+- Controls: `radius.lg` (18); chips: `radius.sm` (10)
 
 ---
 

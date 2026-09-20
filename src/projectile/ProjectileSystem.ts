@@ -1,31 +1,28 @@
-import { GAME_TUNING } from '../game/gameTuning';
 import type { Projectile } from './Projectile';
+import { integrateMotion, type GravityWell } from './physics';
 
 export class ProjectileSystem {
   windX = 0;
   gravityScale = 1;
-  wells: { x: number; y: number; z: number; strength: number; radius: number }[] = [];
+  wells: GravityWell[] = [];
 
   integrate(projectile: Projectile, dt: number): void {
     projectile.previousPosition.copy(projectile.position);
-    projectile.velocity.y -= GAME_TUNING.gravity * this.gravityScale * dt;
-    projectile.velocity.x += this.windX * dt;
-    for (const well of this.wells) {
-      const dx = well.x - projectile.position.x;
-      const dy = well.y - projectile.position.y;
-      const dz = well.z - projectile.position.z;
-      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.15;
-      if (dist > well.radius) {
-        continue;
-      }
-      const falloff = 1 - dist / well.radius;
-      const accel = well.strength * falloff * falloff;
-      projectile.velocity.x += (dx / dist) * accel * dt;
-      projectile.velocity.y += (dy / dist) * accel * dt;
-    }
-    projectile.position.x += projectile.velocity.x * dt;
-    projectile.position.y += projectile.velocity.y * dt;
-    projectile.position.z += projectile.velocity.z * dt;
+    const state = {
+      x: projectile.position.x,
+      y: projectile.position.y,
+      z: projectile.position.z,
+      vx: projectile.velocity.x,
+      vy: projectile.velocity.y,
+      vz: projectile.velocity.z,
+    };
+    integrateMotion(state, dt, {
+      windX: this.windX,
+      gravityScale: this.gravityScale,
+      wells: this.wells,
+    });
+    projectile.position.set(state.x, state.y, state.z);
+    projectile.velocity.set(state.vx, state.vy, state.vz);
   }
 
   interpolateAtZ(

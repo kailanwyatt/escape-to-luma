@@ -4,13 +4,16 @@ import { GAME_TUNING } from '../game/gameTuning';
 import { estimateDifficulty } from './difficulty';
 import { isLegalCombination } from './legalCombinations';
 import { hasPlayableCorridor } from './playableCorridor';
+import type { PhysicsForces } from '../projectile/physics';
 
 export function validateChallenge(
   challenge: ChallengeConfig,
   requested: number,
+  forces: PhysicsForces = {},
 ): string | null {
   const obstacles = challenge.obstacles;
-  if (obstacles.length < 1 || obstacles.length > 2) {
+  const allowsOpenFinale = challenge.template === 'HOME_FINALE';
+  if ((obstacles.length < 1 && !allowsOpenFinale) || obstacles.length > 2) {
     return 'obstacle-count';
   }
 
@@ -86,10 +89,67 @@ export function validateChallenge(
       }
       continue;
     }
+    if (type === 'orbiter' && obstacle.type === 'orbiter') {
+      if (
+        obstacle.blockerRadius <= 0 ||
+        obstacle.orbitRadius <= obstacle.blockerRadius + GAME_TUNING.projectile.radius
+      ) {
+        return 'orbiter-shape';
+      }
+      continue;
+    }
+    if (type === 'driftingBlocker' && obstacle.type === 'driftingBlocker') {
+      if (
+        obstacle.blockerRadius <= 0 ||
+        obstacle.blockerRadius > 0.8 ||
+        Math.abs(obstacle.baseX) + Math.abs(obstacle.amplitudeX) > 2.4 ||
+        Math.abs(obstacle.baseY - 3) + Math.abs(obstacle.amplitudeY) > 2.4
+      ) {
+        return 'drift-bounds';
+      }
+      continue;
+    }
+    if (type === 'phaseField' && obstacle.type === 'phaseField') {
+      const openRatio = obstacle.openRatio ?? 0.45;
+      if (
+        obstacle.fieldRadius < GAME_TUNING.projectile.radius + 0.35 ||
+        obstacle.speed <= 0 ||
+        openRatio <= 0.15 ||
+        openRatio >= 0.85
+      ) {
+        return 'phase-field';
+      }
+      continue;
+    }
+    if (type === 'shiftingAperture' && obstacle.type === 'shiftingAperture') {
+      if (
+        obstacle.minRadius < GAME_TUNING.projectile.radius + 0.05 ||
+        obstacle.maxRadius <= obstacle.minRadius ||
+        obstacle.shiftAmplitude > 1.25
+      ) {
+        return 'aperture-range';
+      }
+      continue;
+    }
+    if (type === 'laserGrid' && obstacle.type === 'laserGrid') {
+      if (
+        obstacle.openingSize < GAME_TUNING.projectile.radius * 2 + 0.2 ||
+        obstacle.spacing <= obstacle.thickness ||
+        obstacle.span < 2 ||
+        (obstacle.mode === 'pulse' && (obstacle.speed ?? 0) <= 0)
+      ) {
+        return 'laser-layout';
+      }
+      const onRatio = obstacle.onRatio ?? 0.55;
+      if (onRatio <= 0.15 || onRatio >= 0.85) {
+        return 'laser-pulse';
+      }
+      continue;
+    }
     if (!isRotorConfig(obstacle)) {
       return 'unknown-obstacle';
     }
-    if (obstacle.bladeCount < 2 || obstacle.bladeCount > 4) {
+    if (obstacle.bladeCount < 1 || obstacle.bladeCount > 4) {
       return 'blade-count';
     }
     if (obstacle.rotationSpeed > GAME_TUNING.difficulty.maxRotorSpeed) {
@@ -113,7 +173,7 @@ export function validateChallenge(
     return 'combo-unfair';
   }
 
-  if (!hasPlayableCorridor(challenge)) {
+  if (!hasPlayableCorridor(challenge, forces)) {
     return 'no-corridor';
   }
 

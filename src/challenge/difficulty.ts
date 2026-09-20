@@ -75,6 +75,46 @@ export function estimateDifficulty(challenge: ChallengeConfig): number {
       }
       continue;
     }
+    if (type === 'orbiter') {
+      total += costs.orbiter;
+      if (obstacle.type === 'orbiter' && obstacle.speed >= 0.8) {
+        total += costs.fastMovement;
+      }
+      continue;
+    }
+    if (type === 'driftingBlocker') {
+      total += costs.driftingBlocker;
+      if (obstacle.type === 'driftingBlocker' && obstacle.speed >= 0.7) {
+        total += costs.fastMovement;
+      }
+      continue;
+    }
+    if (type === 'phaseField') {
+      total += costs.phaseField;
+      if (obstacle.type === 'phaseField' && (obstacle.openRatio ?? 0.45) < 0.4) {
+        total += costs.smallOpening;
+      }
+      continue;
+    }
+    if (type === 'shiftingAperture') {
+      total += costs.shiftingAperture;
+      if (obstacle.type === 'shiftingAperture' && obstacle.maxRadius <= 1.15) {
+        total += costs.smallOpening;
+      }
+      continue;
+    }
+    if (type === 'laserGrid') {
+      total += costs.laserGrid;
+      if (obstacle.type === 'laserGrid') {
+        if (obstacle.mode === 'pulse') {
+          total += costs.fastMovement;
+        }
+        if (obstacle.orientation === 'both' || obstacle.openingSize <= 1.25) {
+          total += costs.smallOpening;
+        }
+      }
+      continue;
+    }
 
     if (!isRotorConfig(obstacle)) {
       continue;

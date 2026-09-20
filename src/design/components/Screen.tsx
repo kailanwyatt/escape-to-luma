@@ -4,19 +4,36 @@ import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { color, space } from '../tokens';
 
-type Props = { children: ReactNode; style?: StyleProp<ViewStyle>; atmosphere?: boolean };
+type Props = {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  atmosphere?: boolean;
+  scroll?: boolean;
+};
 
-export function Screen({ children, style, atmosphere = true }: Props) {
+export function Screen({ children, style, atmosphere = true, scroll = true }: Props) {
   const insets = useSafeAreaInsets();
+  const contentStyle = [
+    styles.content,
+    {
+      paddingTop: Math.max(insets.top, 12),
+      paddingBottom: Math.max(insets.bottom, 20),
+      paddingLeft: Math.max(insets.left, space.screenX),
+      paddingRight: Math.max(insets.right, space.screenX),
+    },
+  ];
   return (
     <View style={[styles.root, style]}>
       {atmosphere ? <LinearGradient pointerEvents="none" colors={['#06121f', '#102a40', '#040c17', '#020811']} locations={[0, 0.4, 0.72, 1]} style={StyleSheet.absoluteFill} /> : null}
-      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, {
-        paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 20),
-        paddingLeft: Math.max(insets.left, space.screenX), paddingRight: Math.max(insets.right, space.screenX),
-      }]}>
-        <View style={styles.column}>{children}</View>
-      </ScrollView>
+      {scroll ? (
+        <ScrollView style={styles.scroll} contentContainerStyle={contentStyle}>
+          <View style={styles.column}>{children}</View>
+        </ScrollView>
+      ) : (
+        <View style={contentStyle}>
+          <View style={styles.column}>{children}</View>
+        </View>
+      )}
     </View>
   );
 }
