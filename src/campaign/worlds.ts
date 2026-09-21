@@ -28,7 +28,7 @@ export const WORLDS: WorldDefinition[] = [
     storyBeat: 'Spark races across the city toward the sky.',
     primaryMechanics: ['slidingGate', 'wind'],
     homeSignalStrength: 'faint',
-    distanceFromEarth: '12 KM FROM EARTH',
+    distanceFromEarth: 'ABOVE THE FACILITY',
     finaleName: 'CITY LIMITS',
     completionSparkId: 'neon',
     stub: false,
@@ -139,7 +139,7 @@ export const WORLDS: WorldDefinition[] = [
     environmentId: 'space',
     storyBeat: 'The Key reveals where home truly is.',
     primaryMechanics: ['shiftingAperture', 'synchronized'],
-    homeSignalStrength: 'located',
+    homeSignalStrength: 'strong',
     distanceFromEarth: 'BEYOND THE MAP',
     finaleName: 'THE KEY',
     completionSparkId: 'ancient',
@@ -175,9 +175,6 @@ export function worldForLevel(levelNumber: number): WorldDefinition | undefined 
 
 export function journeyDestinationLabel(unlockedWorldIds: string[], campaignCompleted: boolean): string {
   if (campaignCompleted || unlockedWorldIds.includes('homeward')) {
-    return 'HOME';
-  }
-  if (unlockedWorldIds.includes('network')) {
     return 'HOME';
   }
   return 'UNKNOWN';

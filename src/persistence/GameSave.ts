@@ -78,6 +78,7 @@ export type CampaignSave = {
   unlockedWorldIds: string[];
   campaignCompleted: boolean;
   hasSeenOpening: boolean;
+  seenStoryIds?: string[];
   shards: number;
   currentEnergy: number;
   energyUpdatedAt: number;
@@ -164,6 +165,7 @@ export const EMPTY_CAMPAIGN: CampaignSave = {
   unlockedWorldIds: ['containment'],
   campaignCompleted: false,
   hasSeenOpening: false,
+  seenStoryIds: [],
   shards: 0,
   currentEnergy: ECONOMY.maxEnergy,
   energyUpdatedAt: Date.now(),
@@ -319,6 +321,7 @@ function normalizeSave(data: Partial<PersistentGameData>): PersistentGameData {
       unlockedWorldIds: Array.from(new Set(['containment', ...unlockedFromProgress, ...unlockedWorldIds])),
       campaignCompleted: Boolean(campaign.campaignCompleted),
       hasSeenOpening: Boolean(campaign.hasSeenOpening),
+      seenStoryIds: stringArray(campaign.seenStoryIds, []).slice(0, 200),
       shards: integer(campaign.shards, 0, 0, 100_000_000),
       currentEnergy: integer(campaign.currentEnergy, ECONOMY.maxEnergy, 0, ECONOMY.maxEnergy),
       energyUpdatedAt: finiteNumber(campaign.energyUpdatedAt, Date.now(), 0, Number.MAX_SAFE_INTEGER),

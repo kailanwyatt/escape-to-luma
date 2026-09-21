@@ -1,0 +1,539 @@
+{
+  "48": {
+    "ricochet": {
+      "reflectors": [
+        {
+          "id": "l48-a",
+          "position": {
+            "x": 2.482764254139304,
+            "y": 2.906991288625901,
+            "z": 8.444
+          },
+          "normal": {
+            "x": -0.9797958971132712,
+            "y": 0,
+            "z": -0.2
+          },
+          "width": 2.4,
+          "height": 2.6,
+          "visualVariant": "satelliteReflector"
+        }
+      ],
+      "maxBounces": 1,
+      "requiredBounces": 1,
+      "fullGuide": true
+    },
+    "target": {
+      "x": -0.5636351061664542,
+      "y": 3.0776517732393676,
+      "z": 12,
+      "radius": 1.1
+    },
+    "obstacles": [],
+    "stage": 1,
+    "witness": {
+      "dragX": -0.22,
+      "dragY": 0
+    }
+  },
+  "50": {
+    "ricochet": {
+      "reflectors": [
+        {
+          "id": "l50-a",
+          "position": {
+            "x": -2.6157321181242614,
+            "y": 2.962392135108477,
+            "z": 8.9528
+          },
+          "normal": {
+            "x": 0.9707728879609278,
+            "y": 0,
+            "z": -0.24
+          },
+          "width": 2.4,
+          "height": 2.6,
+          "visualVariant": "satelliteReflector"
+        }
+      ],
+      "maxBounces": 1,
+      "requiredBounces": 1,
+      "fullGuide": true
+    },
+    "target": {
+      "x": 0.4763981239312318,
+      "y": 3.07020154759348,
+      "z": 12,
+      "radius": 1.1
+    },
+    "obstacles": [],
+    "stage": 2,
+    "witness": {
+      "dragX": 0.22,
+      "dragY": 0
+    }
+  },
+  "52": {
+    "ricochet": {
+      "reflectors": [
+        {
+          "id": "l52-a",
+          "position": {
+            "x": 2.1500681680228357,
+            "y": 2.945235666666662,
+            "z": 8.444
+          },
+          "normal": {
+            "x": -0.9797958971132712,
+            "y": 0,
+            "z": -0.2
+          },
+          "width": 1.08,
+          "height": 1.35,
+          "visualVariant": "satelliteReflector"
+        }
+      ],
+      "maxBounces": 1,
+      "requiredBounces": 1,
+      "fullGuide": false
+    },
+    "target": {
+      "x": -0.6852799002687073,
+      "y": 3.0560487892549077,
+      "z": 12,
+      "radius": 0.92
+    },
+    "obstacles": [],
+    "stage": 3,
+    "witness": {
+      "dragX": -0.19,
+      "dragY": 0
+    }
+  },
+  "55": {
+    "ricochet": {
+      "reflectors": [
+        {
+          "id": "l55-a",
+          "position": {
+            "x": -2.760958668710724,
+            "y": 2.8809694444444416,
+            "z": 8.444
+          },
+          "normal": {
+            "x": 0.9797958971132712,
+            "y": 0,
+            "z": -0.2
+          },
+          "width": 1.8,
+          "height": 2.6,
+          "visualVariant": "satelliteReflector",
+          "movement": {
+            "type": "horizontal",
+            "amplitude": 0.18,
+            "speed": 0.4,
+            "phase": 0
+          }
+        }
+      ],
+      "maxBounces": 1,
+      "requiredBounces": 1,
+      "fullGuide": false
+    },
+    "target": {
+      "x": 0.48805959114631037,
+      "y": 3.0877120279768078,
+      "z": 12,
+      "radius": 0.92
+    },
+    "obstacles": [],
+    "stage": 4,
+    "witness": {
+      "dragX": 0.24,
+      "dragY": 0
+    }
+  },
+  "58": {
+    "ricochet": {
+      "reflectors": [
+        {
+          "id": "l58-a",
+          "position": {
+            "x": 2.9177441978635468,
+            "y": 2.8547269110648403,
+            "z": 8.444
+          },
+          "normal": {
+            "x": -0.9797958971132712,
+            "y": 0,
+            "z": -0.2
+          },
+          "width": 2.4,
+          "height": 2.6,
+          "visualVariant": "satelliteReflector"
+        }
+      ],
+      "maxBounces": 1,
+      "requiredBounces": 1,
+      "fullGuide": false
+    },
+    "target": {
+      "x": -0.41704151792965155,
+      "y": 3.094862479332135,
+      "z": 12,
+      "radius": 0.92
+    },
+    "obstacles": [
+      {
+        "type": "driftingBlocker",
+        "z": 10.2,
+        "baseX": -0.3544852902402038,
+        "baseY": 3,
+        "blockerRadius": 0.8,
+        "amplitudeX": 0,
+        "amplitudeY": 0,
+        "speed": 0
+      }
+    ],
+    "stage": 5,
+    "witness": {
+      "dragX": -0.26,
+      "dragY": 0
+    }
+  },
+  "65": {
+    "ricochet": {
+      "reflectors": [
+        {
+          "id": "l65-a",
+          "position": {
+            "x": -2.2614931145030392,
+            "y": 2.9326014735303128,
+            "z": 8.444
+          },
+          "normal": {
+            "x": 0.9797958971132712,
+            "y": 0,
+            "z": -0.2
+          },
+          "width": 2.4,
+          "height": 2.6,
+          "visualVariant": "solarArrayReflector"
+        }
+      ],
+      "maxBounces": 1,
+      "requiredBounces": 1,
+      "fullGuide": false
+    },
+    "target": {
+      "x": 0.6436542184327742,
+      "y": 3.0641935796555697,
+      "z": 12,
+      "radius": 0.92
+    },
+    "obstacles": [
+      {
+        "type": "driftingBlocker",
+        "z": 10.2,
+        "baseX": 0.547106085667858,
+        "baseY": 3,
+        "blockerRadius": 0.8,
+        "amplitudeX": 0,
+        "amplitudeY": 0,
+        "speed": 0
+      }
+    ],
+    "stage": 5,
+    "witness": {
+      "dragX": 0.2,
+      "dragY": 0
+    }
+  },
+  "78": {
+    "ricochet": {
+      "reflectors": [
+        {
+          "id": "l78-a",
+          "position": {
+            "x": 1.5684264961482088,
+            "y": 2.286174186390532,
+            "z": 5.022
+          },
+          "normal": {
+            "x": -0.99498743710662,
+            "y": 0,
+            "z": -0.1
+          },
+          "width": 2.4,
+          "height": 2.6,
+          "visualVariant": "lunarDishReflector"
+        },
+        {
+          "id": "l78-b",
+          "position": {
+            "x": -1.372394416781876,
+            "y": 3.0733333333333284,
+            "z": 10.023952960038997
+          },
+          "normal": {
+            "x": 0.99498743710662,
+            "y": 0,
+            "z": -0.1
+          },
+          "width": 2.5,
+          "height": 2.6,
+          "visualVariant": "lunarDishReflector"
+        }
+      ],
+      "maxBounces": 2,
+      "requiredBounces": 2,
+      "fullGuide": true
+    },
+    "target": {
+      "x": 0.41109407197735115,
+      "y": 3.07641744383994,
+      "z": 12,
+      "radius": 0.92
+    },
+    "obstacles": [],
+    "stage": 6,
+    "witness": {
+      "dragX": -0.22,
+      "dragY": 0
+    }
+  },
+  "87": {
+    "ricochet": {
+      "reflectors": [
+        {
+          "id": "l87-a",
+          "position": {
+            "x": -1.6986919721934066,
+            "y": 2.2552083333333313,
+            "z": 5.021999999999999
+          },
+          "normal": {
+            "x": 0.99498743710662,
+            "y": 0,
+            "z": -0.1
+          },
+          "width": 2.4,
+          "height": 2.6,
+          "visualVariant": "lunarDishReflector"
+        },
+        {
+          "id": "l87-b",
+          "position": {
+            "x": 1.4289049087862071,
+            "y": 3.0653124999999948,
+            "z": 10.088067222834407
+          },
+          "normal": {
+            "x": -0.99498743710662,
+            "y": 0,
+            "z": -0.1
+          },
+          "width": 2.5,
+          "height": 2.6,
+          "visualVariant": "lunarDishReflector"
+        }
+      ],
+      "maxBounces": 2,
+      "requiredBounces": 2,
+      "fullGuide": false
+    },
+    "target": {
+      "x": -0.3810948001981228,
+      "y": 3.086950630309523,
+      "z": 12,
+      "radius": 0.92
+    },
+    "obstacles": [],
+    "stage": 6,
+    "witness": {
+      "dragX": 0.24,
+      "dragY": 0
+    }
+  },
+  "95": {
+    "ricochet": {
+      "reflectors": [
+        {
+          "id": "l95-a",
+          "position": {
+            "x": 2.7016102538952422,
+            "y": 2.8809694444444416,
+            "z": 8.444
+          },
+          "normal": {
+            "x": -0.9797958971132712,
+            "y": 0,
+            "z": -0.2
+          },
+          "width": 1.08,
+          "height": 1.35,
+          "visualVariant": "crystalReflector"
+        }
+      ],
+      "maxBounces": 1,
+      "requiredBounces": 1,
+      "fullGuide": false
+    },
+    "target": {
+      "x": -0.4880595911463107,
+      "y": 3.0877120279768078,
+      "z": 12,
+      "radius": 0.92
+    },
+    "obstacles": [],
+    "stage": 3,
+    "witness": {
+      "dragX": -0.24,
+      "dragY": 0
+    }
+  },
+  "110": {
+    "ricochet": {
+      "reflectors": [
+        {
+          "id": "l110-a",
+          "position": {
+            "x": -2.21320791067817,
+            "y": 2.945235666666662,
+            "z": 8.444
+          },
+          "normal": {
+            "x": 0.9797958971132712,
+            "y": 0,
+            "z": -0.2
+          },
+          "width": 1.8,
+          "height": 2.6,
+          "visualVariant": "energyCrystalReflector",
+          "movement": {
+            "type": "horizontal",
+            "amplitude": 0.18,
+            "speed": 0.4,
+            "phase": 0
+          }
+        }
+      ],
+      "maxBounces": 1,
+      "requiredBounces": 1,
+      "fullGuide": false
+    },
+    "target": {
+      "x": 0.6852799002687074,
+      "y": 3.0560487892549077,
+      "z": 12,
+      "radius": 0.92
+    },
+    "obstacles": [],
+    "stage": 4,
+    "witness": {
+      "dragX": 0.19,
+      "dragY": 0
+    }
+  },
+  "125": {
+    "ricochet": {
+      "reflectors": [
+        {
+          "id": "l125-a",
+          "position": {
+            "x": 2.372409817675786,
+            "y": 2.919858815426994,
+            "z": 8.444
+          },
+          "normal": {
+            "x": -0.9797958971132712,
+            "y": 0,
+            "z": -0.2
+          },
+          "width": 2.4,
+          "height": 2.6,
+          "visualVariant": "ancientReflector"
+        }
+      ],
+      "maxBounces": 1,
+      "requiredBounces": 1,
+      "fullGuide": false
+    },
+    "target": {
+      "x": -0.6030983292298493,
+      "y": 3.071368186711215,
+      "z": 12,
+      "radius": 0.92
+    },
+    "obstacles": [
+      {
+        "type": "driftingBlocker",
+        "z": 10.2,
+        "baseX": -0.5126335798453718,
+        "baseY": 3,
+        "blockerRadius": 0.8,
+        "amplitudeX": 0,
+        "amplitudeY": 0,
+        "speed": 0
+      }
+    ],
+    "stage": 5,
+    "witness": {
+      "dragX": -0.21,
+      "dragY": 0
+    }
+  },
+  "140": {
+    "ricochet": {
+      "reflectors": [
+        {
+          "id": "l140-a",
+          "position": {
+            "x": -1.7632278532070282,
+            "y": 2.24013155387898,
+            "z": 5.022
+          },
+          "normal": {
+            "x": 0.99498743710662,
+            "y": 0,
+            "z": -0.1
+          },
+          "width": 2.4,
+          "height": 2.6,
+          "visualVariant": "lumaReflector"
+        },
+        {
+          "id": "l140-b",
+          "position": {
+            "x": 1.4151283183435963,
+            "y": 3.0563194444444393,
+            "z": 10.039495095091926
+          },
+          "normal": {
+            "x": -0.99498743710662,
+            "y": 0,
+            "z": -0.1
+          },
+          "width": 2.5,
+          "height": 2.6,
+          "visualVariant": "lumaReflector"
+        }
+      ],
+      "maxBounces": 2,
+      "requiredBounces": 2,
+      "fullGuide": false
+    },
+    "target": {
+      "x": -0.47452982099603946,
+      "y": 3.0906913263173657,
+      "z": 12,
+      "radius": 0.92
+    },
+    "obstacles": [],
+    "stage": 6,
+    "witness": {
+      "dragX": 0.25,
+      "dragY": 0
+    }
+  }
+}

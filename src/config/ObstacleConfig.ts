@@ -1,3 +1,4 @@
+import type {RapidShutterConfig} from '../obstacles/RapidShutterState';
 import type { RotorConfig } from './RotorConfig';
 
 export type ObstacleType =
@@ -15,6 +16,8 @@ export type ObstacleType =
 export type RingMovementType = 'horizontal' | 'vertical' | 'ellipse';
 
 export interface SlidingGateConfig {
+  movementMode?: 'oscillating' | 'rapidShutter';
+  shutter?: RapidShutterConfig;
   type: 'slidingGate';
   z: number;
   appearance?: 'standard' | 'containmentGlass';
@@ -113,36 +116,44 @@ export interface ShiftingApertureConfig {
   phase?: number;
 }
 
-/** Security laser plane — beams with a center safe gap; optional pulse. */
+export type LaserGridPattern =
+  | 'HORIZONTAL_WAVE'
+  | 'VERTICAL_WAVE'
+  | 'OPEN_CLOSE'
+  | 'ALTERNATING'
+  | 'CROSSING'
+  | 'SEQUENTIAL';
+
+/** Fixed security frame containing independently animated laser beams. */
 export interface LaserGridConfig {
   type: 'laserGrid';
   z: number;
-  /** Beam layout. */
+  /** Primary beam direction; CROSSING uses both directions. */
   orientation: 'vertical' | 'horizontal' | 'both';
-  /** Half-width of the safe corridor through the grid (world units). */
-  openingSize: number;
-  /** Distance between adjacent beams. */
+  pattern?: LaserGridPattern;
+  /** Number of independently animated beams. */
+  beamCount?: number;
+  /** Base distance between adjacent beams. */
   spacing: number;
-  /** How far beams extend from center along their length. */
+  /** Beam movement amplitude in world units. */
+  amplitude?: number;
+  /** Beam movement speed. */
+  speed?: number;
+  /** Phase difference between adjacent beams. */
+  phaseOffset?: number;
+  /** How far beams extend inside the fixed frame. */
   span: number;
-  /** Beam half-thickness for collision + visuals. */
+  /** Beam half-thickness for collision and visuals. */
   thickness: number;
   centerX?: number;
   centerY?: number;
-  /** Optional translation of the full beam array and its safe opening. */
-  movement?: {
-    axis: 'horizontal' | 'vertical' | 'both';
-    amplitude: number;
-    speed: number;
-    phase?: number;
-  };
   /**
    * `static` — always on (aim through gap).
    * `pulse` — lasers cycle on/off; throw while off or through gap while on.
    */
   mode?: 'static' | 'pulse';
-  /** Pulse speed (cycles per second-ish via sin). */
-  speed?: number;
+  /** Pulse frequency, independent from beam movement speed. */
+  pulseSpeed?: number;
   phase?: number;
   /** Fraction of cycle lasers are ON / dangerous (0–1). Default 0.55. */
   onRatio?: number;

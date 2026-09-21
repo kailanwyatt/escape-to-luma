@@ -3,6 +3,7 @@ import { obstacleTypeOf, type ObstacleConfig } from '../config/ObstacleConfig';
 
 export const LEGAL_PAIRS: ReadonlyArray<readonly [ObstacleType, ObstacleType]> = [
   ['rotor', 'rotor'],
+  ['slidingGate', 'slidingGate'],
   ['rotor', 'slidingGate'],
   ['slidingGate', 'rotor'],
   ['rotor', 'iris'],
@@ -44,6 +45,7 @@ export const LEGAL_PAIRS: ReadonlyArray<readonly [ObstacleType, ObstacleType]> =
   ['rotor', 'laserGrid'],
   ['laserGrid', 'slidingGate'],
   ['slidingGate', 'laserGrid'],
+  ['laserGrid', 'laserGrid'],
 ];
 
 export function isLegalCombination(obstacles: ObstacleConfig[]): boolean {

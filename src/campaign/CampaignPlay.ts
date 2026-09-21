@@ -1,3 +1,4 @@
+import {devLevelsUnlocked} from '../config/devAccess';
 import { ECONOMY } from '../config/economy';
 import { getCampaignLevel } from './levels';
 import type { CampaignLevelDefinition, PrecisionRank, SelectedBoosts } from './types';
@@ -29,7 +30,7 @@ export function canStartLevel(campaign: CampaignSave, levelNumber: number, now =
     return { ok: false, reason: 'missing' };
   }
   const synced = syncCampaignEnergy(campaign, now);
-  if (levelNumber > synced.highestUnlockedLevel) {
+  if (!devLevelsUnlocked() && levelNumber > synced.highestUnlockedLevel) {
     return { ok: false, reason: 'locked' };
   }
   const def = getCampaignLevel(levelNumber);
@@ -116,11 +117,10 @@ export function applyLevelSuccess(
     }
   }
 
-  let campaignComplete = campaign.campaignCompleted;
-  if (definition.levelNumber >= RELEASE_POLICY.campaignMaxLevel) {
-    campaign.campaignCompleted = true;
-    campaignComplete = true;
-  }
+  // This outcome is a one-time event, not the persistent completion status.
+  const campaignComplete =
+    definition.levelNumber === RELEASE_POLICY.campaignMaxLevel && !campaign.campaignCompleted;
+  if (campaignComplete) campaign.campaignCompleted = true;
 
   return {
     save: { ...save, campaign },

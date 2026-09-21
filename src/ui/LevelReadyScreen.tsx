@@ -30,10 +30,10 @@ export function LevelReadyScreen({ save, levelNumber, onPlay, onBack }: Props) {
   const showBoosts = levelNumber > 5;
 
   return (
-    <Screen scroll={false}>
-      <ScreenTitle eyebrow={world?.name ?? 'JOURNEY'} title={`LEVEL ${levelNumber}`} />
+    <Screen>
+      <ScreenTitle eyebrow={world?.name ?? 'JOURNEY'} title="Optional boosts" meta={`LEVEL ${levelNumber} · CHOOSE BEFORE YOUR FIRST SHOT`} />
       {def?.storyBeat ? <Text style={styles.beat}>{def.storyBeat}</Text> : null}
-      <Text style={styles.best}>BEST · {progress?.cleared ? progress.bestRank : '—'}</Text>
+      <Text style={styles.best}>Use boosts from your inventory. No purchase is made here.</Text>
       {def?.windX ? <Text style={styles.wind}>WIND ACTIVE</Text> : null}
 
       {showBoosts ? (
@@ -48,6 +48,7 @@ export function LevelReadyScreen({ save, levelNumber, onPlay, onBack }: Props) {
                 style={[styles.boost, on && styles.boostOn]}
               >
                 <Pressable
+                  accessibilityRole="checkbox" accessibilityState={{checked:on,disabled:owned<=0}} disabled={owned<=0}
                   style={styles.boostPress}
                   onPress={() => {
                     if (owned <= 0) {
@@ -61,9 +62,10 @@ export function LevelReadyScreen({ save, levelNumber, onPlay, onBack }: Props) {
                     {boost.label}
                   </Text>
                   <Text style={styles.boostMeta}>
-                    {owned > 0 ? `×${owned}` : `${ECONOMY.boostCosts[boost.costKey]} SHARDS`}
+                    {owned > 0 ? `×${owned}` : 'GET IN SHOP'}
                   </Text>
                 </Pressable>
+                <Text style={{padding:12,color:color.creamFaint,fontSize:12,lineHeight:18}}>{boost.id==='guidance'?'Preview the route before committing to your shot.':boost.id==='slowField'?'Slow obstacle movement to give yourself more time.':'Recover from one failed shot during this attempt.'}</Text>
               </GlassPanel>
             );
           })}
@@ -72,8 +74,8 @@ export function LevelReadyScreen({ save, levelNumber, onPlay, onBack }: Props) {
         <Text style={styles.teaching}>NO BOOSTS · LEARN THE THROW</Text>
       )}
 
-      <View style={styles.play}><Button label="PLAY" playIcon onPress={() => onPlay(selected)} /></View>
-      <BackButton onPress={onBack} />
+      <View style={styles.play}><Button label={Object.values(selected).some(Boolean)?"EQUIP & RETURN":"RETURN TO GAME"} onPress={() => onPlay(selected)} /></View>
+      <BackButton label="CANCEL" onPress={onBack} />
     </Screen>
   );
 }

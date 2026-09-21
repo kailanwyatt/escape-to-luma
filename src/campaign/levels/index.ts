@@ -1,3 +1,11 @@
+import {applyPrecisionProgression} from './PrecisionProgression';
+import {applyPrecisionBenchmark} from './PrecisionBenchmarks';
+import {applyCityShutterProgression} from './CityShutterProgression';
+import {rebalanceCampaign} from './CampaignBalance';
+import {applyRicochetCourse} from './RicochetCourses';
+import {applyWorldRotorVariants} from '../RotorWorldVariants';
+import {composeCampaignLevel} from './LevelComposition';
+import {applyPortalDifficulty} from '../PortalDifficulty';
 import { WORLD1_LEVELS } from './world1';
 import { WORLD2_LEVELS, buildWorlds3to10 } from './worldsPack';
 import type { CampaignLevelDefinition } from '../types';
@@ -6,7 +14,7 @@ const ALL_LEVELS: CampaignLevelDefinition[] = [
   ...WORLD1_LEVELS,
   ...WORLD2_LEVELS,
   ...buildWorlds3to10(),
-];
+].map(applyPortalDifficulty).map(composeCampaignLevel).map(applyWorldRotorVariants).map(applyRicochetCourse).map(rebalanceCampaign).map(applyCityShutterProgression).map(applyPrecisionProgression).map(applyPrecisionBenchmark);
 
 const BY_NUMBER = new Map<number, CampaignLevelDefinition>();
 for (const level of ALL_LEVELS) {

@@ -1,6 +1,12 @@
 import type { MovementConfig } from './MovementConfig';
 
+export type RotorVisualVariant =
+  | 'containmentSecurity' | 'cityVentilation' | 'skyTurbine'
+  | 'atmosphereAntenna' | 'orbitSolarArray' | 'moonMiningDrill'
+  | 'asteroidWreckage' | 'nebulaEnergy' | 'ancientMechanism' | 'lumaEnergy';
+
 export interface RotorConfig {
+  visualVariant?: RotorVisualVariant;
   z: number;
   bladeCount: number;
   rotationSpeed: number;

@@ -1,3 +1,6 @@
+import type {RicochetConfig} from '../reflectors/ReflectorConfig';
+import type {Bounce} from '../reflectors/Reflection';
+import {traceRicochet} from '../reflectors/RicochetTrace';
 import { GAME_TUNING } from '../game/gameTuning';
 import type { ShotResultKind } from '../game/GameState';
 import type { ObstacleHitPart } from '../obstacles/ObstacleCollision';
@@ -38,6 +41,8 @@ export type TargetArrivalPrediction = {
 };
 
 export type ShotPrediction = {
+  bounces?: Bounce[];
+  ricochetBlocked?: boolean;
   vz: number;
   rotors: [RotorArrivalPrediction, RotorArrivalPrediction];
   target: TargetArrivalPrediction;
@@ -109,7 +114,10 @@ export function predictShot(
   simTime: number,
   obstacleTimeScale = 1,
   forces: PhysicsForces = {},
+  targetTime = simTime,
+  ricochet?: RicochetConfig,
 ): ShotPrediction {
+  if (ricochet) return predictRicochetShot(start,velocity,obstacles,target,simTime,obstacleTimeScale,forces,targetTime,ricochet);
   const projectileRadius = GAME_TUNING.projectile.radius;
   const rotors = [0, 1].map((index) => {
     const id: 'A' | 'B' = index === 0 ? 'A' : 'B';
@@ -156,7 +164,7 @@ export function predictShot(
   const simulated = simulateToZ(start, velocity, target.z, 1 / 120, forces);
   const time = simulated?.time ?? analyticT;
   const at = simulated ?? analytic;
-  const futureTarget = target.predictPosition(simTime + time);
+  const futureTarget = target.predictPosition(targetTime + time);
   const distance = distanceToTarget(at.x, at.y, futureTarget.x, futureTarget.y);
   const scored = scoreTarget(distance, target.radius);
 
@@ -239,4 +247,22 @@ function emptyRotor(id: 'A' | 'B'): RotorArrivalPrediction {
     hitPart: null,
     clearance: 0,
   };
+}
+
+function predictRicochetShot(start:Vec3,velocity:Velocity,obstacles:ObstacleSlot[],target:Target,simTime:number,scale:number,forces:PhysicsForces,targetTime:number,config:RicochetConfig):ShotPrediction {
+ const rotors=[emptyRotor('A'),emptyRotor('B')] as ShotPrediction['rotors'];
+ const trace=traceRicochet({...start,...velocity},config,target.z,targetTime,forces,(a,b,clock,dt)=>{
+  for(let i=0;i<obstacles.length;i++){
+   const o=obstacles[i];if(!o.active||(a.z-o.z)*(b.z-o.z)>0||a.z===b.z)continue;
+   const u=(o.z-a.z)/(b.z-a.z);if(u<0||u>1)continue;
+   const time=clock-targetTime+dt*u,x=a.x+(b.x-a.x)*u,y=a.y+(b.y-a.y)*u;
+   const pose=o.predictState(time*scale,simTime),hit=o.evaluateAt(x,y,GAME_TUNING.projectile.radius,pose),debug=o.getDebugInfo();
+   rotors[i]={...emptyRotor(i===0?'A':'B'),active:true,time,z:o.z,type:o.type,analytic:{x,y},simulated:{x,y},current:{x:debug.x,y:debug.y,angle:debug.angle},predicted:{x:pose.x,y:pose.y,angle:pose.angle,openingRadius:pose.openingRadius,extra:debug.extra},verdict:hit.hit?'HIT':'CLEAR',hitPart:hit.hit,clearance:hit.clearance};
+   if(hit.hit)return false;
+  }return true;
+ });
+ const at=trace.arrival??{...trace.state,time:0};const future=target.predictPosition(targetTime+at.time);
+ const distance=distanceToTarget(at.x,at.y,future.x,future.y);
+ const valid=Boolean(trace.arrival)&&trace.bounces.length>=config.requiredBounces;
+ return {vz:velocity.vz,rotors,path:trace.path,bounces:trace.bounces,ricochetBlocked:!valid,analyticVsSimMaxY:0,target:{time:at.time,analytic:{x:at.x,y:at.y},simulated:{x:at.x,y:at.y},target:future,distance,radius:target.radius,projectileRadius:GAME_TUNING.projectile.radius,verdict:valid?scoreTarget(distance,target.radius).kind:'MISS',edgeWouldHit:valid&&distance<=target.radius+GAME_TUNING.projectile.radius}};
 }

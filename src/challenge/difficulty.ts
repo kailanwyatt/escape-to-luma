@@ -109,7 +109,14 @@ export function estimateDifficulty(challenge: ChallengeConfig): number {
         if (obstacle.mode === 'pulse') {
           total += costs.fastMovement;
         }
-        if (obstacle.orientation === 'both' || obstacle.openingSize <= 1.25) {
+        const effectiveGap =
+          obstacle.spacing -
+          (obstacle.amplitude ?? 0.2) * 2 -
+          obstacle.thickness * 2;
+        if (
+          obstacle.orientation === 'both' ||
+          effectiveGap <= GAME_TUNING.projectile.radius * 2 + 0.2
+        ) {
           total += costs.smallOpening;
         }
       }

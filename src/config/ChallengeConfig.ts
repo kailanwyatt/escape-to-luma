@@ -1,3 +1,4 @@
+import type { RicochetConfig } from '../reflectors/ReflectorConfig';
 import type { MovementConfig } from './MovementConfig';
 import type { ObstacleConfig } from './ObstacleConfig';
 
@@ -50,6 +51,7 @@ export type ChallengeTemplateId =
   | 'HOME_FINALE';
 
 export interface ChallengeConfig {
+  ricochet?: RicochetConfig;
   id: string;
   environment: EnvironmentId;
   difficulty: number;

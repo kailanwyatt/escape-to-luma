@@ -1,3 +1,5 @@
+import './src/graphics/installWorldBackdrops';
+import {setDevLevelsUnlocked} from './src/config/devAccess';
 import { StatusBar } from 'expo-status-bar';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -17,7 +19,6 @@ import { GameHaptics } from './src/feedback/Haptics';
 import { AudioManager } from './src/feedback/AudioManager';
 import { DebugOverlay } from './src/ui/DebugOverlay';
 import { AppErrorBoundary } from './src/ui/AppErrorBoundary';
-import { FirstRunStoryScreen } from './src/ui/FirstRunStoryScreen';
 import { GraphicsScreen } from './src/ui/GraphicsScreen';
 import { HomeScreen } from './src/ui/HomeScreen';
 import { HUD } from './src/ui/HUD';
@@ -31,7 +32,6 @@ import { SparksScreen } from './src/ui/SparksScreen';
 import { StatsScreen } from './src/ui/StatsScreen';
 
 type AppScreen =
-  | 'opening'
   | 'home'
   | 'play'
   | 'journey'
@@ -115,6 +115,7 @@ const INITIAL_HUD: HudSnapshot = {
   lastPrecisionRank: null,
   storyBeat: null,
   windActive: false,
+  windDirection: 'right',
   helpOffer: false,
   unlockedSparkName: null,
 };
@@ -146,6 +147,7 @@ export default function App() {
 
 function AppShell() {
   const gameRef = useRef<Game | null>(null);
+  const screenSizeRef = useRef<{width: number; height: number} | null>(null);
   const playingRef = useRef(false);
   const openingRoutedRef = useRef(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
@@ -153,6 +155,7 @@ function AppShell() {
   const [save, setSave] = useState<PersistentGameData>(emptySave());
   const [screen, setScreen] = useState<AppScreen>('home');
   const [pendingLevel, setPendingLevel] = useState(1);
+  const [devUnlockAll,setDevUnlockAll]=useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [debugSnapshot, setDebugSnapshot] = useState<DebugSnapshot | null>(null);
   const [systemReduceMotion, setSystemReduceMotion] = useState(false);
@@ -172,6 +175,9 @@ function AppShell() {
     unsubscribeRef.current?.();
     gameRef.current?.dispose();
     gameRef.current = game;
+    if (screenSizeRef.current) {
+      game.setScreenSize(screenSizeRef.current.width, screenSizeRef.current.height);
+    }
     game.setSystemReduceMotion(systemReduceMotion);
     unsubscribeRef.current = game.subscribeHud((snapshot) => {
       setHud(snapshot);
@@ -265,7 +271,8 @@ function AppShell() {
     }
     openingRoutedRef.current = true;
     if (!save.campaign.hasSeenOpening) {
-      setScreen('opening');
+      gameRef.current?.startCampaignLevel(1, {});
+      setScreen('play');
     }
   }, [hud.hydrated, save.campaign.hasSeenOpening]);
 
@@ -308,10 +315,10 @@ function AppShell() {
   );
 
   const onLayout = useCallback((width: number, height: number) => {
+    if (width <= 0 || height <= 0) return;
+    screenSizeRef.current = {width, height};
     const game = gameRef.current;
-    if (!game || width <= 0 || height <= 0) {
-      return;
-    }
+    if (!game) return;
     game.setScreenSize(width, height);
     game.resize();
   }, []);
@@ -338,8 +345,9 @@ function AppShell() {
     refreshSave();
   }, [refreshSave]);
 
-  const tryOpenLevelReady = useCallback(
+  const startSelectedLevel = useCallback(
     (levelNumber: number) => {
+      setPendingLevel(levelNumber);
       syncEnergyAndSave();
       const campaign = gameRef.current?.getSave().campaign ?? save.campaign;
       const check = canStartLevel(campaign, levelNumber);
@@ -351,7 +359,9 @@ function AppShell() {
         return;
       }
       setPendingLevel(levelNumber);
-      setScreen('levelReady');
+      void preloadAssetGroup(levelNumber<=15?'world1':levelNumber<=30?'world2':'optional');
+      pausedRef.current=false;setPaused(false);gameRef.current?.resume();
+      setScreen('play');gameRef.current?.startCampaignLevel(levelNumber,{});
     },
     [save.campaign, syncEnergyAndSave],
   );
@@ -396,6 +406,10 @@ function AppShell() {
       {playing ? (
         <HUD
           hud={hud}
+          onBoosts={()=>tap(()=>{
+            const game=gameRef.current;if(!game?.canChooseCampaignBoosts())return;
+            setPendingLevel(hud.campaignLevel??1);refreshSave();game.pause();pausedRef.current=true;setPaused(true);setScreen('levelReady');
+          })}
           debugEnabled={debugEnabled}
           onToggleDebug={onToggleDebug}
           onRestart={() => {
@@ -455,7 +469,7 @@ function AppShell() {
           onRetry={() =>
             tap(() => {
               if (screen === 'outOfEnergy') {
-                tryOpenLevelReady(pendingLevel);
+                startSelectedLevel(pendingLevel);
               } else {
                 gameRef.current?.retryCampaignLevel();
               }
@@ -519,44 +533,11 @@ function AppShell() {
         onForceContinueSuccess={() => gameRef.current?.debugForceContinueSuccess()}
         onForceContinueFail={() => gameRef.current?.debugForceContinueFailure()}
       />
-      {screen === 'opening' ? (
-        <FirstRunStoryScreen
-          onComplete={() =>
-            tap(() => {
-              gameRef.current?.completeFirstRunStory();
-              void preloadAssetGroup('world1');
-              pausedRef.current = false;
-              setPaused(false);
-              setPendingLevel(1);
-              gameRef.current?.resume();
-              setScreen('play');
-              gameRef.current?.startCampaignLevel(1, {});
-              refreshSave();
-            })
-          }
-        />
-      ) : null}
       {screen === 'home' ? (
         <HomeScreen
           save={save}
-          onContinue={() =>
-            tap(() => {
-              const level = continueLevelNumber(gameRef.current?.getSave() ?? save);
-              syncEnergyAndSave();
-              const campaign = gameRef.current?.getSave().campaign ?? save.campaign;
-              const check = canStartLevel(campaign, level);
-              if (!check.ok && check.reason === 'energy') {
-                setPendingLevel(level);
-                setScreen('outOfEnergy');
-                return;
-              }
-              if (!check.ok) {
-                return;
-              }
-              setPendingLevel(level);
-              setScreen('levelReady');
-            })
-          }
+          onSelectLevel={(level)=>tap(()=>startSelectedLevel(level))}
+          onContinue={()=>tap(()=>startSelectedLevel(continueLevelNumber(gameRef.current?.getSave()??save)))}
           onJourney={() =>
             tap(() => {
               syncEnergyAndSave();
@@ -601,9 +582,10 @@ function AppShell() {
       ) : null}
       {screen === 'journey' ? (
         <JourneyScreen
+          devUnlockAll={__DEV__ && devUnlockAll}
           save={save}
           onSelectLevel={(levelNumber) =>
-            tap(() => tryOpenLevelReady(levelNumber))
+            tap(() => startSelectedLevel(levelNumber))
           }
           onBack={() => tap(() => setScreen('home'))}
         />
@@ -619,15 +601,17 @@ function AppShell() {
               setPaused(false);
               gameRef.current?.resume();
               setScreen('play');
-              gameRef.current?.startCampaignLevel(pendingLevel, boosts);
+              gameRef.current?.equipCampaignBoosts(boosts);
+              refreshSave();
             })
           }
-          onBack={() => tap(() => setScreen('home'))}
+          onBack={()=>tap(()=>{pausedRef.current=false;setPaused(false);gameRef.current?.resume();setScreen('play');})}
         />
       ) : null}
       {screen === 'sparks' ? (
         <SparksScreen
           save={save}
+          reduceMotion={systemReduceMotion || save.settings.reduceMotion}
           onEquip={(id) => {
             GameHaptics.forUi();
             AudioManager.play('ui');
@@ -676,6 +660,14 @@ function AppShell() {
       ) : null}
       {screen === 'settings' ? (
         <SettingsScreen
+          devUnlockAll={devUnlockAll}
+          onToggleDevUnlock={()=>{const next=!devUnlockAll;setDevLevelsUnlocked(next);setDevUnlockAll(next);}}
+          onReplayOpening={() => {
+            gameRef.current?.replayCampaignOpening();
+            pausedRef.current = false;
+            setPaused(false);
+            setScreen('play');
+          }}
           settings={save.settings}
           systemReduceMotion={systemReduceMotion}
           removeAds={save.commercial.removeAds}

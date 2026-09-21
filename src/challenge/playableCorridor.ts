@@ -1,3 +1,5 @@
+import {traceRicochet} from '../reflectors/RicochetTrace';
+import {AimSystem} from '../projectile/AimSystem';
 import type { ChallengeConfig } from '../config/ChallengeConfig';
 import { sampleMovement } from '../config/MovementConfig';
 import type { ObstacleConfig } from '../config/ObstacleConfig';
@@ -6,15 +8,16 @@ import { GAME_TUNING } from '../game/gameTuning';
 import {
   evaluateBlockerCollision,
   evaluateGateCollision,
+  evaluateBreachCollision,
   evaluateIrisCollision,
   evaluateLaserCollision,
   evaluatePendulumCollision,
   evaluatePhaseCollision,
   evaluateRingCollision,
   evaluateRotorCollision,
-  laserBeamsFromLayout,
   lasersOnAt,
 } from '../obstacles/ObstacleCollision';
+import { laserBeamsAtTime } from '../obstacles/LaserGridAnimation';
 import { driftPosition } from '../obstacles/DriftingBlockerObstacle';
 import { irisRadiusAt } from '../obstacles/IrisObstacle';
 import { pendulumPose } from '../obstacles/PendulumObstacle';
@@ -31,6 +34,18 @@ export function hasPlayableCorridor(
   challenge: ChallengeConfig,
   forces: PhysicsForces = {},
 ): boolean {
+  if(challenge.ricochet){
+    const aim=new AimSystem();
+    for(const x of [-.22,.22,-.24,.24,-.2,.2,-.18,.18,-.26,.26,-.19,.19,-.21,.21,-.25,.25])for(const y of [0,.025,-.025]){
+      aim.begin(195,600);aim.move(195+x*390,600+y*844);
+      const trace=traceRicochet({...GAME_TUNING.projectile.startPosition,...aim.end()},challenge.ricochet,challenge.target.z??12,0,forces,(a,b,clock,dt)=>{
+        for(const o of challenge.obstacles){if((a.z-o.z)*(b.z-o.z)>0||a.z===b.z)continue;const u=(o.z-a.z)/(b.z-a.z);if(u<0||u>1)continue;
+          if(!clearsObstacle(o,a.x+(b.x-a.x)*u,a.y+(b.y-a.y)*u,GAME_TUNING.projectile.radius,clock+u*dt))return false;
+        }return true;
+      });
+      if(trace.arrival&&trace.bounces.length>=challenge.ricochet.requiredBounces&&Math.hypot(trace.arrival.x-challenge.target.x,trace.arrival.y-challenge.target.y)<challenge.target.radius-.05)return true;
+    }return false;
+  }
   const start = GAME_TUNING.projectile.startPosition;
   const ball = GAME_TUNING.projectile.radius;
   const obstacles = challenge.obstacles;
@@ -126,7 +141,7 @@ function clearsObstacle(
     const openingX =
       obstacle.baseX +
       Math.sin(arrivalTime * obstacle.speed + (obstacle.phase ?? 0)) * obstacle.amplitude;
-    const result = evaluateGateCollision(
+    const result = (obstacle.appearance === 'containmentGlass' ? evaluateBreachCollision : evaluateGateCollision)(
       x,
       y,
       ball,
@@ -170,20 +185,12 @@ function clearsObstacle(
     return !result.hit && result.clearance >= 0.05;
   }
   if (type === 'laserGrid' && obstacle.type === 'laserGrid') {
-    const beams = laserBeamsFromLayout({
-      orientation: obstacle.orientation,
-      openingSize: obstacle.openingSize,
-      spacing: obstacle.spacing,
-      span: obstacle.span,
-      thickness: obstacle.thickness,
-      centerX: obstacle.centerX ?? 0,
-      centerY: obstacle.centerY ?? 3,
-    });
+    const beams = laserBeamsAtTime(obstacle, arrivalTime);
     const on =
       obstacle.mode !== 'pulse' ||
       lasersOnAt(
         arrivalTime,
-        obstacle.speed ?? 0.6,
+        obstacle.pulseSpeed ?? 0.6,
         obstacle.phase ?? 0,
         obstacle.onRatio ?? 0.55,
       );

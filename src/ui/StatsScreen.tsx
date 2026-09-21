@@ -1,71 +1,49 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-
-import { BackButton, GlassPanel, Screen, ScreenTitle, color, space } from '../design';
-import { formatScore } from '../target/TargetScoring';
-import type { PersistentGameData } from '../persistence/GameSave';
-
-type Props = {
-  save: PersistentGameData;
-  onBack: () => void;
-};
-
-export function StatsScreen({ save, onBack }: Props) {
-  const p = save.playerProgress;
-  const c = save.campaign.stats;
-  const rows: [string, string][] = [
-    ['Journey Clears', String(c.levelsCompleted)],
-    ['Worlds Cleared', String(c.worldsCompleted)],
-    ['Journey Attempts', String(c.totalAttempts)],
-    ['Shards Earned', String(c.shardsEarned)],
-    ['Runs', String(p.totalRuns)],
-    ['Best Score', formatScore(p.highestScore)],
-    ['Longest Run', String(p.longestRun)],
-    ['Best Streak', String(p.bestStreak)],
-    ['Bullseyes', String(p.totalBullseyes)],
-    ['Perfects', String(p.totalPerfects)],
-    ['Close Calls', String(p.totalCloseCalls)],
-    ['Shots Cleared', String(p.totalShotsCleared)],
-    ['Workshop Clears', String(save.lifetimeStats.workshopClears)],
-    ['Rooftop Clears', String(save.lifetimeStats.rooftopClears)],
-    ['Space Clears', String(save.lifetimeStats.spaceClears)],
-  ];
-  return (
-    <Screen scroll={false}>
-      <ScreenTitle title="STATS" eyebrow="YOUR JOURNEY" />
-      <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-        {rows.map(([label, value]) => (
-          <GlassPanel key={label} style={styles.row}>
-            <Text style={styles.label}>{label}</Text>
-            <Text style={styles.value}>{value}</Text>
-          </GlassPanel>
-        ))}
-      </ScrollView>
-      <BackButton onPress={onBack} />
-    </Screen>
-  );
+import type {ReactNode} from 'react';
+import {Pressable,ScrollView,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
+import {LinearGradient} from 'expo-linear-gradient';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {color} from '../design';
+import {HOME_BRAND} from '../config/branding';
+import {statsSummary,formatStat} from '../campaign/statsSummary';
+import type {PersistentGameData} from '../persistence/GameSave';
+type Props={save:PersistentGameData;onBack:()=>void};
+function Card({title,subtitle,children}:{title:string;subtitle:string;children:ReactNode}){return <View style={s.card}><Text accessibilityRole="header" style={s.sectionTitle}>{title}</Text><Text style={s.sectionSub}>{subtitle}</Text>{children}</View>;}
+function Row({label,value,icon,tint=color.cyanBright,ring=false}:{label:string;value:number;icon?:string;tint?:string;ring?:boolean}){return <View accessible accessibilityLabel={`${label}: ${formatStat(value)}`} style={s.row}>{ring?<View style={[s.ring,{borderColor:tint,shadowColor:tint}]}/>:<Text accessible={false} style={[s.icon,{color:tint}]}>{icon??'›'}</Text>}<Text style={s.label}>{label}</Text><Text style={s.value}>{formatStat(value)}</Text></View>;}
+export function StatsScreen({save,onBack}:Props){
+ const data=statsSummary(save),insets=useSafeAreaInsets(),{width,fontScale}=useWindowDimensions();
+ const contentWidth=Math.min(980,width-Math.max(insets.left,16)-Math.max(insets.right,16));
+ const twoColumns=contentWidth/Math.max(1,fontScale)>=660;
+ const worldWrap=contentWidth/Math.max(1,fontScale)<500;
+ const cell={width:twoColumns?'49%' as const:'100%' as const};
+ const precisionColors={CLEAR:'#d8e9f1',GREAT:'#79ebae',BULLSEYE:'#ffd080',PERFECT:'#c5a0ff'};
+ return <View style={s.root}><LinearGradient colors={['#041424','#061b2b','#020a12']} style={StyleSheet.absoluteFill}/>
+ <ScrollView contentContainerStyle={{paddingTop:Math.max(insets.top,12),paddingBottom:Math.max(insets.bottom,20),paddingLeft:Math.max(insets.left,16),paddingRight:Math.max(insets.right,16),alignItems:'center'}}>
+ <View style={s.column}>
+ <View style={s.brand}><Text style={s.wordmark}>{HOME_BRAND.title}</Text><Text style={s.brandSub}>{HOME_BRAND.subtitle}</Text></View>
+ <View style={s.heading}><Text style={s.eyebrow}>YOUR JOURNEY</Text><Text accessibilityRole="header" style={s.title}>STATS</Text><Text style={s.caption}>NUMBERS TELL A STORY. THIS ONE IS YOURS.</Text></View>
+ <View style={s.hero}>
+ <View style={s.heroTop}><View style={{flex:1,minWidth:140}}><Text accessibilityRole="header" style={s.sectionTitle}>JOURNEY PROGRESS</Text><Text style={s.sectionSub}>{data.journey.cleared===150?'HOME FOUND. KEEP EXPLORING.':'EVERY LEVEL BRINGS SPARK CLOSER.'}</Text></View><View style={s.worldTotal}><Text style={s.bigValue}>{data.worldsCleared} / 10</Text><Text style={s.tiny}>WORLDS CLEARED</Text></View></View>
+ <View style={s.worldTrack}>{data.journey.worlds.map((w,i)=><View key={w.world.id} accessible accessibilityLabel={`${w.world.name}: ${w.state}, ${w.cleared} of 15 levels cleared`} style={[s.worldCell,{width:worldWrap?'20%':'10%'}]}>
+ {i% (worldWrap?5:10)!==(worldWrap?4:9)?<View style={[s.link,{backgroundColor:w.state==='completed'?color.cyan:'#274154'}]}/>:null}
+ <View style={[s.worldNode,w.state==='completed'&&s.completeNode,w.state==='current'&&s.currentNode]}><Text style={[s.nodeText,w.state==='completed'&&{color:color.cyanBright}]}>{w.state==='completed'?'✓':i===9&&data.journey.destination==='LUMA'?'✦':w.world.index}</Text></View>
+ <Text style={s.nodeLabel}>{w.state==='completed'?'CLEAR':w.state==='current'?'NOW':w.state==='locked'?'LOCKED':'OPEN'}</Text>
+ </View>)}</View>
+ <View style={s.progressText}><Text style={s.cleared}><Text style={{color:color.white}}>{data.journey.cleared} / {data.journey.total}</Text> LEVELS CLEARED</Text><Text style={s.percent}>{data.percent}% COMPLETE</Text></View>
+ <View accessibilityRole="progressbar" accessibilityLabel="Campaign levels cleared" accessibilityValue={{min:0,max:data.journey.total,now:data.journey.cleared}} style={s.progressTrack}><LinearGradient colors={['#579eea','#27d7ed','#9cf9f5']} start={{x:0,y:0}} end={{x:1,y:0}} style={{height:12,width:`${data.journey.cleared/data.journey.total*100}%`,borderRadius:8}}/></View>
+ </View>
+ <View style={s.grid}>
+ <View style={cell}><Card title="JOURNEY ACTIVITY" subtitle="CAMPAIGN ATTEMPTS & CLOSE CALLS"><Row label="Journey attempts" value={data.activity.attempts} icon="↗"/><Row label="Failed attempts" value={data.activity.failures} icon="↻"/><Row label="Close calls" value={data.activity.closeCalls} icon="◎"/></Card></View>
+ <View style={cell}><Card title="COLLECTIBLES" subtitle="FUEL FOR THE JOURNEY"><View style={s.shardContent}><View accessible={false} style={s.crystal}><View style={s.crystalInner}/></View><View style={{flex:1}}><Text style={s.label}>Shards earned</Text><Text style={s.shardValue}>{formatStat(data.shards.earned)}</Text><Text style={s.available}>{formatStat(data.shards.available)} AVAILABLE</Text></View></View></Card></View>
+ <View style={data.showRuns?cell:{width:'100%'}}><Card title="PERFORMANCE" subtitle="BEST RESULT PER CLEARED CAMPAIGN LEVEL">{(['CLEAR','GREAT','BULLSEYE','PERFECT'] as const).map(rank=><Row key={rank} label={rank} value={data.precision[rank]} ring tint={precisionColors[rank]}/>)}<Text style={s.note}>Each level counts once at its highest saved precision.</Text></Card></View>
+ {data.showRuns?<View style={cell}><Card title="ARCADE & ENDLESS" subtitle="RUN RECORDS · INCLUDING EARLIER ARCADE PLAY"><Row label="Runs" value={data.runs.count} icon="◷"/><Row label="Longest run" value={data.runs.longest} icon="↗"/><Row label="Best streak" value={data.runs.streak} icon="◎"/><Row label="Best score" value={data.runs.score} icon="▥"/><Row label="Shots cleared" value={data.runs.shots} icon="»"/><Text style={s.note}>Longest run is measured in gates cleared.</Text></Card></View>:null}
+ </View>
+ <Card title="MILESTONES" subtitle="HIGHLIGHTS FROM YOUR RECORD">
+ {data.milestones.length?<View style={s.badges}>{data.milestones.map(m=><View key={m.label} accessible accessibilityLabel={`${formatStat(m.value)} ${m.label}`} style={[s.badge,{width:twoColumns?'23.5%':'48%'}]}><View style={[s.badgeIcon,{borderColor:m.color}]}><Text style={{color:m.color,fontSize:27}}>{m.icon}</Text></View><Text style={[s.badgeValue,{color:m.color}]}>{formatStat(m.value)}</Text><Text style={s.badgeLabel}>{m.label}</Text></View>)}</View>:<Text style={s.empty}>Your story starts with the first escape. Clear a level to begin your record.</Text>}
+ </Card>
+ <LinearGradient colors={['#08243b','#111932','#072331']} start={{x:0,y:1}} end={{x:1,y:0}} style={s.quote}><View accessible={false} style={s.horizon}/><Text style={s.quoteFirst}>A SMALL SPARK.</Text><Text style={s.quoteLast}>A BRIGHTER TOMORROW.</Text></LinearGradient>
+ <Pressable accessibilityRole="button" accessibilityLabel="Back to home" onPress={onBack} style={({pressed})=>[s.back,pressed&&{opacity:.65}]}><Text style={s.backText}>‹   BACK</Text></Pressable>
+ </View></ScrollView></View>;
 }
-
-const styles = StyleSheet.create({
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingBottom: space.lg,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: space.xs,
-    paddingVertical: space.sm,
-  },
-  label: {
-    color: color.creamMuted,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  value: {
-    color: color.cyanBright,
-    fontSize: 14,
-    fontWeight: '800',
-  },
+const s=StyleSheet.create({
+ root:{...StyleSheet.absoluteFill,backgroundColor:color.ink},column:{width:'100%',maxWidth:980},brand:{alignItems:'center',paddingVertical:10},wordmark:{color:'#e5faff',fontSize:25,letterSpacing:7,fontWeight:'300',textShadowColor:'#27b7e9',textShadowRadius:12},brandSub:{fontSize:7,color:color.cyanBright,letterSpacing:2.6,marginTop:3},heading:{alignItems:'center',paddingVertical:17,gap:6},eyebrow:{color:'#a0bccd',fontSize:10,letterSpacing:3},title:{color:color.white,fontSize:36,fontWeight:'800',letterSpacing:5},caption:{color:'#93b6ca',fontSize:8,letterSpacing:1.3,textAlign:'center'},card:{flex:1,backgroundColor:color.panel,borderColor:color.panelBorder,borderWidth:1,borderRadius:20,padding:18},hero:{backgroundColor:color.panel,borderColor:color.cyanDim,borderWidth:1,borderRadius:20,padding:18,marginBottom:14},heroTop:{flexDirection:'row',flexWrap:'wrap',alignItems:'center',gap:12},sectionTitle:{color:color.white,fontSize:17,fontWeight:'800',letterSpacing:.5},sectionSub:{color:'#89aabd',fontSize:8,letterSpacing:1.25,marginTop:7,marginBottom:12,lineHeight:13},worldTotal:{alignItems:'flex-end'},bigValue:{color:color.cyanBright,fontSize:29,fontWeight:'800'},tiny:{color:color.cyanBright,fontSize:8,letterSpacing:1},worldTrack:{flexDirection:'row',flexWrap:'wrap',marginVertical:10},worldCell:{alignItems:'center',paddingVertical:8},link:{position:'absolute',top:25,left:'50%',width:'100%',height:1},worldNode:{width:34,height:34,borderRadius:17,borderWidth:1,borderColor:'#3b5267',backgroundColor:'#0a1b2b',justifyContent:'center',alignItems:'center'},completeNode:{borderColor:color.cyan,backgroundColor:'#0c3444'},currentNode:{borderColor:color.cyanBright,shadowColor:color.cyan,shadowOpacity:.65,shadowRadius:8,shadowOffset:{width:0,height:0}},nodeText:{color:'#b9d4e2',fontSize:13,fontWeight:'700'},nodeLabel:{fontSize:6,color:'#87aabe',letterSpacing:.6,marginTop:6},progressText:{flexDirection:'row',justifyContent:'space-between',flexWrap:'wrap',gap:8,marginTop:7,marginBottom:12},cleared:{fontSize:13,fontWeight:'800',color:color.cyanBright},percent:{fontSize:10,fontWeight:'700',color:color.cyanBright},progressTrack:{height:12,borderRadius:8,overflow:'hidden',backgroundColor:'#14354b'},grid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:14,marginBottom:14},row:{flexDirection:'row',alignItems:'center',minHeight:49,gap:12,borderBottomWidth:1,borderBottomColor:'#123045',paddingVertical:10},icon:{fontSize:24,width:24,textAlign:'center'},label:{flexShrink:1,color:'#c6d7e2',fontSize:14},value:{marginLeft:'auto',flexShrink:0,color:color.cyanBright,fontSize:23,fontWeight:'700'},ring:{width:20,height:20,borderRadius:10,borderWidth:3,marginHorizontal:2,shadowRadius:6,shadowOpacity:.4,shadowOffset:{width:0,height:0}},note:{color:'#8eaabb',fontSize:10,lineHeight:15,marginTop:12},shardContent:{flexDirection:'row',alignItems:'center',gap:26,paddingVertical:30,paddingHorizontal:8},crystal:{width:45,height:45,borderRadius:2,borderWidth:2,borderColor:'#d3c1ff',backgroundColor:'#6451bd',transform:[{rotate:'45deg'},{scaleX:.8}],shadowColor:'#8465ff',shadowRadius:16,shadowOpacity:.7,shadowOffset:{width:0,height:0}},crystalInner:{position:'absolute',left:8,top:4,right:4,bottom:5,borderWidth:1,borderColor:'#dfd7ff',backgroundColor:'#8e8be377',borderRadius:1},shardValue:{color:color.cyanBright,fontSize:36,fontWeight:'800',marginVertical:6},available:{color:'#a89acb',fontSize:10,letterSpacing:1},badges:{flexDirection:'row',flexWrap:'wrap',gap:10,justifyContent:'space-between'},badge:{padding:14,borderRadius:14,borderWidth:1,borderColor:'#21425a',backgroundColor:'#0a2233',alignItems:'center',gap:8},badgeIcon:{width:48,height:48,borderRadius:16,borderWidth:1.5,alignItems:'center',justifyContent:'center',backgroundColor:'#071725'},badgeValue:{fontSize:22,fontWeight:'800'},badgeLabel:{color:'#9fbccc',fontSize:10,textAlign:'center'},empty:{color:'#a7c3d3',fontSize:13,lineHeight:21,paddingVertical:15},quote:{marginVertical:18,minHeight:115,borderRadius:18,overflow:'hidden',justifyContent:'center',alignItems:'center',gap:8,padding:14},horizon:{position:'absolute',width:360,height:250,borderRadius:180,left:-230,bottom:-195,borderTopWidth:2,borderColor:'#59bff0',backgroundColor:'#154367'},quoteFirst:{color:'#e9f6fd',fontSize:12,letterSpacing:3,textAlign:'center'},quoteLast:{color:color.cyanBright,fontSize:12,letterSpacing:2,textAlign:'center'},back:{borderColor:color.cyan,borderWidth:1,borderRadius:25,minHeight:48,alignSelf:'center',minWidth:150,alignItems:'center',justifyContent:'center',paddingHorizontal:20},backText:{color:color.cyanBright,fontSize:14,fontWeight:'800',letterSpacing:2},
 });

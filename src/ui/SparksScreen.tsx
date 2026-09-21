@@ -1,81 +1,55 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-
-import { ECONOMY } from '../config/economy';
-import { SPARK_CATALOG } from '../customization/sparks';
-import { BackButton, GlassPanel, Screen, ScreenTitle, color, radius, space } from '../design';
-import type { PersistentGameData } from '../persistence/GameSave';
-
-type Props = {
-  save: PersistentGameData;
-  onEquip: (sparkId: string) => void;
-  onBuy: (sparkId: string) => void;
-  onBack: () => void;
-};
-
-export function SparksScreen({ save, onEquip, onBuy, onBack }: Props) {
-  const campaign = save.campaign;
-
-  return (
-    <Screen scroll={false}>
-      <ScreenTitle title="SPARKS" meta={`◆ ${campaign.shards} SHARDS`} />
-      <ScrollView contentContainerStyle={styles.list}>
-        {SPARK_CATALOG.map((spark) => {
-          const owned = campaign.ownedSparkIds.includes(spark.id);
-          const selected = campaign.equippedSparkId === spark.id;
-          return (
-            <GlassPanel key={spark.id} style={[styles.row, selected && styles.selected]}>
-              <View style={styles.portrait}>
-                <View style={[styles.swatch, { backgroundColor: `#${spark.color.toString(16).padStart(6, '0')}` }]} />
-                <View style={[styles.orbit, { borderColor: `#${spark.trailColor.toString(16).padStart(6, '0')}` }]} />
-              </View>
-              <View style={styles.info}>
-                <Text style={styles.name}>{spark.name.toUpperCase()}</Text>
-                <Text style={styles.meta}>
-                  {owned
-                    ? selected
-                      ? 'EQUIPPED'
-                      : 'OWNED'
-                    : spark.acquisition === 'shards'
-                      ? `${spark.shardCost} SHARDS`
-                      : spark.acquisition === 'premium'
-                        ? 'PREMIUM'
-                        : spark.acquisition === 'world_completion'
-                          ? 'WORLD REWARD'
-                          : spark.acquisition.toUpperCase()}
-                </Text>
-              </View>
-              {owned ? (
-                <Pressable onPress={() => onEquip(spark.id)}>
-                  <Text style={styles.action}>{selected ? '✓' : 'EQUIP'}</Text>
-                </Pressable>
-              ) : spark.acquisition === 'shards' ? (
-                <Pressable onPress={() => onBuy(spark.id)}>
-                  <Text style={styles.action}>BUY</Text>
-                </Pressable>
-              ) : (
-                <Text style={styles.locked}>LOCK</Text>
-              )}
-            </GlassPanel>
-          );
-        })}
-      </ScrollView>
-      <Text style={styles.note}>Physics identical for all Sparks. ◆ costs from economy config.</Text>
-      <BackButton onPress={onBack} />
-    </Screen>
-  );
+import {useEffect,useRef,useState} from 'react';
+import {Animated,Easing,Pressable,ScrollView,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
+import {LinearGradient} from 'expo-linear-gradient';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {SPARK_CATALOG,sparkById,type SparkDefinition} from '../customization/sparks';
+import {worldById} from '../campaign/worlds';
+import {color} from '../design';
+import {HOME_BRAND} from '../config/branding';
+import {SPARK_DESCRIPTIONS} from './sparkPresentation';
+import type {PersistentGameData} from '../persistence/GameSave';
+type Props={save:PersistentGameData;onEquip:(id:string)=>void;onBuy:(id:string)=>void;onBack:()=>void;reduceMotion?:boolean};
+const filters=['ALL','OWNED','LOCKED','SPECIAL'] as const;
+const hex=(n:number)=>`#${n.toString(16).padStart(6,'0')}`;
+/** Lightweight living-light preview; uses the actual cosmetic colors and no orbit rings. */
+function SparkPortrait({spark,size}:{spark:SparkDefinition;size:number}){
+ const tint=hex(spark.color),halo=hex(spark.trailColor);
+ return <View accessible={false} style={{width:size,height:size,alignItems:'center',justifyContent:'center'}}>
+ {[.95,.78,.61].map((scale,i)=><View key={scale} style={{position:'absolute',width:size*scale,height:size*scale,borderRadius:size,backgroundColor:halo,opacity:.025+i*.025,shadowColor:halo,shadowRadius:size*.1,shadowOpacity:.6,shadowOffset:{width:0,height:0}}}/>)}
+ {Array.from({length:9},(_,i)=><View key={i} style={{position:'absolute',width:size,height:size,transform:[{rotate:`${i*40+spark.emissive%31}deg`}]}}><LinearGradient colors={['transparent',`${halo}88`,'transparent']} style={{position:'absolute',width:size*.018,height:size*.26,left:size*.49,top:size*.11,borderRadius:size*.05,transform:[{rotate:'22deg'}]}}/></View>)}
+ <LinearGradient colors={['#ffffff',tint,hex(spark.emissive)]} start={{x:.25,y:0}} end={{x:.8,y:1}} style={{width:size*.43,height:size*.43,borderRadius:size,shadowColor:halo,shadowRadius:size*.13,shadowOpacity:1,shadowOffset:{width:0,height:0}}}/>
+ <View style={{position:'absolute',width:size*.25,height:size*.25,borderRadius:size,backgroundColor:'#f4ffff',opacity:.8,shadowColor:'#ffffff',shadowRadius:size*.08,shadowOpacity:.9,shadowOffset:{width:0,height:0}}}/>
+ {Array.from({length:8},(_,i)=>{const a=i*2.399,r=size*(.31+(i%3)*.06);return <View key={i} style={{position:'absolute',left:size/2+Math.cos(a)*r,top:size/2+Math.sin(a)*r,width:i%3+1.5,height:i%3+1.5,borderRadius:3,backgroundColor:halo,opacity:.7}}/>;})}
+ </View>;
 }
-
-const styles = StyleSheet.create({
-  list: { paddingBottom: space.md },
-  row: { flexDirection: 'row', alignItems: 'center', padding: space.sm, borderRadius: radius.lg, marginBottom: space.xs },
-  selected: { backgroundColor: color.cyanGlow, borderColor: color.cyanBright },
-  portrait: { width: 46, height: 46, marginRight: space.sm, alignItems: 'center', justifyContent: 'center' },
-  swatch: { width: 24, height: 24, borderRadius: 14, shadowColor: color.cyan, shadowOpacity: 1, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } },
-  orbit: { position: 'absolute', width: 42, height: 25, borderRadius: 24, borderWidth: 1, transform: [{ rotate: '-20deg' }] },
-  info: { flex: 1 },
-  name: { color: color.white, fontSize: 14, fontWeight: '800' },
-  meta: { marginTop: 2, color: color.creamFaint, fontSize: 11, fontWeight: '700' },
-  action: { color: color.cyanBright, fontSize: 12, fontWeight: '900', letterSpacing: 1 },
-  locked: { color: color.creamFaint, fontSize: 11, fontWeight: '800' },
-  note: { color: color.creamFaint, fontSize: 11, textAlign: 'center', marginBottom: space.xxs },
-});
+export function SparksScreen({save,onEquip,onBuy,onBack,reduceMotion=false}:Props){
+ const c=save.campaign,{width,fontScale}=useWindowDimensions(),insets=useSafeAreaInsets();
+ const [filter,setFilter]=useState<typeof filters[number]>('ALL'),[previewId,setPreviewId]=useState(c.equippedSparkId);
+ const scroll=useRef<ScrollView>(null),pulse=useRef(new Animated.Value(1)).current;
+ useEffect(()=>{if(reduceMotion){pulse.setValue(1);return;}const loop=Animated.loop(Animated.sequence([Animated.timing(pulse,{toValue:1.045,duration:1400,easing:Easing.inOut(Easing.sin),useNativeDriver:true}),Animated.timing(pulse,{toValue:.975,duration:1400,easing:Easing.inOut(Easing.sin),useNativeDriver:true})]));loop.start();return()=>loop.stop();},[pulse,reduceMotion]);
+ const contentWidth=Math.min(980,width-Math.max(insets.left,16)-Math.max(insets.right,16));
+ const cols=contentWidth/Math.max(1,fontScale)>=660?3:contentWidth/Math.max(1,fontScale)>=270?2:1;
+ const cardWidth=(contentWidth-(cols-1)*12)/cols;
+ const preview=sparkById(previewId),owned=c.ownedSparkIds.includes(preview.id),equipped=c.equippedSparkId===preview.id;
+ const buyable=!owned&&preview.acquisition==='shards'&&preview.shardCost!==undefined,affordable=buyable&&c.shards>=preview.shardCost!;
+ const unlockText=(spark:SparkDefinition)=>spark.acquisition==='world_completion'?`Complete ${worldById(spark.worldId??'')?.name??'its world'} to unlock.`:spark.acquisition==='mastery'?'Mastery reward · not yet available.':spark.acquisition==='premium'?'Premium appearance · not yet available.':'Available in your collection.';
+ const items=SPARK_CATALOG.filter(spark=>filter==='ALL'||filter==='OWNED'&&c.ownedSparkIds.includes(spark.id)||filter==='LOCKED'&&!c.ownedSparkIds.includes(spark.id)||filter==='SPECIAL'&&['world_completion','mastery','premium'].includes(spark.acquisition));
+ return <View style={s.root}><LinearGradient colors={['#031322','#071e30','#020a12']} style={StyleSheet.absoluteFill}/>
+ <ScrollView ref={scroll} contentContainerStyle={{paddingTop:Math.max(insets.top,12),paddingBottom:Math.max(insets.bottom,20),paddingLeft:Math.max(insets.left,16),paddingRight:Math.max(insets.right,16),alignItems:'center'}}>
+ <View style={s.column}><View style={s.top}><View><Text style={s.wordmark}>{HOME_BRAND.title}</Text><Text style={s.brandSub}>{HOME_BRAND.subtitle}</Text></View><View accessible accessibilityLabel={`${c.shards.toLocaleString()} shards available`} style={s.wallet}><Text style={s.balance}>◆ {c.shards.toLocaleString()}</Text><Text style={s.walletLabel}>SHARDS</Text></View></View>
+ <View style={s.heading}><Text accessibilityRole="header" style={s.title}>SPARKS</Text><Text style={s.subtitle}>SAME PHYSICS. A BRIGHTER JOURNEY.</Text></View>
+ <View style={[s.hero,contentWidth<580&&{flexDirection:'column-reverse'}]}>
+ <View style={s.heroCopy}><Text style={s.badge}>{equipped?'EQUIPPED':owned?'OWNED':buyable?'SHARD COLLECTION':'LOCKED'}</Text><Text accessibilityRole="header" style={s.heroName}>{preview.name.toUpperCase()}</Text><Text style={s.description}>{SPARK_DESCRIPTIONS[preview.id]}</Text><Text style={s.heroNote}>{owned?'A different light. The same skill, timing and physics.':buyable?`Unlock for ${preview.shardCost!.toLocaleString()} shards.`:unlockText(preview)}</Text>
+ {owned||buyable?<Pressable accessibilityRole="button" accessibilityLabel={equipped?`${preview.name} equipped`:owned?`Equip ${preview.name}`:`Buy ${preview.name} for ${preview.shardCost} shards`} accessibilityState={{disabled:equipped||!owned&&!affordable}} disabled={equipped||!owned&&!affordable} onPress={()=>owned?onEquip(preview.id):onBuy(preview.id)} style={({pressed})=>[s.heroAction,(!owned&&!affordable)&&s.disabled,pressed&&{opacity:.7}]}><Text style={s.heroActionText}>{equipped?'✓ EQUIPPED':owned?'EQUIP SPARK':affordable?`◆ ${preview.shardCost!.toLocaleString()} · BUY`:`NEED ${(preview.shardCost!-c.shards).toLocaleString()} MORE SHARDS`}</Text></Pressable>:null}
+ </View><Animated.View style={{alignItems:'center',justifyContent:'center',transform:[{scale:pulse}]}}><SparkPortrait spark={preview} size={contentWidth<580?170:260}/></Animated.View></View>
+ <View accessibilityRole="tablist" style={s.filters}>{filters.map(f=><Pressable key={f} accessibilityRole="tab" accessibilityState={{selected:filter===f}} onPress={()=>setFilter(f)} style={[s.filter,filter===f&&s.filterSelected]}><Text style={[s.filterText,filter===f&&{color:color.cyanBright}]}>{f}</Text></Pressable>)}</View>
+ {filter==='SPECIAL'?<Text style={s.filterNote}>World rewards and special appearances</Text>:null}
+ <View style={s.grid}>{items.map(spark=>{const has=c.ownedSparkIds.includes(spark.id),isEquipped=c.equippedSparkId===spark.id,selected=preview.id===spark.id;return <Pressable key={spark.id} accessibilityRole="button" accessibilityLabel={`Preview ${spark.name}, ${isEquipped?'equipped':has?'owned':spark.acquisition==='shards'?`${spark.shardCost} shards`:'locked'}`} accessibilityState={{selected}} onPress={()=>{setPreviewId(spark.id);scroll.current?.scrollTo({y:0,animated:!reduceMotion});}} style={({pressed})=>[s.card,{width:cardWidth},isEquipped&&s.equippedCard,selected&&!isEquipped&&s.previewCard,pressed&&{opacity:.8}]}>
+ <View style={s.cardStatus}><Text style={s.statusText}>{isEquipped?'✓':has?'':spark.acquisition==='shards'?'◆':'LOCKED'}</Text></View>
+ <SparkPortrait spark={spark} size={Math.min(148,cardWidth-18)}/><Text style={s.cardName}>{spark.name.toUpperCase()}</Text><Text style={s.cardDescription}>{SPARK_DESCRIPTIONS[spark.id]}</Text><View style={[s.cardPill,!has&&spark.acquisition!=='shards'&&{borderColor:'#344957'}]}><Text style={[s.pillText,!has&&spark.acquisition!=='shards'&&{color:'#99adbd'}]}>{isEquipped?'EQUIPPED':has?'OWNED':spark.acquisition==='shards'?`◆ ${spark.shardCost?.toLocaleString()}`:'LOCKED'}</Text></View></Pressable>;})}</View>
+ {items.length===0?<View style={s.empty}><Text style={s.description}>No Sparks in this collection yet.</Text><Text style={s.heroNote}>Explore the worlds to discover more light.</Text></View>:null}
+ <LinearGradient colors={['#072a41','#131b35','#041322']} start={{x:0,y:0}} end={{x:1,y:1}} style={s.quote}><Text style={s.quoteText}>DIFFERENT SPARKS.</Text><Text style={[s.quoteText,{color:color.cyanBright}]}>THE SAME DESTINATION.</Text><Text style={s.collection}>{c.ownedSparkIds.filter(id=>SPARK_CATALOG.some(spark=>spark.id===id)).length} / {SPARK_CATALOG.length} COLLECTED</Text></LinearGradient>
+ <Pressable accessibilityRole="button" accessibilityLabel="Back to home" onPress={onBack} style={s.back}><Text style={s.backText}>‹   BACK</Text></Pressable>
+ </View></ScrollView></View>;
+}
+const s=StyleSheet.create({root:{...StyleSheet.absoluteFill,backgroundColor:color.ink},column:{width:'100%',maxWidth:980},top:{flexDirection:'row',flexWrap:'wrap',alignItems:'center',justifyContent:'space-between',gap:12,paddingVertical:12},wordmark:{color:'#e5faff',fontSize:25,letterSpacing:6,fontWeight:'300',textShadowColor:'#27b7e9',textShadowRadius:12},brandSub:{fontSize:7,color:color.cyanBright,letterSpacing:2.2,marginTop:5},wallet:{alignItems:'flex-end',flexShrink:1},balance:{color:color.cyanBright,fontSize:22,fontWeight:'800'},walletLabel:{fontSize:8,color:'#79bcd7',letterSpacing:2,marginTop:3},heading:{alignItems:'center',paddingVertical:19,gap:8},title:{fontSize:34,fontWeight:'800',letterSpacing:5,color:color.white},subtitle:{fontSize:9,letterSpacing:1.3,color:'#9fb4c5',textAlign:'center'},hero:{flexDirection:'row',borderWidth:1,borderColor:color.panelBorder,backgroundColor:color.panel,borderRadius:23,padding:22,alignItems:'center',gap:8},heroCopy:{flex:1,width:'100%',gap:10},badge:{color:'#062337',backgroundColor:color.cyanBright,alignSelf:'flex-start',borderRadius:13,paddingHorizontal:14,paddingVertical:7,fontSize:10,fontWeight:'900',letterSpacing:1},heroName:{color:color.white,fontSize:29,fontWeight:'800'},description:{color:'#bcd2df',fontSize:15,lineHeight:22},heroNote:{color:'#8ca9bd',fontSize:12,lineHeight:18},heroAction:{minHeight:44,borderWidth:1,borderColor:color.cyan,borderRadius:22,paddingHorizontal:14,paddingVertical:12,alignItems:'center',justifyContent:'center',marginTop:5,backgroundColor:'#073346'},heroActionText:{color:color.cyanBright,fontSize:11,fontWeight:'800',letterSpacing:.7,textAlign:'center'},disabled:{opacity:.5},filters:{flexDirection:'row',gap:6,marginVertical:18},filter:{flex:1,minHeight:44,borderRadius:22,borderWidth:1,borderColor:'#21536a',alignItems:'center',justifyContent:'center'},filterSelected:{backgroundColor:'#063b53',borderColor:color.cyanBright},filterText:{color:'#8299ac',fontSize:10,fontWeight:'800'},filterNote:{color:'#9bb9cb',fontSize:11,textAlign:'center',marginBottom:14},grid:{flexDirection:'row',flexWrap:'wrap',gap:12},card:{borderWidth:1,borderColor:color.panelBorder,borderRadius:20,backgroundColor:'#041625',padding:10,alignItems:'center',gap:7},equippedCard:{borderColor:color.cyanBright,borderWidth:2,shadowColor:color.cyan,shadowRadius:8,shadowOpacity:.3,shadowOffset:{width:0,height:0}},previewCard:{borderColor:'#b5dbe8'},cardStatus:{position:'absolute',right:10,top:10,zIndex:1},statusText:{color:color.cyanBright,fontSize:9,fontWeight:'900'},cardName:{color:color.white,fontSize:15,fontWeight:'800',textAlign:'center'},cardDescription:{color:'#91a9bb',fontSize:11,lineHeight:16,textAlign:'center',minHeight:34},cardPill:{borderWidth:1,borderColor:'#106482',borderRadius:19,paddingVertical:9,paddingHorizontal:7,width:'100%',alignItems:'center',marginTop:'auto'},pillText:{fontSize:11,fontWeight:'800',color:color.cyanBright,letterSpacing:.6},quote:{borderRadius:18,padding:24,marginVertical:20,alignItems:'center',gap:8},quoteText:{color:'#b8b6d4',fontSize:11,letterSpacing:2,textAlign:'center'},collection:{color:'#7199ad',fontSize:9,letterSpacing:1,marginTop:10},back:{borderWidth:1,borderColor:color.cyanBright,borderRadius:25,minHeight:48,minWidth:150,alignSelf:'center',alignItems:'center',justifyContent:'center'},backText:{color:color.cyanBright,fontWeight:'800',letterSpacing:2,fontSize:14},empty:{padding:25,alignItems:'center',gap:8}});

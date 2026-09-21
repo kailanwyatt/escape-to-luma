@@ -1,3 +1,4 @@
+import {createReadableBlocker} from './ReadableBlockerVisual';
 import * as THREE from 'three';
 
 import type { EnvironmentId } from '../config/ChallengeConfig';
@@ -33,15 +34,7 @@ export class OrbiterObstacle {
     this.group.visible = true;
     this.z = config.z;
     if (!this.mesh) {
-      const color = environment === 'space' ? 0x6cf0ff : environment === 'rooftop' ? 0xc5d4e0 : 0xd06a32;
-      this.mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(1, 14, 12),
-        new THREE.MeshLambertMaterial({
-          color,
-          emissive: environment === 'space' ? 0x2a6a88 : 0x000000,
-          emissiveIntensity: environment === 'space' ? 0.35 : 0,
-        }),
-      );
+      this.mesh = createReadableBlocker('drone');
       this.group.add(this.mesh);
     }
     this.mesh.scale.setScalar(config.blockerRadius);

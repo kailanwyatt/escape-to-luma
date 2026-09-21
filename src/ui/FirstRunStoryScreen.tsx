@@ -3,41 +3,55 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ContinueJourneyButton, color, radius, space, textStyles } from '../design';
-import { ContainmentScene } from '../design/components/ContainmentScene';
+import {
+  ContainmentScene,
+  type ContainmentVariant,
+} from '../design/components/ContainmentScene';
 
 const STORY = [
   {
     eyebrow: 'WHAT IS SPARK?',
     title: 'A LIVING LIGHT',
     body: 'Spark is a living energy entity—curious, resilient and alive. Not a machine. Not a weapon.',
+    variant: 'living' as ContainmentVariant,
+    tag: 'S-01 · SPECIMEN',
   },
   {
     eyebrow: 'SPECIMEN S-01',
     title: 'FOUND FAR FROM HOME',
-    body: 'Researchers discovered Spark after it fell to Earth. They captured it and sealed it beneath the city.',
+    body: 'A deep-space probe captured Spark and brought it to Earth. Researchers sealed it beneath the city.',
+    variant: 'found' as ContainmentVariant,
+    tag: 'S-01 · CONTAINMENT',
   },
   {
     eyebrow: 'SIGNAL DETECTED',
-    title: 'LUMA IS CALLING',
+    title: 'SOMETHING IS CALLING',
     body: 'From inside containment, Spark hears a distant signal. It feels familiar. It sounds like home.',
+    variant: 'signal' as ContainmentVariant,
+    tag: 'SIGNAL · UNKNOWN',
   },
   {
     eyebrow: 'SYSTEM FAILURE',
     title: 'THE WAY IS OPEN',
     body: 'Containment is failing, but every security system stands between Spark and the surface.',
+    variant: 'breach' as ContainmentVariant,
+    tag: 'BREACH · ALERT',
   },
   {
     eyebrow: 'YOUR MISSION',
     title: 'GUIDE SPARK HOME',
     body: 'Aim each throw, predict every moving obstacle and help Spark follow the signal across Earth and the stars.',
+    variant: 'mission' as ContainmentVariant,
+    tag: 'MISSION · ESCAPE',
   },
 ] as const;
 
 type Props = {
   onComplete: () => void;
+  reduceMotion?: boolean;
 };
 
-export function FirstRunStoryScreen({ onComplete }: Props) {
+export function FirstRunStoryScreen({ onComplete, reduceMotion = false }: Props) {
   const insets = useSafeAreaInsets();
   const [page, setPage] = useState(0);
   const story = STORY[page];
@@ -70,9 +84,9 @@ export function FirstRunStoryScreen({ onComplete }: Props) {
       </View>
 
       <View style={styles.scene}>
-        <ContainmentScene />
+        <ContainmentScene variant={story.variant} reduceMotion={reduceMotion} />
         <View style={styles.specimenTag}>
-          <Text style={styles.specimenText}>S-01 · CONTAINMENT</Text>
+          <Text style={styles.specimenText}>{story.tag}</Text>
         </View>
       </View>
 

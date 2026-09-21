@@ -1,7 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {RELEASE_POLICY} from '../config/release';
+import {StoryScreen} from './StoryScreen';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { HudSnapshot } from '../game/GameState';
+import { getAssetSource } from '../graphics/assetRegistry';
 import { formatScore } from '../target/TargetScoring';
 import { color, ContinueJourneyButton } from '../design';
 import { CampaignOpening } from './CampaignOpening';
@@ -22,9 +26,11 @@ type Props = {
   onPause: () => void;
   onResume: () => void;
   onSkipOpening: () => void;
+  onBoosts:()=>void;
 };
 
 const CAMPAIGN_OVERLAY_PHASES = new Set<HudSnapshot['phase']>([
+  'CAMPAIGN_STORY',
   'CAMPAIGN_OPENING',
   'LEVEL_COMPLETE',
   'LEVEL_FAILED',
@@ -50,10 +56,12 @@ export function HUD({
   onPause,
   onResume,
   onSkipOpening,
+  onBoosts,
 }: Props) {
   const insets = useSafeAreaInsets();
   const campaign = hud.sessionMode === 'campaign';
   const showCampaignTop = campaign && !CAMPAIGN_OVERLAY_PHASES.has(hud.phase) && hud.phase !== 'RESULT';
+  const crackEscapeSource = getAssetSource('world1.crackEscape');
 
   const hearts = hud.unlimitedHearts
     ? '∞'
@@ -63,24 +71,57 @@ export function HUD({
     ? '⚡ ∞'
     : `⚡ ${hud.energy}/${hud.maxEnergy}`;
 
+  if (hud.phase === 'CAMPAIGN_STORY' && hud.campaignStory) {
+    return <StoryScreen story={hud.campaignStory} onContinue={onContinueLevel} onHome={onHome}/>;
+  }
+
   return (
     <View style={styles.root}>
       {showCampaignTop ? (
-        <View style={[styles.top, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
-          <Text style={styles.campaignMeta}>
-            {hud.firstLevelOnboarding ? 'CONTAINMENT' : energyLabel}
-          </Text>
-          <Text style={styles.campaignCenter}>
-            {hud.firstLevelOnboarding
-              ? 'ESCAPE THROUGH THE CRACK'
-              : `L${hud.campaignLevel}${
-                  hud.campaignWorldName ? ` · ${hud.campaignWorldName.toUpperCase()}` : ''
-                }${hud.windActive ? ' · WIND' : ''}`}
-          </Text>
-          <Text style={[styles.campaignMeta, styles.campaignMetaRight]}>
-            {hud.firstLevelOnboarding ? 'NO TIMER' : `◆ ${hud.shards}`}
-          </Text>
-        </View>
+        hud.firstLevelOnboarding ? (
+          <View style={[styles.breachHeaderWrap, { paddingTop: Math.max(insets.top, 14) + 4 }]}>
+            <LinearGradient
+              colors={['rgba(6,18,32,0.94)', 'rgba(8,28,44,0.88)', 'rgba(4,14,26,0.55)']}
+              locations={[0, 0.55, 1]}
+              style={styles.breachHeader}
+            >
+              <View style={styles.breachHeaderTop}>
+                <View style={styles.breachBadge}>
+                  <View style={styles.breachBadgeDot} />
+                  <Text style={styles.breachBadgeText}>CONTAINMENT</Text>
+                </View>
+                <Text style={styles.breachMeta}>BREACH · L1</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel="Pause game" onPress={onPause} hitSlop={12}><Text style={styles.breachTimer}>PAUSE</Text></Pressable>
+              </View>
+              <View style={styles.breachMissionRow}>
+                {crackEscapeSource ? (
+                  <Image
+                    source={crackEscapeSource}
+                    style={styles.breachThumb}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.breachThumb, styles.breachThumbFallback]} />
+                )}
+                <View style={styles.breachMissionCopy}>
+                  <Text style={styles.breachEyebrow}>OBJECTIVE</Text>
+                  <Text style={styles.breachTitle}>ESCAPE THROUGH THE CRACK</Text>
+                  <Text style={styles.breachSub}>Aim for the fracture. Break free of the vessel.</Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+        ) : (
+          <View style={[styles.top, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
+            <Text style={styles.campaignMeta}>{energyLabel}</Text>
+            <Text style={styles.campaignCenter}>
+              {`L${hud.campaignLevel}${
+                hud.campaignWorldName ? ` · ${hud.campaignWorldName.toUpperCase()}` : ''
+              }${hud.windActive ? ` · ${hud.windDirection === 'left' ? '← WIND' : 'WIND →'}` : ''}`}
+            </Text>
+            <Text style={[styles.campaignMeta, styles.campaignMetaRight]}>◆ {hud.shards}</Text>
+          </View>
+        )
       ) : !campaign ? (
         <View style={[styles.top, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
           <Text style={styles.hearts}>{hearts}</Text>
@@ -109,6 +150,7 @@ export function HUD({
           <Pressable accessibilityRole="button" onPress={onHome} hitSlop={10}>
             <Text style={styles.controlText}>HOME</Text>
           </Pressable>
+          {hud.canChooseBoosts&&!paused?<Pressable accessibilityRole="button" onPress={onBoosts} hitSlop={10}><Text style={styles.controlText}>BOOSTS</Text></Pressable>:null}
           <Pressable accessibilityRole="button" onPress={onRestart} hitSlop={10}>
             <Text style={styles.controlText}>RESTART</Text>
           </Pressable>
@@ -131,27 +173,10 @@ export function HUD({
           ]}
           pointerEvents="none"
         >
-          <Text style={styles.firstTutorialEyebrow}>HOW TO ESCAPE</Text>
-          <TutorialRow
-            active={hud.phase === 'READY'}
-            number="1"
-            text="PULL TO POWER UP"
-          />
-          <TutorialRow
-            active={hud.phase === 'AIMING' && !hud.cancelReady}
-            number="2"
-            text="DRAG TO AIM THROUGH THE CRACK"
-          />
-          <TutorialRow
-            active={hud.phase === 'AIMING' && !hud.cancelReady}
-            number="3"
-            text="FINGER UP TO RELEASE"
-          />
-          <TutorialRow
-            active={hud.cancelReady}
-            number="4"
-            text="PULL BACK TO CENTER TO CANCEL"
-          />
+          <Text style={styles.firstTutorialEyebrow}>{hud.cancelReady ? 'RELEASE TO CANCEL' : hud.phase === 'AIMING' ? 'RELEASE TO LAUNCH' : 'PULL DOWN TO POWER UP'}</Text>
+          <Text style={{color: color.creamMuted, fontSize: 12, textAlign: 'center', marginTop: 6}}>
+            {hud.phase === 'AIMING' ? 'Move sideways to aim · return to center to cancel' : 'Drag to aim through the opening in the glass'}
+          </Text>
         </View>
       ) : hud.onboardingText && !CAMPAIGN_OVERLAY_PHASES.has(hud.phase) ? (
         <View style={[styles.onboarding, { bottom: Math.max(insets.bottom, 16) + 28 }]}>
@@ -162,8 +187,8 @@ export function HUD({
         </View>
       ) : null}
 
-      {hud.phase === 'CAMPAIGN_OPENING' ? (
-        <CampaignOpening stage={hud.openingStage} onSkip={onSkipOpening} />
+      {hud.phase === 'CAMPAIGN_OPENING' && !paused ? (
+        <CampaignOpening stage={hud.openingStage} onSkip={onSkipOpening} onPause={onPause} />
       ) : null}
 
       {hud.phase === 'LEVEL_COMPLETE' ? (
@@ -175,7 +200,7 @@ export function HUD({
           {hud.lastShardsGained > 0 ? (
             <Text style={styles.shardGain}>+{hud.lastShardsGained} SHARDS</Text>
           ) : null}
-          <ContinueJourneyButton label="NEXT" playIcon={false} style={styles.overlayCta} onPress={onContinueLevel} />
+          <ContinueJourneyButton label={hud.campaignLevel >= RELEASE_POLICY.campaignMaxLevel ? "REPLAY" : "NEXT"} playIcon={false} style={styles.overlayCta} onPress={onContinueLevel} />
           <Pressable style={styles.homeButton} onPress={onHome}>
             <Text style={styles.homeText}>HOME</Text>
           </Pressable>
@@ -209,7 +234,7 @@ export function HUD({
         <View style={styles.overlay}>
           <Text style={styles.endTitle}>HOME REACHED</Text>
           <Text style={styles.rank}>LUMA</Text>
-          <Text style={styles.continueCopy}>Spark found the signal. The network is open.</Text>
+          <Text style={styles.continueCopy}>Spark is reunited with his own kind. Explore freely in Endless Voyage; Luma will always be home.</Text>
           <ContinueJourneyButton label="RETURN HOME" playIcon={false} style={styles.overlayCta} onPress={onHome} />
         </View>
       ) : null}
@@ -218,23 +243,10 @@ export function HUD({
         <View style={styles.overlay}>
           <Text style={styles.endTitle}>LEVEL FAILED</Text>
           {hud.lastFail ? <Text style={styles.continueCopy}>{hud.lastFail}</Text> : null}
-          {hud.helpOffer ? (
-            <View style={styles.helpBanner}>
-              <Text style={styles.helpTitle}>NEED A HAND?</Text>
-              <Text style={styles.helpCopy}>Try a free slow field on this level.</Text>
-              <ContinueJourneyButton label="USE SLOW FIELD" playIcon={false} style={styles.overlayCta} onPress={onUseHelp} />
-              <Pressable onPress={onDeclineHelp}>
-                <Text style={styles.homeText}>NO THANKS</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <>
-              <ContinueJourneyButton label="RETRY" playIcon={false} style={styles.overlayCta} onPress={onRetryLevel} />
-              <Pressable style={styles.homeButton} onPress={onHome}>
-                <Text style={styles.homeText}>HOME</Text>
-              </Pressable>
-            </>
-          )}
+          <ContinueJourneyButton label="RETRY" playIcon={false} style={styles.overlayCta} onPress={onRetryLevel} />
+          {hud.helpOffer?<Pressable accessibilityRole="button" onPress={onUseHelp} style={styles.homeButton}><Text style={styles.helpCopy}>Need a hand? Try a free slow field.</Text></Pressable>:null}
+          <Pressable style={styles.homeButton} onPress={onHome}><Text style={styles.homeText}>HOME</Text></Pressable>
+
         </View>
       ) : null}
 
@@ -331,29 +343,6 @@ export function HUD({
   );
 }
 
-function TutorialRow({
-  active,
-  number,
-  text,
-}: {
-  active: boolean;
-  number: string;
-  text: string;
-}) {
-  return (
-    <View style={styles.tutorialRow}>
-      <View style={[styles.tutorialNumber, active && styles.tutorialNumberActive]}>
-        <Text style={[styles.tutorialNumberText, active && styles.tutorialNumberTextActive]}>
-          {number}
-        </Text>
-      </View>
-      <Text style={[styles.tutorialText, active && styles.tutorialTextActive]}>
-        {text}
-      </Text>
-    </View>
-  );
-}
-
 function EndCard({
   title,
   rows,
@@ -438,6 +427,99 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     pointerEvents: 'box-none',
+  },
+  breachHeaderWrap: {
+    paddingHorizontal: 14,
+    pointerEvents: 'none',
+  },
+  breachHeader: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(126,240,255,0.38)',
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 14,
+    overflow: 'hidden',
+  },
+  breachHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  breachBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,184,0,0.45)',
+    backgroundColor: 'rgba(255,184,0,0.12)',
+  },
+  breachBadgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: color.amberBright,
+  },
+  breachBadgeText: {
+    color: color.amberBright,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+  },
+  breachMeta: {
+    color: 'rgba(126,240,255,0.72)',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+  },
+  breachTimer: {
+    color: 'rgba(244,239,230,0.55)',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+  },
+  breachMissionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  breachThumb: {
+    width: 58,
+    height: 72,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(126,240,255,0.45)',
+    backgroundColor: '#0a1826',
+  },
+  breachThumbFallback: {
+    backgroundColor: '#123048',
+  },
+  breachMissionCopy: {
+    flex: 1,
+  },
+  breachEyebrow: {
+    color: color.cyanDim,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 2,
+    marginBottom: 4,
+  },
+  breachTitle: {
+    color: color.cream,
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+    marginBottom: 4,
+  },
+  breachSub: {
+    color: 'rgba(244,239,230,0.62)',
+    fontSize: 11,
+    fontWeight: '600',
+    lineHeight: 15,
   },
   hearts: {
     color: color.heart,

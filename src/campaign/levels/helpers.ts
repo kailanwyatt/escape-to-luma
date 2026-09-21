@@ -1,5 +1,8 @@
 import type { ChallengeConfig, EnvironmentId } from '../../config/ChallengeConfig';
-import type { ObstacleConfig } from '../../config/ObstacleConfig';
+import type {
+  LaserGridPattern,
+  ObstacleConfig,
+} from '../../config/ObstacleConfig';
 import { GAME_TUNING } from '../../game/gameTuning';
 import type { CampaignLevelDefinition, GravityWellConfig, WorldId } from '../types';
 
@@ -200,47 +203,44 @@ export function well(strength: number, radius: number, x = 0.55, y = 3.1): Gravi
 export function lasers(
   orientation: 'vertical' | 'horizontal' | 'both',
   opts?: {
-    openingSize?: number;
+    pattern?: LaserGridPattern;
+    beamCount?: number;
     spacing?: number;
     span?: number;
     thickness?: number;
-    mode?: 'static' | 'pulse';
+    amplitude?: number;
     speed?: number;
+    phaseOffset?: number;
+    mode?: 'static' | 'pulse';
+    pulseSpeed?: number;
     onRatio?: number;
     phase?: number;
     z?: number;
-    movement?: {
-      axis: 'horizontal' | 'vertical' | 'both';
-      amplitude: number;
-      speed: number;
-      phase?: number;
-    };
   },
 ): ObstacleConfig {
-  const defaultAxis =
-    orientation === 'vertical'
-      ? 'horizontal'
-      : orientation === 'horizontal'
-        ? 'vertical'
-        : 'both';
   return {
     type: 'laserGrid',
     z: opts?.z ?? Z_A,
     orientation,
-    openingSize: opts?.openingSize ?? 1.25,
-    spacing: opts?.spacing ?? 0.55,
+    pattern:
+      opts?.pattern ??
+      (orientation === 'vertical'
+        ? 'VERTICAL_WAVE'
+        : orientation === 'horizontal'
+          ? 'HORIZONTAL_WAVE'
+          : 'CROSSING'),
+    beamCount: opts?.beamCount ?? (orientation === 'both' ? 6 : 4),
+    spacing: opts?.spacing ?? 1.08,
     span: opts?.span ?? 4.2,
     thickness: opts?.thickness ?? 0.06,
+    amplitude: opts?.amplitude ?? 0.2,
+    speed: opts?.speed ?? 0.6,
+    phaseOffset: opts?.phaseOffset ?? 0.8,
     mode: opts?.mode ?? 'static',
-    speed: opts?.speed,
+    pulseSpeed: opts?.pulseSpeed,
     onRatio: opts?.onRatio,
     phase: opts?.phase,
     centerX: 0,
     centerY: 3,
-    movement: opts?.movement ?? {
-      axis: defaultAxis,
-      amplitude: orientation === 'both' ? 0.5 : 0.72,
-      speed: orientation === 'both' ? 0.62 : 0.58,
-    },
   };
 }

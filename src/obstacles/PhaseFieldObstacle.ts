@@ -20,6 +20,8 @@ export class PhaseFieldObstacle {
   open = true;
   private config: PhaseFieldConfig | null = null;
   private mesh: THREE.Mesh | null = null;
+  private warning: THREE.Group | null = null;
+  private boundary: THREE.Mesh | null = null;
 
   constructor(id: string) {
     this.id = id;
@@ -34,17 +36,29 @@ export class PhaseFieldObstacle {
     if (!this.mesh) {
       this.mesh = new THREE.Mesh(
         new THREE.CircleGeometry(1, 32),
-        new THREE.MeshBasicMaterial({
-          color: 0xb07cff,
-          transparent: true,
-          opacity: 0.35,
-          side: THREE.DoubleSide,
-          depthWrite: false,
+        new THREE.ShaderMaterial({
+          transparent:true, side:THREE.DoubleSide, depthWrite:false,
+          vertexShader:`varying vec2 v;void main(){v=uv*2.-1.;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+          fragmentShader:`precision mediump float;varying vec2 v;
+          void main(){float r=length(v),a=atan(v.y,v.x);
+            float threads=pow(.5+.5*sin(r*65.+sin(a*7.)*2.4),14.);
+            float veins=pow(.5+.5*sin(a*17.+r*9.+sin(r*23.)),22.);
+            float rim=smoothstep(.87,1.,r);float energy=max(threads*.45,veins*.3)+rim*.65;
+            vec3 c=mix(vec3(.38,.025,.12),vec3(1.,.44,.4),energy);
+            gl_FragColor=vec4(c,.1+energy*.58);}`,
         }),
       );
       this.group.add(this.mesh);
+      this.warning=new THREE.Group();
+      const warningMat=new THREE.MeshBasicMaterial({color:0xffa28c});
+      for(const sign of [-1,1]){const bar=new THREE.Mesh(new THREE.BoxGeometry(1.1,.045,.01),warningMat);bar.rotation.z=sign*Math.PI/4;bar.position.z=-.025;this.warning.add(bar);}
+      this.group.add(this.warning);
+      this.boundary=new THREE.Mesh(new THREE.TorusGeometry(1,.012,6,64),new THREE.MeshBasicMaterial({color:0x98efdc,transparent:true,opacity:.65,depthWrite:false}));this.group.add(this.boundary);
+
     }
     this.mesh.scale.setScalar(config.fieldRadius);
+    this.boundary!.scale.setScalar(config.fieldRadius);
+    this.warning!.scale.setScalar(config.fieldRadius);
     this.group.position.set(config.centerX, config.centerY, config.z);
     this.update(0, 0);
   }
@@ -60,9 +74,9 @@ export class PhaseFieldObstacle {
       return;
     }
     this.open = phaseOpen(this.config, elapsedTime);
-    const material = this.mesh.material as THREE.MeshBasicMaterial;
-    material.opacity = this.open ? 0.12 : 0.55;
-    material.color.setHex(this.open ? 0x7ef0ff : 0xff5d6c);
+    this.mesh.visible=!this.open;
+    this.warning!.visible=!this.open;
+    (this.boundary!.material as THREE.MeshBasicMaterial).color.setHex(this.open?0x98efdc:0xff806f);
   }
 
   testProjectileCrossing(

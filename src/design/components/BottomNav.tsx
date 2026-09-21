@@ -1,3 +1,4 @@
+import {NavIcon} from './NavIcon';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { textStyles } from '../typography';
@@ -26,7 +27,7 @@ export function BottomNav({ items }: Props) {
           onPress={item.onPress}
           style={({ pressed }) => [styles.tile, pressed ? styles.pressed : null]}
         >
-          <Text style={styles.glyph}>{item.glyph}</Text>
+          <NavIcon name={item.id}/>
           <Text style={[textStyles.labelCyan, styles.label]}>{item.label}</Text>
           <Text style={styles.subtitle}>{item.subtitle}</Text>
         </Pressable>
@@ -46,8 +47,8 @@ const styles = StyleSheet.create({
     backgroundColor: color.panel,
     borderColor: color.panelBorder,
     borderWidth: 1,
-    borderRadius: radius.md,
-    minHeight: 92,
+    borderRadius: 20,
+    minHeight: 88,
     justifyContent: 'center',
     paddingVertical: space.sm,
     paddingHorizontal: 2,

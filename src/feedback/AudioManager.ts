@@ -1,11 +1,15 @@
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import { setAudioModeAsync } from 'expo-audio';
+import { createManagedAudioPlayer, type ManagedAudioPlayer } from './ManagedAudioPlayer';
 
 import { GameLog } from '../debug/GameLog';
+import { TimelineAudio } from './TimelineAudio';
+import { getAssetSource } from '../graphics/assetRegistry';
 
 export type AudioEvent =
   | 'ui'
   | 'aim'
   | 'launch'
+  | 'ricochet'
   | 'close-call'
   | 'rotor'
   | 'gate'
@@ -25,6 +29,7 @@ export type AudioEvent =
   | 'run-over';
 
 const PRIORITY: Record<AudioEvent, number> = {
+  ricochet: 45,
   perfect: 100,
   bullseye: 90,
   rotor: 80,
@@ -48,6 +53,7 @@ const PRIORITY: Record<AudioEvent, number> = {
 };
 
 const FILE: Record<AudioEvent, AudioEvent | 'collision'> = {
+  ricochet: 'ricochet',
   ui: 'ui',
   aim: 'aim',
   launch: 'launch',
@@ -71,6 +77,7 @@ const FILE: Record<AudioEvent, AudioEvent | 'collision'> = {
 };
 
 const SOURCES: Record<string, number> = {
+  ricochet: require('../../assets/sfx/ricochet.wav'),
   ui: require('../../assets/sfx/ui.wav'),
   aim: require('../../assets/sfx/aim.wav'),
   launch: require('../../assets/sfx/launch.wav'),
@@ -93,13 +100,21 @@ class AudioManagerImpl {
   enabled = true;
   private suspended = false;
   private ready = false;
-  private players = new Map<string, AudioPlayer>();
+  private initializing: Promise<void> | null = null;
+  private openingPlayer: ManagedAudioPlayer | null = null;
+  private openingTransport: TimelineAudio | null = null;
+  private players = new Map<string, ManagedAudioPlayer>();
   private current: { event: AudioEvent; until: number } | null = null;
 
-  async init(): Promise<void> {
-    if (this.ready) {
-      return;
+  init(): Promise<void> {
+    if (this.ready) return Promise.resolve();
+    if (!this.initializing) {
+      this.initializing = this.initialize().finally(() => { this.initializing = null; });
     }
+    return this.initializing;
+  }
+
+  private async initialize(): Promise<void> {
     try {
       await setAudioModeAsync({
         playsInSilentMode: true,
@@ -111,7 +126,7 @@ class AudioManagerImpl {
     }
     for (const [id, source] of Object.entries(SOURCES)) {
       try {
-        const player = createAudioPlayer(source);
+        const player = createManagedAudioPlayer(source);
         this.players.set(id, player);
       } catch {
         GameLog.warnOnce(`audio-missing-${id}`, `Missing audio asset: ${id}`);
@@ -145,7 +160,25 @@ class AudioManagerImpl {
     }
   }
 
+  syncOpening(seconds: number | null): void {
+    if (seconds !== null && !this.openingTransport && this.enabled && !this.suspended) {
+      try {
+        const source = getAssetSource('story.openingScore');
+        if (source === null) return;
+        this.openingPlayer = createManagedAudioPlayer(source);
+        this.openingPlayer.volume = 0.6;
+        this.openingTransport = new TimelineAudio(this.openingPlayer, () => {
+          GameLog.warnOnce('opening-audio', 'Opening audio unavailable; the scene can continue silently');
+        });
+      } catch {
+        GameLog.warnOnce('opening-audio-create', 'Opening audio could not be initialized');
+      }
+    }
+    this.openingTransport?.sync(seconds, this.enabled && !this.suspended);
+  }
+
   pauseAll(): void {
+    this.openingTransport?.stop();
     for (const player of this.players.values()) {
       try {
         player.pause();
@@ -167,6 +200,10 @@ class AudioManagerImpl {
   }
 
   release(): void {
+    this.openingTransport?.stop();
+    this.openingTransport = null;
+    this.openingPlayer?.release();
+    this.openingPlayer = null;
     for (const player of this.players.values()) {
       try {
         player.release();

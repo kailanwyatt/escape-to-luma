@@ -39,24 +39,19 @@ describe('campaign progression', () => {
     });
   });
 
-  it('sweeps level 8 vertical lasers from left to right', () => {
+  it('introduces level 8 with three horizontal lasers moving vertically', () => {
     expect(getCampaignLevel(8)?.challenge.obstacles[0]).toMatchObject({
       type: 'laserGrid',
-      orientation: 'vertical',
-      movement: {
-        axis: 'horizontal',
-        amplitude: 0.78,
-        speed: 0.5,
-      },
+      orientation: 'horizontal',
+      pattern: 'HORIZONTAL_WAVE',
+      beamCount: 3,
+      amplitude: 0.28,
+      speed: 0.72,
+      phaseOffset: 1.5,
     });
   });
 
-  it('gives every campaign laser a movement pattern matching its layout', () => {
-    const expectedAxis = {
-      vertical: 'horizontal',
-      horizontal: 'vertical',
-      both: 'both',
-    } as const;
+  it('gives every campaign laser an independent beam pattern', () => {
     const lasers = getPlayableCampaignLevels().flatMap((level) =>
       level.challenge.obstacles.filter((obstacle) => obstacle.type === 'laserGrid'),
     );
@@ -65,9 +60,10 @@ describe('campaign progression', () => {
       if (laser.type !== 'laserGrid') {
         continue;
       }
-      expect(laser.movement?.axis).toBe(expectedAxis[laser.orientation]);
-      expect(laser.movement?.amplitude).toBeGreaterThan(0);
-      expect(laser.movement?.speed).toBeGreaterThan(0);
+      expect(laser.pattern).toBeTruthy();
+      expect(laser.beamCount).toBeGreaterThanOrEqual(3);
+      expect(laser.amplitude).toBeGreaterThan(0);
+      expect(laser.speed).toBeGreaterThan(0);
     }
   });
 
@@ -102,6 +98,26 @@ describe('campaign progression', () => {
     expect(result.campaignComplete).toBe(true);
     expect(result.nextLevel).toBe(150);
     expect(result.save.campaign.campaignCompleted).toBe(true);
+  });
+
+  it('does not repeat the ending or finale rewards after reaching home', () => {
+    const finale = getCampaignLevel(150)!;
+    const first = applyLevelSuccess(emptySave(), finale, 'CLEAR', 0);
+    expect(first.campaignComplete).toBe(true);
+    const replay = applyLevelSuccess(first.save, finale, 'CLEAR', 0);
+    expect(replay.campaignComplete).toBe(false);
+    expect(replay.worldComplete).toBe(false);
+    expect(replay.shardsGained).toBe(0);
+    expect(replay.save.campaign.campaignCompleted).toBe(true);
+    for (const number of [1, 44, 68, 91, 149]) {
+      const result = applyLevelSuccess(replay.save, getCampaignLevel(number)!, 'CLEAR', 0);
+      expect(result.campaignComplete).toBe(false);
+      expect(result.save.campaign.campaignCompleted).toBe(true);
+    }
+    // A previously uncleared world finale may award its own reward, never the ending.
+    const world = applyLevelSuccess(replay.save, getCampaignLevel(30)!, 'CLEAR', 0);
+    expect(world.worldComplete).toBe(true);
+    expect(world.campaignComplete).toBe(false);
   });
 
   it('enforces locks while allowing free retries at zero energy', () => {

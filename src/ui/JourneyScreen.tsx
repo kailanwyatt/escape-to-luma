@@ -1,81 +1,68 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-
-import { journeyDestinationLabel, WORLDS } from '../campaign/worlds';
-import { getCampaignLevel } from '../campaign/levels';
-import { BackButton, GlassPanel, Screen, ScreenTitle, color, radius, space } from '../design';
-import type { PersistentGameData } from '../persistence/GameSave';
-
-type Props = {
-  save: PersistentGameData;
-  onSelectLevel: (levelNumber: number) => void;
-  onBack: () => void;
-};
-
-export function JourneyScreen({ save, onSelectLevel, onBack }: Props) {
-  const campaign = save.campaign;
-  const destination = journeyDestinationLabel(campaign.unlockedWorldIds, campaign.campaignCompleted);
-  const cleared = Object.values(campaign.completedLevels).filter((entry) => entry.cleared).length;
-
-  return (
-    <Screen scroll={false}>
-      <ScreenTitle title="JOURNEY HOME" meta={`${cleared} / 150 · DESTINATION ${destination}`} />
-      <ScrollView contentContainerStyle={styles.list}>
-        {WORLDS.map((world) => {
-          const unlocked = campaign.unlockedWorldIds.includes(world.id);
-          return (
-            <GlassPanel key={world.id} style={[styles.world, !unlocked && styles.locked]}>
-              <Text style={styles.worldName}>
-                W{world.index} · {world.name}
-              </Text>
-              <Text style={styles.meta}>
-                {world.subtitle}
-                {world.stub ? ' · COMING SOON' : ''}
-              </Text>
-              <Text style={styles.signal}>
-                {world.distanceFromEarth} · SIGNAL {world.homeSignalStrength.toUpperCase()}
-              </Text>
-              {unlocked && !world.stub
-                ? Array.from({ length: world.lastLevel - world.firstLevel + 1 }, (_, i) => {
-                    const n = world.firstLevel + i;
-                    const def = getCampaignLevel(n);
-                    if (!def) {
-                      return null;
-                    }
-                    const progress = campaign.completedLevels[def.id];
-                    const available = n <= campaign.highestUnlockedLevel;
-                    return (
-                      <Pressable
-                        key={def.id}
-                        style={[styles.levelRow, !available && styles.levelLocked]}
-                        disabled={!available}
-                        onPress={() => onSelectLevel(n)}
-                      >
-                        <Text style={styles.levelLabel}>LEVEL {n}</Text>
-                        <Text style={styles.levelBest}>
-                          {progress?.cleared ? progress.bestRank : available ? 'OPEN' : 'LOCKED'}
-                        </Text>
-                      </Pressable>
-                    );
-                  })
-                : null}
-            </GlassPanel>
-          );
-        })}
-      </ScrollView>
-      <BackButton onPress={onBack} />
-    </Screen>
-  );
+import {useRef,useState} from 'react';
+import {Image,Pressable,ScrollView,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {LinearGradient} from 'expo-linear-gradient';
+import {WORLDS} from '../campaign/worlds';
+import {journeyProgress,type WorldCardState} from '../campaign/journeyProgress';
+import {HOME_BRAND} from '../config/branding';
+import {getAssetSource} from '../graphics/assetRegistry';
+import type {PersistentGameData} from '../persistence/GameSave';
+import {JOURNEY_PRESENTATION} from './journeyPresentation';
+type Props={save:PersistentGameData;devUnlockAll?:boolean;onSelectLevel:(n:number)=>void;onBack:()=>void};
+const cyan='#66E6FF',muted='#8cabc0';
+function Lock(){return <View accessible={false} style={s.lock}><View style={s.shackle}/></View>;}
+function Node({state}:{state:WorldCardState}){return <View style={[s.node,state==='current'&&s.nodeCurrent,state==='completed'&&s.nodeDone]}>{state==='locked'?<Lock/>:state==='completed'?<Text style={s.check}>✓</Text>:<View style={[s.dot,state!=='current'&&s.dotHollow]}/>}</View>;}
+/** Quiet native-view placeholders are intentionally replaceable, never gameplay renderers. */
+function Preview({id,revealed}:{id:string;revealed:boolean}){
+ const meta=JOURNEY_PRESENTATION[id],source=meta.image&&(id!=='homeward'||revealed)?getAssetSource(meta.image):null;
+ if(source)return <Image accessible={false} source={source} resizeMode="cover" style={[StyleSheet.absoluteFill,{width:'100%',height:'100%'}]}/>;
+ return <View pointerEvents="none" style={[StyleSheet.absoluteFill,{overflow:'hidden'}]}>
+  <LinearGradient colors={meta.sky} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/>
+  {Array.from({length:18},(_,i)=><View key={i} style={{position:'absolute',right:`${(i*31)%88}%`,top:`${(i*17)%90}%`,width:2,height:2,borderRadius:1,backgroundColor:'#d0eafa',opacity:.2+i%3*.1}}/>)}
+  {meta.motif==='cloud'?Array.from({length:6},(_,i)=><View key={i} style={{position:'absolute',right:-20+i*35,bottom:-32+(i%3)*18,width:160,height:66,borderRadius:80,backgroundColor:'#d0e6f0',opacity:.13+i%2*.09}}/>):null}
+  {['earth','orbit','moon'].includes(meta.motif)?<View style={[s.planet,{backgroundColor:meta.motif==='moon'?'#7d8791':'#255e93',borderColor:meta.accent},meta.motif==='moon'&&{width:180,height:180,borderRadius:90,right:8,bottom:-75}]}><View style={s.planetShade}/></View>:null}
+  {meta.motif==='orbit'?<View style={s.station}><View style={s.stationCore}/><View style={s.panelLeft}/><View style={s.panelRight}/></View>:null}
+  {meta.motif==='rocks'?Array.from({length:5},(_,i)=><View key={i} style={{position:'absolute',right:20+i*41,top:8+(i*27)%85,width:25+i%3*19,height:23+i%3*17,borderRadius:9+i,backgroundColor:['#4a4b50','#6b6460','#303c49'][i%3],borderWidth:2,borderColor:'#7c747044',transform:[{rotate:`${i*37}deg`}]}}/>):null}
+  {meta.motif==='signal'?<View style={s.signal}/>:null}
+ </View>;
 }
-
-const styles = StyleSheet.create({
-  list: { paddingBottom: space.sm },
-  world: { marginBottom: space.md, padding: space.md, borderRadius: radius.lg },
-  locked: { opacity: 0.45 },
-  worldName: { color: color.white, fontSize: 14, fontWeight: '900', letterSpacing: 1 },
-  meta: { marginTop: space.xxs, color: color.creamFaint, fontSize: 12, fontWeight: '600' },
-  signal: { marginTop: space.xxs, marginBottom: space.xs, color: color.cyanBright, fontSize: 11, fontWeight: '700' },
-  levelRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: space.xs, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.stroke },
-  levelLocked: { opacity: 0.35 },
-  levelLabel: { color: color.cream, fontSize: 13, fontWeight: '700' },
-  levelBest: { color: color.amberBright, fontSize: 12, fontWeight: '800' },
+export function JourneyScreen({save,devUnlockAll=false,onSelectLevel,onBack}:Props){
+ const data=journeyProgress(save.campaign,devUnlockAll),insets=useSafeAreaInsets(),{width}=useWindowDimensions();
+ const [selected,setSelected]=useState<string|null>(null),[notice,setNotice]=useState('');
+ const scroll=useRef<ScrollView>(null),positioned=useRef(false);
+ const active=data.worlds.find(w=>w.world.id===selected),small=width<370;
+ const homeFound=save.campaign.campaignCompleted,allClear=data.cleared===data.total;
+ const back=()=>{if(selected){setSelected(null);positioned.current=false;}else onBack();};
+ return <View style={s.root}>
+ <LinearGradient colors={['#020b14','#092237','#020b14']} style={StyleSheet.absoluteFill}/>
+ <View style={[s.safe,{paddingTop:Math.max(insets.top,10),paddingBottom:Math.max(insets.bottom,12),paddingLeft:Math.max(insets.left,12),paddingRight:Math.max(insets.right,12)}]}>
+ <View style={s.column}>
+ <View style={s.top}><Pressable accessibilityRole="button" accessibilityLabel={selected?'Back to worlds':'Back to home'} onPress={back} style={s.back}><Text style={s.backText}>‹ BACK</Text></Pressable><View style={s.brand}><Text style={s.wordmark}>{HOME_BRAND.title}</Text><Text style={s.brandSub}>{HOME_BRAND.subtitle}</Text></View><View style={{width:64}}/></View>
+ <View style={s.heading}><Text accessibilityRole="header" style={[s.title,small&&{fontSize:23}]}>{active?active.world.name:allClear?'JOURNEY COMPLETE':<>YOUR <Text style={{color:cyan}}>JOURNEY</Text></>}</Text>
+ <Text style={s.meta}>{active?`LEVELS ${active.world.firstLevel}–${active.world.lastLevel} · ${active.cleared} / 15 COMPLETE`:`${data.cleared} / ${data.total} COMPLETE · DESTINATION: ${data.destination}`}</Text>
+ <Text style={s.caption}>{active?active.world.subtitle:homeFound?'HOME FOUND · REPLAY AND MASTER THE JOURNEY':'10 WORLDS · FOLLOW THE SIGNAL HOME'}</Text>
+ {!active?<View accessibilityRole="progressbar" accessibilityValue={{min:0,max:data.total,now:data.cleared}} style={s.progress}><View style={[s.progressFill,{width:`${data.cleared/data.total*100}%`}]}/></View>:null}
+ </View>
+ {devUnlockAll?<Text style={s.dev}>DEV ACCESS · ALL LEVELS AVAILABLE</Text>:null}
+ {active?<ScrollView key={selected} contentContainerStyle={s.levelContent}>
+ <View style={s.levelHero}><Preview id={active.world.id} revealed={data.destination==='LUMA'}/><LinearGradient colors={['transparent','#04121de6']} style={StyleSheet.absoluteFill}/><Text style={s.heroCopy}>{active.perfect} PERFECT · {active.cleared} CLEARED</Text></View>
+ <View style={s.grid}>{active.levels.map(l=><Pressable key={l.number} disabled={!l.available} accessibilityRole="button" accessibilityState={{disabled:!l.available}} accessibilityLabel={`Level ${l.number}, ${l.progress?.cleared?l.progress.bestRank:l.available?'available':'locked'}`} onPress={()=>onSelectLevel(l.number)} style={({pressed})=>[s.level,!l.available&&s.disabled,pressed&&s.pressed,l.number===save.campaign.highestUnlockedLevel&&s.currentLevel]}><Text style={s.levelNumber}>{l.number}</Text>{l.available?<Text style={s.rank}>{l.progress?.cleared?l.progress.bestRank:'PLAY'}</Text>:<Lock/>}</Pressable>)}</View>
+ <Text style={s.levelHint}>Replay cleared levels to improve your precision.</Text></ScrollView>:
+ <ScrollView key="worlds" ref={scroll} style={{flex:1}} contentContainerStyle={s.list} onContentSizeChange={()=>{if(!positioned.current){positioned.current=true;scroll.current?.scrollTo({y:Math.max(0,(data.currentIndex-1)*156),animated:false});}}}>
+ {data.worlds.map((entry,i)=>{const {world,state}=entry,locked=!entry.unlocked,current=state==='current',bright=state==='completed'||current;
+ return <View key={world.id} style={s.row}>
+ <View style={s.rail}><View style={[s.line,{backgroundColor:bright?'#48cfe2':'#254255'},i===0&&{top:'50%'},i===9&&{bottom:'50%'}]}/><View style={[s.connector,{backgroundColor:bright?'#48cfe2':'#254255'}]}/><Node state={state}/></View>
+ <Pressable accessibilityRole="button" accessibilityLabel={`${world.name}, ${state}, ${entry.cleared} of 15 complete${locked?`, complete ${WORLDS[i-1]?.name??'previous world'} to unlock`:''}`} accessibilityHint={locked?'Shows unlock requirement':'Opens level selection'} onPress={()=>{if(locked){setNotice(`Complete ${WORLDS[i-1]?.name??'the previous world'} to unlock ${world.name}.`);return;}setNotice('');setSelected(world.id);}} style={({pressed})=>[s.card,current&&s.currentCard,pressed&&s.pressed]}>
+ <View style={[StyleSheet.absoluteFill,locked&&{opacity:.48}]}><Preview id={world.id} revealed={data.destination==='LUMA'}/></View>
+ <LinearGradient colors={['#04111bf5','#04111bd9','#04111b18']} locations={[0,.44,1]} start={{x:0,y:0}} end={{x:1,y:0}} style={StyleSheet.absoluteFill}/>
+ <View style={s.copy}><Text style={s.eyebrow}>WORLD {world.index} <Text style={{color:current?cyan:muted}}>{current?' · CURRENT':state==='completed'?' · COMPLETE':''}</Text></Text><Text style={[s.name,small&&{fontSize:15}]}>{world.name}</Text><Text numberOfLines={2} style={s.subtitle}>{world.id==='homeward'&&data.destination==='UNKNOWN'?'The light ahead':world.subtitle}</Text><Text style={s.count}>{entry.cleared} / 15 <Text style={s.mastery}>{entry.perfect>0?` · ${entry.perfect} PERFECT`:locked?' · LOCKED':''}</Text></Text></View>
+ <View style={s.chevron}>{locked?<Lock/>:<Text style={s.arrow}>›</Text>}</View>
+ </Pressable></View>;})}
+ <Text style={s.footer}>SAME PHYSICS. A UNIVERSE OF POSSIBILITIES.</Text>
+ </ScrollView>}
+ {notice?<Pressable accessibilityRole="button" accessibilityLabel={`${notice} Dismiss`} onPress={()=>setNotice('')} style={s.notice}><Text accessibilityLiveRegion="polite" style={s.noticeText}>{notice} ×</Text></Pressable>:null}
+ </View></View></View>;
+}
+const s=StyleSheet.create({
+ root:{...StyleSheet.absoluteFill,backgroundColor:'#020b14'},safe:{flex:1,alignItems:'center'},column:{flex:1,width:'100%',maxWidth:980,minHeight:0},top:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',minHeight:52},back:{minWidth:64,minHeight:44,justifyContent:'center'},backText:{color:cyan,fontSize:12,fontWeight:'800',letterSpacing:1},brand:{alignItems:'center'},wordmark:{color:'#e5faff',fontSize:25,letterSpacing:7,fontWeight:'300',textShadowColor:'#27b7e9',textShadowRadius:12},brandSub:{fontSize:7,color:cyan,letterSpacing:2.6,marginTop:3},heading:{paddingVertical:14,alignItems:'center',gap:6},title:{fontSize:29,fontWeight:'800',letterSpacing:1,color:'#f2f7fb',textAlign:'center'},meta:{fontSize:10,fontWeight:'700',letterSpacing:1,color:'#aed0e2',textAlign:'center'},caption:{fontSize:8,letterSpacing:1.2,color:muted,textAlign:'center'},progress:{height:2,backgroundColor:'#203a4a',width:'80%',maxWidth:420,marginTop:5},progressFill:{height:2,backgroundColor:cyan},dev:{fontSize:9,color:'#f2c57e',textAlign:'center',marginBottom:8},list:{paddingBottom:22},row:{flexDirection:'row',minHeight:156},rail:{width:38,alignItems:'center',justifyContent:'center'},line:{position:'absolute',top:0,bottom:0,width:1.5,left:15},connector:{position:'absolute',left:15,right:0,height:1,top:'50%'},node:{width:30,height:30,marginRight:7,borderRadius:15,borderWidth:1.5,borderColor:'#53758d',backgroundColor:'#061726',alignItems:'center',justifyContent:'center'},nodeCurrent:{borderColor:cyan,shadowColor:cyan,shadowRadius:10,shadowOpacity:.8,shadowOffset:{width:0,height:0}},nodeDone:{borderColor:'#43cde3'},check:{fontSize:21,fontWeight:'800',color:cyan},dot:{width:12,height:12,borderRadius:6,backgroundColor:'#e0fcff'},dotHollow:{backgroundColor:'transparent',borderWidth:1,borderColor:muted},card:{flex:1,marginVertical:5,minHeight:146,borderRadius:18,borderWidth:1,borderColor:'#284759',overflow:'hidden',backgroundColor:'#071827',justifyContent:'center'},currentCard:{borderColor:cyan,borderWidth:2,shadowColor:cyan,shadowOpacity:.35,shadowRadius:9,shadowOffset:{width:0,height:0}},copy:{padding:14,paddingRight:48,gap:4,maxWidth:400},eyebrow:{color:'#9fccde',fontSize:9,fontWeight:'700',letterSpacing:1.3},name:{color:'#f4f8fc',fontSize:18,fontWeight:'800'},subtitle:{color:'#aac2d1',fontSize:11,maxWidth:230,lineHeight:15},count:{color:'#d1effb',fontSize:12,fontWeight:'700',marginTop:3},mastery:{fontSize:9,color:'#d5c38c'},chevron:{position:'absolute',right:11,width:30,height:36,borderRadius:18,backgroundColor:'#031320b8',alignItems:'center',justifyContent:'center'},arrow:{color:'#b3ecff',fontSize:33,lineHeight:34},lock:{width:11,height:10,borderRadius:2,backgroundColor:'#95b5ca',marginTop:5},shackle:{position:'absolute',width:8,height:8,left:1.5,top:-6,borderRadius:5,borderWidth:1.5,borderColor:'#95b5ca'},pressed:{opacity:.85,transform:[{scale:.99}]},footer:{color:'#678b9f',fontSize:9,letterSpacing:1.7,textAlign:'center',marginTop:18},notice:{padding:12,backgroundColor:'#132c3e',borderRadius:12},noticeText:{color:'#c8e7f5',fontSize:12,textAlign:'center'},levelContent:{paddingBottom:20},levelHero:{height:140,overflow:'hidden',borderRadius:18,justifyContent:'flex-end',padding:16},heroCopy:{color:'#d5eff6',fontSize:11,fontWeight:'700',letterSpacing:1},grid:{flexDirection:'row',flexWrap:'wrap',gap:8,paddingVertical:16},level:{width:'30%',flexGrow:1,minHeight:80,borderWidth:1,borderColor:'#335166',borderRadius:14,backgroundColor:'#091f30',alignItems:'center',justifyContent:'center',gap:8},levelNumber:{color:'#e8faff',fontSize:23,fontWeight:'700'},rank:{color:cyan,fontSize:9,letterSpacing:1},currentLevel:{borderColor:cyan},disabled:{opacity:.4},levelHint:{color:muted,fontSize:12,textAlign:'center'},planet:{position:'absolute',width:420,height:200,borderRadius:210,right:-50,bottom:-145,borderTopWidth:3,overflow:'hidden'},planetShade:{position:'absolute',top:15,left:25,right:-10,bottom:-10,borderRadius:180,backgroundColor:'#14213677'},station:{position:'absolute',right:65,top:38,width:90,height:55,transform:[{rotate:'-24deg'}]},stationCore:{position:'absolute',left:38,top:6,width:14,height:45,backgroundColor:'#83929d',borderRadius:4},panelLeft:{position:'absolute',left:0,top:12,width:32,height:28,backgroundColor:'#355577',borderWidth:1,borderColor:'#8c9caa'},panelRight:{position:'absolute',right:0,top:12,width:32,height:28,backgroundColor:'#355577',borderWidth:1,borderColor:'#8c9caa'},signal:{position:'absolute',right:55,top:35,width:4,height:95,backgroundColor:'#9ceff2',shadowColor:'#8fffff',shadowRadius:30,shadowOpacity:1,shadowOffset:{width:0,height:0}},
 });

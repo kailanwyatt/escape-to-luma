@@ -1,3 +1,4 @@
+import {JumpGateVisual} from './JumpGateVisual';
 import * as THREE from 'three';
 
 import type { ChallengeConfig } from '../config/ChallengeConfig';
@@ -12,41 +13,18 @@ export class Target {
   radius = GAME_TUNING.target.defaultRadius;
   baseX = 0;
   baseY = 3;
-  private pulse = 0;
-  private pulseStrength = 0;
-  private readonly rings: THREE.Mesh[] = [];
-  private readonly portal: THREE.Mesh;
-  private readonly frame: THREE.Mesh;
+  private readonly visual = new JumpGateVisual();
+  private breach = false;
   private movement?: ChallengeConfig['target']['movement'];
 
   constructor() {
-    this.portal = new THREE.Mesh(
-      new THREE.CircleGeometry(1.02, 48),
-      new THREE.MeshBasicMaterial({
-        color: 0x0d6fb8,
-        transparent: true,
-        opacity: 0.22,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      }),
-    );
-    this.portal.position.z = -0.04;
-    this.frame = new THREE.Mesh(
-      new THREE.TorusGeometry(1.08, 0.075, 10, 48),
-      new THREE.MeshPhongMaterial({
-        color: 0x153d5f,
-        emissive: 0x00aee8,
-        emissiveIntensity: 0.8,
-        shininess: 90,
-      }),
-    );
-    this.group.add(this.portal, this.frame);
-    this.buildRings();
+    this.group.add(this.visual.group);
+    this.syncScale();
     this.group.position.set(this.x, this.y, this.z);
   }
 
   applyConfig(config: ChallengeConfig['target']): void {
+    this.group.visible = true;
     this.baseX = config.x;
     this.baseY = config.y;
     this.x = config.x;
@@ -54,15 +32,22 @@ export class Target {
     this.z = config.z ?? GAME_TUNING.target.z;
     this.radius = config.radius;
     this.movement = config.movement;
-    this.pulse = 0;
+    this.visual.reset();
     this.syncScale();
     this.group.position.set(this.x, this.y, this.z);
   }
 
-  triggerPulse(strength: number): void {
-    this.pulse = 1;
-    this.pulseStrength = strength;
+  /** The breach is the destination in the opening; retain scoring without a bullseye prop. */
+  setBreachPresentation(breach: boolean): void {
+    this.breach = breach;
+    this.visual.group.visible = !breach;
   }
+
+  setWorld(world:string):void {this.visual.setWorld(world);}
+
+  get isBreach(): boolean {return this.breach;}
+  triggerPulse(strength: number): void {this.visual.trigger(strength);}
+  updateVisual(dt: number, reduceMotion: boolean): void {this.visual.update(dt,reduceMotion);}
 
   update(dt: number, elapsedTime: number): void {
     if (this.movement?.type === 'horizontal') {
@@ -75,13 +60,6 @@ export class Target {
     }
     this.group.position.set(this.x, this.y, this.z);
 
-    if (this.pulse > 0) {
-      this.pulse = Math.max(0, this.pulse - dt * 3.2);
-    }
-    this.frame.rotation.z = elapsedTime * 0.08;
-    (this.portal.material as THREE.MeshBasicMaterial).opacity =
-      0.18 + Math.sin(elapsedTime * 2.2) * 0.05;
-    this.syncScale();
   }
 
   predictPosition(atTime: number): { x: number; y: number } {
@@ -94,43 +72,9 @@ export class Target {
     return { x: this.baseX, y: this.baseY };
   }
 
-  private buildRings(): void {
-    const colors = [0x168dc4, 0x48dfff, 0xc9fbff, 0xffd54a];
-    const zones = GAME_TUNING.target.zones;
-    const radii = [zones.hit, zones.great, zones.bullseye, zones.perfect];
-    for (let i = 0; i < colors.length; i += 1) {
-      const mesh = new THREE.Mesh(
-        new THREE.CircleGeometry(radii[i], 32),
-        new THREE.MeshPhongMaterial({
-          color: colors[i],
-          emissive: colors[i],
-          emissiveIntensity: i === colors.length - 1 ? 0.9 : 0.35,
-          transparent: true,
-          opacity: 0.88,
-          side: THREE.DoubleSide,
-        }),
-      );
-      mesh.position.z = i * 0.01;
-      this.rings.push(mesh);
-      this.group.add(mesh);
-    }
-  }
-
   private syncScale(): void {
-    const radiusScale = this.radius / GAME_TUNING.target.defaultRadius;
-    const pulseScale =
-      this.pulse <= 0 ? 1 : 1 + Math.sin(this.pulse * Math.PI) * 0.18 * this.pulseStrength;
-    this.group.scale.setScalar(radiusScale * pulseScale);
+    // Unit visual aperture equals the scoring radius. No feedback scales this group.
+    this.group.scale.setScalar(this.radius);
   }
-
-  dispose(): void {
-    this.portal.geometry.dispose();
-    (this.portal.material as THREE.Material).dispose();
-    this.frame.geometry.dispose();
-    (this.frame.material as THREE.Material).dispose();
-    for (const ring of this.rings) {
-      ring.geometry.dispose();
-      (ring.material as THREE.Material).dispose();
-    }
-  }
+  dispose(): void {this.visual.dispose();}
 }

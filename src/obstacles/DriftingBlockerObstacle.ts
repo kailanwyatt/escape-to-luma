@@ -1,3 +1,4 @@
+import {createReadableBlocker} from './ReadableBlockerVisual';
 import * as THREE from 'three';
 
 import type { EnvironmentId } from '../config/ChallengeConfig';
@@ -33,15 +34,10 @@ export class DriftingBlockerObstacle {
     this.group.visible = true;
     this.z = config.z;
     if (!this.mesh) {
-      const color = environment === 'space' ? 0x8a90a8 : 0x6b7785;
-      this.mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(1, 1, 0.35),
-        new THREE.MeshLambertMaterial({ color }),
-      );
+      this.mesh = createReadableBlocker('debris');
       this.group.add(this.mesh);
     }
-    const s = config.blockerRadius * 2;
-    this.mesh.scale.set(s, s, 1);
+    this.mesh.scale.setScalar(config.blockerRadius);
     this.update(0, 0);
   }
 

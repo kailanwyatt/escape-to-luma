@@ -1,31 +1,86 @@
+import {AmbientLife} from './AmbientLife';
+import {createJourneyWorldScene,isJourneyWorld,JOURNEY_LOOKS} from './JourneyWorldScene';
+import {disposeThreeObject} from '../utils/disposeThree';
+import {createSpaceScene} from './SpaceScene';
+import {createRooftopScene} from './RooftopScene';
+import { containmentMetal } from '../graphics/ContainmentMaterials';
 import * as THREE from 'three';
+import { ContainmentKit } from './ContainmentKit';
+import { containmentProfile } from './WorldPresentation';
 
 import type { EnvironmentId } from '../config/ChallengeConfig';
 
 export class EnvironmentManager {
+  private readonly containmentKit = new ContainmentKit();
+  private alarm = 0;
+  private readonly ambientLife = new AmbientLife();
+  private journeyKit: THREE.Group | null = null;
+  private journeyWorld: string | null = null;
+  setCampaignLevel(level: number | null): void {
+    this.containmentKit.setLevel(level);
+    this.alarm = level === null ? 0 : containmentProfile(level).alarm;
+    this.setOpeningLighting(-1, 0);
+  }
+
+  /** Earth belongs to the near-Earth leg; it must not follow Spark to Luma. */
+  setSpaceWorld(worldId: string | null): void {
+    if (this.journeyKit) this.journeyKit.visible=false;
+    if(this.journeyWorld!==worldId&&this.journeyKit){this.group.remove(this.journeyKit);disposeThreeObject(this.journeyKit);this.journeyKit=null;}
+    this.journeyWorld=worldId;
+    if(isJourneyWorld(worldId)){
+      if(!this.journeyKit){this.journeyKit=createJourneyWorldScene(worldId);this.group.add(this.journeyKit);}
+      for(const skin of Object.values(this.skins))skin.visible=false;
+      this.journeyKit.visible=true;
+      const look=JOURNEY_LOOKS[worldId];this.scene.background=new THREE.Color(look.background);this.scene.fog=new THREE.Fog(look.background,worldId==='sky'?28:38,78);
+      this.ambient.color.setHex(look.ambient);this.ambient.intensity=.8;this.key.color.setHex(look.key);
+    }
+
+    this.ambientLife.setWorld(worldId ?? this.current, this.journeyKit ?? this.skins[this.current]);
+    const nearEarth = worldId === null || worldId === 'atmosphere' || worldId === 'orbit';
+    const lunar = worldId === 'moon';
+    for (const name of ['earth-horizon', 'earth-atmosphere']) {
+      const object = this.skins.space.getObjectByName(name);
+      if (!object) continue;
+      object.visible = nearEarth || lunar;
+      object.scale.setScalar(lunar ? .18 : worldId === 'orbit' ? .85 : 1);
+      object.position.set(lunar ? 9 : 0, lunar ? 9 : -25, 49);
+    }
+  }
+
+  setOpeningLighting(stage: number, progress: number): void {
+    const signal = stage === 3 && !this.reduceMotion ? Math.sin(progress * Math.PI) : 0;
+    this.key.intensity = .95 + signal * .22;
+    const alarm = stage === 4 ? progress : this.alarm;
+    for (const lamp of this.warningLamps) {
+      lamp.color.setHex(alarm > .35 ? 0xff865e : 0xffd280);
+      lamp.emissive.setHex(alarm > .35 ? 0xff432b : 0xff9b32);
+    }
+  }
   readonly group = new THREE.Group();
   readonly portal = new THREE.Group();
   current: EnvironmentId = 'workshop';
   private readonly skins: Record<EnvironmentId, THREE.Group>;
   private readonly ambient: THREE.AmbientLight;
   private readonly key: THREE.DirectionalLight;
-  private readonly stars: THREE.Points;
-  private starSpin = 0;
+  private lampTime = 0;
+  private warningLamps: THREE.MeshPhongMaterial[] = [];
+  private reduceMotion = false;
 
-  constructor(scene: THREE.Scene) {
-    this.ambient = new THREE.AmbientLight(0xc8bba8, 0.72);
-    this.key = new THREE.DirectionalLight(0xfff1d6, 1.05);
+  constructor(private readonly scene: THREE.Scene) {
+    this.group.add(this.containmentKit.group,this.ambientLife.group);
+    this.ambient = new THREE.AmbientLight(0x8aa8c0, 0.55);
+    this.key = new THREE.DirectionalLight(0xc8e8ff, 0.95);
     this.key.position.set(-3.5, 10, -4);
-    const fill = new THREE.DirectionalLight(0x88a0c8, 0.22);
+    const fill = new THREE.DirectionalLight(0xffb060, 0.18);
     fill.position.set(4.2, 3.4, 5);
     scene.add(this.ambient);
     scene.add(this.key);
     scene.add(fill);
 
     this.skins = {
-      workshop: createWorkshop(),
-      rooftop: createRooftop(),
-      space: createSpace(),
+      workshop: createWorkshop(this.warningLamps),
+      rooftop: createRooftopScene(),
+      space: createSpaceScene(),
     };
     for (const skin of Object.values(this.skins)) {
       skin.visible = false;
@@ -33,18 +88,25 @@ export class EnvironmentManager {
     }
     this.skins.workshop.visible = true;
 
-    this.stars = this.skins.space.getObjectByName('stars') as THREE.Points;
+
     this.portal = createPortal();
     this.portal.visible = false;
     this.group.add(this.portal);
 
-    scene.background = new THREE.Color(0x1a1612);
-    scene.fog = new THREE.Fog(0x1a1612, 18, 36);
+    scene.background = new THREE.Color(0x071018);
+    scene.fog = new THREE.Fog(0x071018, 16, 34);
     scene.add(this.group);
+  }
+
+  setReduceMotion(enabled: boolean): void {
+    this.reduceMotion = enabled;
+    this.ambientLife.update(0,enabled);
   }
 
   setEnvironment(id: EnvironmentId, scene: THREE.Scene, immediate = true): void {
     this.current = id;
+    this.ambientLife.group.visible=false;
+    if(this.journeyKit)this.journeyKit.visible=false;
     for (const [key, skin] of Object.entries(this.skins)) {
       skin.visible = key === id;
     }
@@ -54,6 +116,7 @@ export class EnvironmentManager {
     this.ambient.color.setHex(look.ambient);
     this.ambient.intensity = look.ambientIntensity;
     this.key.color.setHex(look.key);
+    this.key.intensity = .95;
     this.portal.visible = !immediate;
   }
 
@@ -78,10 +141,23 @@ export class EnvironmentManager {
     this.portal.visible = false;
   }
 
+  setBreachPlateVisible(visible: boolean): void {
+    const plate = this.skins.workshop.getObjectByName('crackEscapePlate');
+    if (plate) {
+      plate.visible = false; // Full-room concept is reference material, not playable glass.
+    }
+  }
+
   update(dt: number): void {
-    if (this.current === 'space' && this.stars) {
-      this.starSpin += dt * 0.03;
-      this.stars.rotation.z = this.starSpin;
+    this.ambientLife.update(dt,this.reduceMotion);
+    if (this.current === 'workshop' && this.warningLamps.length > 0) {
+      this.lampTime += dt;
+      const pulse = this.reduceMotion
+        ? 0.55
+        : 0.35 + (Math.sin(this.lampTime * 3.4) * 0.5 + 0.5) * 0.55;
+      for (const lamp of this.warningLamps) {
+        lamp.emissiveIntensity = pulse;
+      }
     }
   }
 }
@@ -91,53 +167,67 @@ const LOOK: Record<
   { background: number; fogNear: number; fogFar: number; ambient: number; ambientIntensity: number; key: number }
 > = {
   workshop: {
-    background: 0x1a1612,
-    fogNear: 18,
-    fogFar: 36,
-    ambient: 0xc8bba8,
-    ambientIntensity: 0.72,
-    key: 0xfff1d6,
+    background: 0x071018,
+    fogNear: 14,
+    fogFar: 32,
+    ambient: 0x8aa8c0,
+    ambientIntensity: 0.55,
+    key: 0xc8e8ff,
   },
   rooftop: {
-    background: 0x9ec8e6,
+    background: 0x92aec3,
     fogNear: 22,
     fogFar: 48,
-    ambient: 0xe8f3ff,
-    ambientIntensity: 0.9,
-    key: 0xfff6d8,
+    ambient: 0xb9cfdf,
+    ambientIntensity: 0.8,
+    key: 0xffdfb3,
   },
   space: {
-    background: 0x070814,
-    fogNear: 28,
-    fogFar: 70,
+    background: 0x040914,
+    fogNear: 38,
+    fogFar: 78,
     ambient: 0x8899cc,
-    ambientIntensity: 0.45,
+    ambientIntensity: 0.65,
     key: 0xc5deff,
   },
 };
 
-function createWorkshop(): THREE.Group {
+function createWorkshop(warningLamps: THREE.MeshPhongMaterial[]): THREE.Group {
   const root = new THREE.Group();
   root.name = 'workshop';
 
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(18, 28),
-    new THREE.MeshLambertMaterial({ color: 0x3a3228 }),
+    containmentMetal('floor'),
   );
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(0, 0, 7);
   root.add(floor);
 
-  for (let i = 0; i < 8; i += 1) {
+  for (let i = 0; i < 10; i += 1) {
     const plank = new THREE.Mesh(
       new THREE.BoxGeometry(0.08, 0.02, 24),
-      new THREE.MeshLambertMaterial({ color: 0x2e2720 }),
+      new THREE.MeshLambertMaterial({ color: i % 2 === 0 ? 0x243444 : 0x1c2a38 }),
     );
-    plank.position.set(-1.4 + i * 0.4, 0.01, 6);
+    plank.position.set(-1.8 + i * 0.4, 0.01, 6);
     root.add(plank);
   }
 
-  const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x2c2722 });
+  // Flush amber guide rails and cyan approach markers leave the flight lane clear.
+  const railMaterial = new THREE.MeshBasicMaterial({color: 0xd49437});
+  const guideMaterial = new THREE.MeshBasicMaterial({color: 0x529caf});
+  const railGeometry = new THREE.BoxGeometry(.065, .012, 23);
+  for (const x of [-2.8, -2.65, 2.65, 2.8]) {
+    const rail = new THREE.Mesh(railGeometry, railMaterial);
+    rail.position.set(x, .015, 6); root.add(rail);
+  }
+  const guideGeometry = new THREE.BoxGeometry(.28, .012, .11);
+  for (let z = 1; z < 13; z += 1) {
+    const guide = new THREE.Mesh(guideGeometry, guideMaterial);
+    guide.position.set(0, .018, z); root.add(guide);
+  }
+
+  const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x15202c });
   const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, 8, 26), wallMaterial);
   leftWall.position.set(-5.2, 4, 6);
   root.add(leftWall);
@@ -147,33 +237,81 @@ function createWorkshop(): THREE.Group {
 
   const backWall = new THREE.Mesh(
     new THREE.BoxGeometry(11, 9, 0.4),
-    new THREE.MeshLambertMaterial({ color: 0x241f1b }),
+    new THREE.MeshLambertMaterial({ color: 0x101820 }),
   );
   backWall.position.set(0, 4.2, 16.2);
   root.add(backWall);
 
-  const opening = new THREE.Mesh(
-    new THREE.PlaneGeometry(4.4, 4.4),
-    new THREE.MeshBasicMaterial({ color: 0x0d0c10 }),
-  );
-  opening.position.set(0, 3.1, 16);
-  root.add(opening);
+  // Layered destination bulkhead, behind the scoring plane, frames the route.
+  const bulkheadMaterial = containmentMetal();
+  const frameMaterial = new THREE.MeshPhongMaterial({color: 0x456073, shininess: 55});
+  const cyanMaterial = new THREE.MeshBasicMaterial({color: 0x49b5d0});
+  const unitBox = new THREE.BoxGeometry(1, 1, 1);
+  const block = (x: number, y: number, z: number, w: number, h: number, d: number, material: THREE.Material) => {
+    const mesh = new THREE.Mesh(unitBox, material);
+    mesh.position.set(x, y, z); mesh.scale.set(w, h, d); root.add(mesh);
+  };
+  for (const side of [-1, 1]) {
+    for (const y of [1.2, 3.6, 6]) block(side * 3.85, y, 15.8, 2.3, 2.25, .35, bulkheadMaterial);
+    block(side * 2.55, 3.1, 15.2, .3, 6.1, .6, frameMaterial);
+    block(side * 2.34, 3.1, 14.85, .06, 5.8, .06, cyanMaterial);
+    for (const z of [5, 9, 13]) {
+      block(side * 4.75, 3.4, z, .32, 6.6, .4, frameMaterial);
+      block(side * 4.54, 3.6, z - .23, .06, 3.2, .06, cyanMaterial);
+    }
+  }
+  // A recessed observation bay is visible through the shattered vessel.
+  const baySteel = new THREE.MeshPhongMaterial({color: 0x466477, emissive: 0x132635, emissiveIntensity: .5});
+  const bayDark = new THREE.MeshBasicMaterial({color: 0x102b3a});
+  block(0, 3.2, 15.85, 4.6, 5.8, .12, baySteel);
+  block(0, 3.4, 15.7, 3.1, 4.5, .12, bayDark);
+  block(0, 3.5, 15.6, .75, 3.7, .03, new THREE.MeshBasicMaterial({color: 0x234758}));
+  for (const x of [-1.65, 1.65]) {
+    block(x, 3.6, 15.55, .035, 2.6, .08, cyanMaterial);
+    block(x, 1.3, 15.3, 1.2, 1.8, .7, bulkheadMaterial);
+    block(x, 2.3, 15.15, 1.05, .65, .15, bayDark);
+    for (let row = 0; row < 3; row++) block(x, 2.12 + row * .15, 15.04, .72 - row * .13, .025, .025, cyanMaterial);
+  }
+  block(0, 4.88, 15.5, 3.6, .045, .06, cyanMaterial);
+  block(0, 5.4, 15.4, 1.8, .12, .18, railMaterial);
 
-  const beamMaterial = new THREE.MeshLambertMaterial({ color: 0x1f1a16 });
+  block(0, 6.15, 15.2, 5.4, .32, .6, frameMaterial);
+  block(0, 5.95, 14.85, 4.7, .06, .06, cyanMaterial);
+
+  const beamMaterial = new THREE.MeshLambertMaterial({ color: 0x0e1620 });
   for (const z of [1, 4.5, 8, 11.5, 15]) {
     const beam = new THREE.Mesh(new THREE.BoxGeometry(11, 0.28, 0.38), beamMaterial);
     beam.position.set(0, 7.4, z);
     root.add(beam);
   }
 
-  const crateMaterial = new THREE.MeshLambertMaterial({ color: 0x8a5a32 });
+  // Side pylons with amber warning lamps.
+  for (const x of [-4.55, 4.55]) {
+    const pylon = new THREE.Mesh(
+      new THREE.BoxGeometry(0.42, 5.2, 0.42),
+      new THREE.MeshLambertMaterial({ color: 0x243140 }),
+    );
+    pylon.position.set(x, 2.7, 5.5);
+    root.add(pylon);
+    for (const y of [1.4, 2.8, 4.2]) {
+      const lampMat = new THREE.MeshPhongMaterial({
+        color: 0xffd280,
+        emissive: 0xff9b32,
+        emissiveIntensity: 0.55,
+      });
+      warningLamps.push(lampMat);
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, 0.12), lampMat);
+      lamp.position.set(x, y, 5.75);
+      root.add(lamp);
+    }
+  }
+
+  const crateMaterial = new THREE.MeshLambertMaterial({ color: 0x3a4a58 });
   const crates = [
     { x: -4.2, y: 0.55, z: 2.2, s: 1.1 },
     { x: -4.0, y: 0.4, z: 8.4, s: 0.8 },
     { x: 4.15, y: 0.5, z: 3.6, s: 1 },
     { x: 4.3, y: 0.35, z: 10.2, s: 0.7 },
-    { x: -4.35, y: 0.7, z: 13.2, s: 1.4 },
-    { x: 4.1, y: 0.45, z: 14.4, s: 0.9 },
   ];
   for (const crate of crates) {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(crate.s, crate.s, crate.s), crateMaterial);
@@ -182,203 +320,22 @@ function createWorkshop(): THREE.Group {
     root.add(mesh);
   }
 
-  const pipeMaterial = new THREE.MeshLambertMaterial({ color: 0x6d7380 });
+  const pipeMaterial = new THREE.MeshLambertMaterial({ color: 0x4a6278 });
   const leftPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 10, 10), pipeMaterial);
   leftPipe.position.set(-4.7, 6.4, 6);
   leftPipe.rotation.x = Math.PI / 2;
   root.add(leftPipe);
 
-  const vent = new THREE.Mesh(
-    new THREE.BoxGeometry(1.4, 0.12, 1.1),
-    new THREE.MeshLambertMaterial({ color: 0x4a4540 }),
-  );
-  vent.position.set(4.2, 0.08, 6.4);
-  root.add(vent);
-
-  const lamp = new THREE.Mesh(
-    new THREE.BoxGeometry(0.55, 0.12, 1.8),
+  const ceilingStrip = new THREE.Mesh(
+    new THREE.BoxGeometry(0.55, 0.12, 8),
     new THREE.MeshPhongMaterial({
-      color: 0xffe7b0,
-      emissive: 0xffc46b,
-      emissiveIntensity: 0.55,
+      color: 0xa8e8ff,
+      emissive: 0x1a88a8,
+      emissiveIntensity: 0.65,
     }),
   );
-  lamp.position.set(0, 7.15, 6);
-  root.add(lamp);
-
-  return root;
-}
-
-function createRooftop(): THREE.Group {
-  const root = new THREE.Group();
-  root.name = 'rooftop';
-
-  const roof = new THREE.Mesh(
-    new THREE.PlaneGeometry(22, 32),
-    new THREE.MeshLambertMaterial({ color: 0x8d97a3 }),
-  );
-  roof.rotation.x = -Math.PI / 2;
-  roof.position.set(0, 0, 7);
-  root.add(roof);
-
-  const parapet = new THREE.MeshLambertMaterial({ color: 0xd5dde4 });
-  const left = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.1, 28), parapet);
-  left.position.set(-5.4, 0.55, 6);
-  root.add(left);
-  const right = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.1, 28), parapet);
-  right.position.set(5.4, 0.55, 6);
-  root.add(right);
-
-  const sky = new THREE.Mesh(
-    new THREE.PlaneGeometry(40, 18),
-    new THREE.MeshBasicMaterial({ color: 0x7fb7dd }),
-  );
-  sky.position.set(0, 7, 18);
-  root.add(sky);
-
-  const building = new THREE.MeshLambertMaterial({ color: 0x6b7785 });
-  for (const spec of [
-    { x: -7.5, y: 3.2, z: 14, w: 3.2, h: 6.4, d: 3 },
-    { x: 7.8, y: 2.4, z: 12, w: 2.6, h: 4.8, d: 2.4 },
-    { x: -8.2, y: 2.0, z: 8, w: 2.2, h: 4, d: 2 },
-  ]) {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(spec.w, spec.h, spec.d), building);
-    mesh.position.set(spec.x, spec.y, spec.z);
-    root.add(mesh);
-  }
-
-  const ac = new THREE.MeshLambertMaterial({ color: 0xb7c0c8 });
-  for (const spec of [
-    { x: -4.3, z: 3.2, s: 1.1 },
-    { x: 4.4, z: 9.5, s: 0.9 },
-    { x: -4.6, z: 13, s: 1.3 },
-  ]) {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(spec.s, spec.s * 0.7, spec.s), ac);
-    mesh.position.set(spec.x, spec.s * 0.35, spec.z);
-    root.add(mesh);
-  }
-
-  const tank = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.55, 0.55, 1.4, 12),
-    new THREE.MeshLambertMaterial({ color: 0xcfd8de }),
-  );
-  tank.position.set(4.6, 0.7, 5.2);
-  root.add(tank);
-
-  const antenna = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.04, 0.04, 3.2, 6),
-    new THREE.MeshLambertMaterial({ color: 0x44505a }),
-  );
-  antenna.position.set(-4.8, 2.2, 11);
-  root.add(antenna);
-
-  for (let i = 0; i < 7; i += 1) {
-    const stripe = new THREE.Mesh(
-      new THREE.BoxGeometry(0.06, 0.02, 22),
-      new THREE.MeshLambertMaterial({ color: 0x7b858f }),
-    );
-    stripe.position.set(-1.2 + i * 0.4, 0.02, 6);
-    root.add(stripe);
-  }
-
-  const barrier = new THREE.MeshLambertMaterial({ color: 0xd8c36a });
-  for (const z of [2.5, 7.5, 12.5]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.7, 0.12), barrier);
-    post.position.set(-4.9, 1.0, z);
-    root.add(post);
-  }
-
-  const duct = new THREE.Mesh(
-    new THREE.BoxGeometry(1.6, 0.35, 4.2),
-    new THREE.MeshLambertMaterial({ color: 0xa8b2bb }),
-  );
-  duct.position.set(4.7, 0.28, 7.2);
-  root.add(duct);
-
-  return root;
-}
-
-function createSpace(): THREE.Group {
-  const root = new THREE.Group();
-  root.name = 'space';
-
-  const deck = new THREE.Mesh(
-    new THREE.PlaneGeometry(16, 26),
-    new THREE.MeshLambertMaterial({ color: 0x1b2230 }),
-  );
-  deck.rotation.x = -Math.PI / 2;
-  deck.position.set(0, 0, 7);
-  root.add(deck);
-
-  const starGeom = new THREE.BufferGeometry();
-  const positions = new Float32Array(240);
-  for (let i = 0; i < 80; i += 1) {
-    positions[i * 3] = (Math.random() - 0.5) * 28;
-    positions[i * 3 + 1] = Math.random() * 14;
-    positions[i * 3 + 2] = 8 + Math.random() * 18;
-  }
-  starGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const stars = new THREE.Points(
-    starGeom,
-    new THREE.PointsMaterial({ color: 0xe8f0ff, size: 0.08 }),
-  );
-  stars.name = 'stars';
-  root.add(stars);
-
-  const planet = new THREE.Mesh(
-    new THREE.SphereGeometry(2.4, 16, 12),
-    new THREE.MeshLambertMaterial({ color: 0x4b6d9a }),
-  );
-  planet.position.set(6.5, 6.8, 18);
-  root.add(planet);
-
-  const panelMat = new THREE.MeshLambertMaterial({ color: 0x274a7a });
-  const leftPanel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.6, 6), panelMat);
-  leftPanel.position.set(-5.0, 3.4, 8);
-  root.add(leftPanel);
-  const rightPanel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.6, 6), panelMat);
-  rightPanel.position.set(5.0, 3.4, 10);
-  root.add(rightPanel);
-
-  const station = new THREE.Mesh(
-    new THREE.BoxGeometry(2.2, 1.1, 3.4),
-    new THREE.MeshLambertMaterial({ color: 0x8d97a8 }),
-  );
-  station.position.set(-4.6, 0.7, 13);
-  root.add(station);
-
-  const debris = new THREE.Mesh(
-    new THREE.BoxGeometry(0.4, 0.18, 0.5),
-    new THREE.MeshLambertMaterial({ color: 0x9aa7b8 }),
-  );
-  debris.position.set(4.2, 2.8, 7.5);
-  debris.rotation.set(0.4, 0.7, 0.2);
-  root.add(debris);
-
-  for (let i = 0; i < 6; i += 1) {
-    const strip = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 0.03, 18),
-      new THREE.MeshPhongMaterial({
-        color: 0x7ef0ff,
-        emissive: 0x145868,
-        emissiveIntensity: 0.7,
-      }),
-    );
-    strip.position.set(-1.0 + i * 0.4, 0.02, 7);
-    root.add(strip);
-  }
-
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(1.35, 0.06, 8, 28),
-    new THREE.MeshPhongMaterial({
-      color: 0x7a5cff,
-      emissive: 0x3a1a88,
-      emissiveIntensity: 0.55,
-    }),
-  );
-  ring.position.set(-6.4, 5.4, 16);
-  ring.rotation.y = 0.6;
-  root.add(ring);
+  ceilingStrip.position.set(0, 7.15, 6);
+  root.add(ceilingStrip);
 
   return root;
 }

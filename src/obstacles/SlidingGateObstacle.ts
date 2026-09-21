@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import {gateStateAtTime,SHUTTER_EVENTS,type ShutterEvent} from './RapidShutterState';
+import {createRapidShutter,layoutRapidShutter} from './RapidShutterVisual';
 
 import type { EnvironmentId } from '../config/ChallengeConfig';
 import type { SlidingGateConfig } from '../config/ObstacleConfig';
@@ -8,7 +10,7 @@ import {
   layoutGateVisual,
   replaceVisual,
 } from './ObstacleVisuals';
-import { evaluateGateCollision, type ObstacleCollisionResult } from './ObstacleCollision';
+import { evaluateBreachCollision, evaluateGateCollision, type ObstacleCollisionResult } from './ObstacleCollision';
 import {
   emptyPredictedState,
   type ObstacleDebugInfo,
@@ -26,6 +28,9 @@ export class SlidingGateObstacle {
   private environment: EnvironmentId = 'workshop';
   private appearance: NonNullable<SlidingGateConfig['appearance']> = 'standard';
   private elapsed = 0;
+  onShutterEvent?: (event:ShutterEvent)=>void;
+  private eventKey='';
+  private rapid=false;
   openingX = 0;
   openingY = GAME_TUNING.gate.baseY;
 
@@ -36,6 +41,7 @@ export class SlidingGateObstacle {
 
   applyConfig(config: SlidingGateConfig, environment: EnvironmentId): void {
     this.config = config;
+    this.eventKey='';
     this.active = true;
     this.group.visible = true;
     this.z = config.z;
@@ -43,7 +49,7 @@ export class SlidingGateObstacle {
     this.openingY = config.baseY ?? GAME_TUNING.gate.baseY;
     const appearance = config.appearance ?? 'standard';
     if (
-      !this.visual ||
+      !this.visual || config.movementMode==='rapidShutter' || this.rapid ||
       environment !== this.environment ||
       appearance !== this.appearance
     ) {
@@ -52,9 +58,10 @@ export class SlidingGateObstacle {
       this.visual = replaceVisual(
         this.group,
         this.visual,
-        createGateVisual(environment, appearance),
+        config.movementMode==='rapidShutter'?createRapidShutter(config):createGateVisual(environment, appearance),
       );
     }
+    this.rapid=config.movementMode==='rapidShutter';
     this.update(0, 0);
   }
 
@@ -68,13 +75,17 @@ export class SlidingGateObstacle {
     if (!this.active || !this.config) {
       return;
     }
-    this.elapsed += dt;
-    const time = elapsedTime;
-    this.openingX =
-      this.config.baseX +
-      Math.sin(time * this.config.speed + (this.config.phase ?? 0)) * this.config.amplitude;
+    this.elapsed = elapsedTime;
+    const state=gateStateAtTime(this.config,elapsedTime);
+    this.openingX=state.x;this.openingY=state.y;
+    if(state.shutter){
+      const key=`${state.shutter.cycle}:${state.shutter.beat}`;
+      if(this.eventKey&&this.eventKey!==key)this.onShutterEvent?.(SHUTTER_EVENTS[state.shutter.phase]);
+      this.eventKey=key;
+    }
     this.group.position.set(0, 0, this.z);
-    if (this.visual) {
+    if (this.visual && this.rapid)layoutRapidShutter(this.visual,this.config,elapsedTime);
+    else if (this.visual) {
       layoutGateVisual(
         this.visual,
         this.openingX,
@@ -89,19 +100,23 @@ export class SlidingGateObstacle {
     previous: THREE.Vector3,
     current: THREE.Vector3,
     projectileRadius: number,
+    currentSimulationTime = this.elapsed,
+    stepSeconds = 0,
   ): ObstacleCollisionResult | null {
     if (!this.active || !this.config || previous.z >= this.z || current.z < this.z) {
       return null;
     }
     const at = interpolateAtZ(previous, current, this.z);
-    return evaluateGateCollision(
+    const fraction=(this.z-previous.z)/(current.z-previous.z);
+    const state=gateStateAtTime(this.config,currentSimulationTime-stepSeconds+stepSeconds*fraction);
+    return (this.appearance === 'containmentGlass' ? evaluateBreachCollision : evaluateGateCollision)(
       at.x,
       at.y,
       projectileRadius,
-      this.openingX,
-      this.openingY,
-      this.config.openingWidth,
-      this.config.openingHeight,
+      state.x,
+      state.y,
+      state.width,
+      state.height,
     );
   }
 
@@ -111,15 +126,10 @@ export class SlidingGateObstacle {
     if (!config) {
       return predicted;
     }
-    const openingX =
-      config.baseX +
-      Math.sin((simTime + deltaSeconds) * config.speed + (config.phase ?? 0)) * config.amplitude;
-    predicted.x = openingX;
-    predicted.y = this.openingY;
-    predicted.openingX = openingX;
-    predicted.openingY = this.openingY;
-    predicted.openingWidth = config.openingWidth;
-    predicted.openingHeight = config.openingHeight;
+    const state=gateStateAtTime(config,simTime+deltaSeconds);
+    predicted.x=state.x;predicted.y=state.y;
+    predicted.openingX=state.x;predicted.openingY=state.y;
+    predicted.openingWidth=state.width;predicted.openingHeight=state.height;
     return predicted;
   }
 
@@ -129,7 +139,7 @@ export class SlidingGateObstacle {
     projectileRadius: number,
     predicted: ObstaclePredictedState,
   ): ObstacleCollisionResult {
-    return evaluateGateCollision(
+    return (this.appearance === 'containmentGlass' ? evaluateBreachCollision : evaluateGateCollision)(
       x,
       y,
       projectileRadius,
@@ -142,10 +152,11 @@ export class SlidingGateObstacle {
 
   getDebugInfo(): ObstacleDebugInfo {
     const predicted = this.predictState(0, this.elapsed);
+    const state=this.config?gateStateAtTime(this.config,this.elapsed):null;
     return {
       ...predicted,
       speed: this.config?.speed ?? 0,
-      extra: `w${(this.config?.openingWidth ?? 0).toFixed(2)} h${(this.config?.openingHeight ?? 0).toFixed(2)} x${this.openingX.toFixed(2)}`,
+      extra: state?.shutter?`${state.shutter.phase} t:${state.shutter.timeInState.toFixed(2)} slam:${state.shutter.timeUntilSlam.toFixed(2)} w:${state.width.toFixed(2)} left:${(state.x-state.width/2).toFixed(2)} right:${(state.x+state.width/2).toFixed(2)}`:`w${(this.config?.openingWidth ?? 0).toFixed(2)} h${(this.config?.openingHeight ?? 0).toFixed(2)} x${this.openingX.toFixed(2)}`,
     };
   }
 }

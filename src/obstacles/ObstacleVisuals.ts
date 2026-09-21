@@ -1,3 +1,9 @@
+import {createReadableBlocker} from './ReadableBlockerVisual';
+import {createOrbitalGate, layoutOrbitalGate} from './OrbitalGateVisual';
+import {createOrbitalIris, layoutOrbitalIris} from './OrbitalIrisVisual';
+import { createAirborneGate, layoutAirborneGate } from './AirborneGateVisual';
+import {createBreachVisual, layoutBreachVisual} from './BreachVisual';
+import { containmentMetal } from '../graphics/ContainmentMaterials';
 import * as THREE from 'three';
 
 import type { EnvironmentId } from '../config/ChallengeConfig';
@@ -15,30 +21,19 @@ function palette(environment: EnvironmentId) {
   }
 }
 
+
 export function createGateVisual(
   environment: EnvironmentId,
   appearance: 'standard' | 'containmentGlass' = 'standard',
 ): THREE.Group {
+  if (appearance === 'containmentGlass') return createBreachVisual();
+  if (environment === 'space') return createOrbitalGate();
   const group = new THREE.Group();
   const colors = palette(environment);
   const t = GAME_TUNING.gate;
   const depth = 0.12;
-  const glass = appearance === 'containmentGlass';
-  const panelMaterial = glass
-    ? new THREE.MeshPhongMaterial({
-        color: 0x7de7ff,
-        emissive: 0x0b6688,
-        emissiveIntensity: 0.28,
-        transparent: true,
-        opacity: 0.34,
-        shininess: 100,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      })
-    : new THREE.MeshLambertMaterial({ color: colors.panel });
-  const edgeMaterial = glass
-    ? panelMaterial
-    : new THREE.MeshLambertMaterial({ color: colors.accent });
+  const panelMaterial = containmentMetal();
+  const edgeMaterial = containmentMetal();
   const left = new THREE.Mesh(
     new THREE.BoxGeometry(1, t.panelHeight, depth),
     panelMaterial,
@@ -53,11 +48,13 @@ export function createGateVisual(
   top.name = 'top';
   const bottom = top.clone();
   bottom.name = 'bottom';
-  if (environment === 'space' && !glass) {
-    for (const mesh of [left, right, top, bottom]) {
-      (mesh.material as THREE.MeshLambertMaterial).emissive = new THREE.Color(colors.energy);
-      (mesh.material as THREE.MeshLambertMaterial).emissiveIntensity = 0.25;
+  {
+    const borderMaterial = new THREE.MeshBasicMaterial({ color: 0x8bdde7 });
+    for (const name of ['edgeLeft', 'edgeRight', 'edgeTop', 'edgeBottom']) {
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(1, 1, .025), borderMaterial);
+      edge.name = name; group.add(edge);
     }
+
   }
   group.add(left, right, top, bottom);
   return group;
@@ -70,6 +67,10 @@ export function layoutGateVisual(
   openingWidth: number,
   openingHeight: number,
 ): void {
+  if (group.userData.orbitalGate) { layoutOrbitalGate(group, openingX, openingY, openingWidth, openingHeight); return; }
+  if (group.name === 'containment-glass') {
+    layoutBreachVisual(group, openingX, openingY, openingWidth, openingHeight); return;
+  }
   const t = GAME_TUNING.gate;
   const left = group.getObjectByName('left') as THREE.Mesh;
   const right = group.getObjectByName('right') as THREE.Mesh;
@@ -87,9 +88,22 @@ export function layoutGateVisual(
   top.position.set(0, openingY + openingHeight / 2 + topHeight / 2, 0);
   bottom.scale.set(1, bottomHeight, 1);
   bottom.position.set(0, openingY - openingHeight / 2 - bottomHeight / 2, 0);
+
+  const border = .025;
+  for (const [name, x, y, w, h] of [
+    ['edgeLeft', openingX - openingWidth / 2 - border / 2, openingY, border, openingHeight],
+    ['edgeRight', openingX + openingWidth / 2 + border / 2, openingY, border, openingHeight],
+    ['edgeTop', openingX, openingY + openingHeight / 2 + border / 2, openingWidth + border * 2, border],
+    ['edgeBottom', openingX, openingY - openingHeight / 2 - border / 2, openingWidth + border * 2, border],
+  ] as const) {
+    const edge = group.getObjectByName(name);
+    if (edge) { edge.position.set(x, y, -.085); edge.scale.set(w, h, 1); }
+  }
+
 }
 
 export function createIrisVisual(environment: EnvironmentId): THREE.Group {
+  if (environment === 'space') return createOrbitalIris();
   const group = new THREE.Group();
   const colors = palette(environment);
   const outer = GAME_TUNING.iris.outerRadius;
@@ -97,8 +111,8 @@ export function createIrisVisual(environment: EnvironmentId): THREE.Group {
     new THREE.TorusGeometry(outer, 0.1, 8, 32),
     new THREE.MeshLambertMaterial({
       color: colors.accent,
-      emissive: environment === 'space' ? colors.energy : 0x000000,
-      emissiveIntensity: environment === 'space' ? 0.4 : 0,
+      emissive: 0x000000,
+      emissiveIntensity: 0,
     }),
   );
   rim.name = 'rim';
@@ -121,6 +135,7 @@ export function createIrisVisual(environment: EnvironmentId): THREE.Group {
 }
 
 export function layoutIrisVisual(group: THREE.Group, openingRadius: number): void {
+  if (group.userData.orbitalIris) { layoutOrbitalIris(group, openingRadius); return; }
   const aperture = group.getObjectByName('aperture') as THREE.Mesh;
   aperture.scale.setScalar(Math.max(0.2, openingRadius));
   const outer = GAME_TUNING.iris.outerRadius;
@@ -145,18 +160,12 @@ export function createPendulumVisual(environment: EnvironmentId): THREE.Group {
   const arm = new THREE.Mesh(
     new THREE.CylinderGeometry(GAME_TUNING.pendulum.armRadius, GAME_TUNING.pendulum.armRadius, 1, 8),
     new THREE.MeshLambertMaterial({
-      color: environment === 'space' ? colors.energy : colors.panel,
-      emissive: environment === 'space' ? colors.energy : 0x000000,
-      emissiveIntensity: environment === 'space' ? 0.35 : 0,
+      color: 0x8f9aa5,
+      emissive: 0x000000,
     }),
   );
   arm.name = 'arm';
-  const blocker = new THREE.Mesh(
-    environment === 'rooftop'
-      ? new THREE.BoxGeometry(0.7, 0.7, 0.28)
-      : new THREE.SphereGeometry(0.4, 14, 12),
-    new THREE.MeshLambertMaterial({ color: colors.accent }),
-  );
+  const blocker = createReadableBlocker('weight');
   blocker.name = 'blocker';
   group.add(pivot, arm, blocker);
   return group;
@@ -176,43 +185,18 @@ export function layoutPendulumVisual(
   const blocker = group.getObjectByName('blocker') as THREE.Mesh;
   pivot.position.set(pivotX, pivotY, 0);
   blocker.position.set(blockerX, blockerY, 0);
-  blocker.scale.setScalar(blockerRadius / 0.4);
+  blocker.scale.setScalar(blockerRadius);
   arm.position.set((pivotX + blockerX) / 2, (pivotY + blockerY) / 2, 0);
   arm.scale.set(1, length, 1);
   arm.rotation.z = Math.atan2(blockerX - pivotX, pivotY - blockerY);
 }
 
 export function createRingVisual(environment: EnvironmentId): THREE.Group {
-  const group = new THREE.Group();
-  const colors = palette(environment);
-  const barrier = new THREE.Mesh(
-    new THREE.RingGeometry(1, GAME_TUNING.ring.outerRadius, 32),
-    new THREE.MeshLambertMaterial({
-      color: colors.panel,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: environment === 'space' ? 0.45 : 0.72,
-      emissive: environment === 'space' ? colors.energy : 0x000000,
-      emissiveIntensity: environment === 'space' ? 0.3 : 0,
-    }),
-  );
-  barrier.name = 'barrier';
-  const hoop = new THREE.Mesh(
-    new THREE.TorusGeometry(1, 0.1, 8, 32),
-    new THREE.MeshLambertMaterial({ color: colors.accent }),
-  );
-  hoop.name = 'hoop';
-  group.add(barrier, hoop);
-  return group;
+  return createAirborneGate(environment);
 }
 
 export function layoutRingVisual(group: THREE.Group, radius: number): void {
-  const hoop = group.getObjectByName('hoop') as THREE.Mesh;
-  const barrier = group.getObjectByName('barrier') as THREE.Mesh;
-  hoop.scale.setScalar(radius);
-  barrier.scale.setScalar(1);
-  barrier.geometry.dispose();
-  barrier.geometry = new THREE.RingGeometry(radius, GAME_TUNING.ring.outerRadius, 32);
+  layoutAirborneGate(group, radius);
 }
 
 export function replaceVisual(

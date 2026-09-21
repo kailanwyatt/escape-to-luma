@@ -30,7 +30,7 @@ export function Screen({ children, style, atmosphere = true, scroll = true }: Pr
           <View style={styles.column}>{children}</View>
         </ScrollView>
       ) : (
-        <View style={contentStyle}>
+        <View style={[contentStyle, {flex:1,minHeight:0}]}>
           <View style={styles.column}>{children}</View>
         </View>
       )}
@@ -41,5 +41,5 @@ const styles = StyleSheet.create({
   root: { ...StyleSheet.absoluteFill, backgroundColor: color.ink },
   scroll: { flex: 1 },
   content: { flexGrow: 1, alignItems: 'center' },
-  column: { flex: 1, width: '100%', maxWidth: 480 },
+  column: { flex: 1, minHeight:0, width: '100%', maxWidth: 480 },
 });

@@ -1,5 +1,13 @@
+import {ReflectorField} from '../reflectors/ReflectorField';
+import {stepRicochet,RICOCHET_STEP} from '../reflectors/Reflection';
+import type {Vec3} from '../reflectors/ReflectorConfig';
+import {campaignEncounterStart} from '../campaign/EncounterStart';
+import {FIRST_ESCAPE, storyForLevel, storyAfterWorld, pendingWorldStory, type StoryMoment} from '../campaign/StoryMoments';
+import { sparkStateFor } from '../projectile/SparkVisualState';
+import { OpeningScene } from '../scene/OpeningScene';
+import { OPENING_DURATION, OPENING_BEATS, sampleOpening } from '../scene/OpeningSequence';
 import type { ExpoWebGLRenderingContext } from 'expo-gl';
-import type { WebGLRenderer } from 'three';
+import {Vector3, type WebGLRenderer} from 'three';
 
 import { AuthoredRunTracker } from '../challenge/AuthoredRunTracker';
 import { RunDirector } from '../challenge/RunDirector';
@@ -22,7 +30,7 @@ import {
 import { getCampaignLevel, WORLD1_LEVELS } from '../campaign/levels';
 import type { CampaignLevelDefinition, PrecisionRank, SelectedBoosts } from '../campaign/types';
 import { worldForLevel } from '../campaign/worlds';
-import { sparkById } from '../customization/sparks';
+import { sparkById, sparkVisualProfile } from '../customization/sparks';
 import { trailById } from '../customization/trails';
 import { rankFromResult } from '../economy/rewards';
 import { ParticleSystem } from '../feedback/Particles';
@@ -79,8 +87,8 @@ import { signOr } from '../utils/math';
 import { GameState, type DebugSnapshot, type HudSnapshot, type ObstacleDebug } from './GameState';
 import { GAME_TUNING } from './gameTuning';
 
-const CAMPAIGN_OPENING_DURATION = 7.5;
-const CAMPAIGN_OPENING_STAGES = 5;
+const CAMPAIGN_OPENING_DURATION = OPENING_DURATION;
+const CAMPAIGN_OPENING_STAGES = OPENING_BEATS.length;
 import { RunManager } from './RunManager';
 
 export class Game {
@@ -96,6 +104,11 @@ export class Game {
   private readonly projectileSystem = new ProjectileSystem();
   private readonly aim = new AimSystem();
   private readonly trajectory = new TrajectoryPredictor();
+  private readonly reflectors = new ReflectorField();
+  private ricochetStatus={bounces:0,blocked:false};
+  private ricochetAccumulator=0;
+  private ricochetPreviewAt=-Infinity;
+  private ricochetPreviewVelocity={vx:Infinity,vy:Infinity,vz:Infinity};
   private readonly obstacles = [new ObstacleSlot('A'), new ObstacleSlot('B')];
   private readonly target = new Target();
   private readonly particles = new ParticleSystem();
@@ -122,6 +135,7 @@ export class Game {
   private flightTime = 0;
   private simTime = 0;
   private obstacleTime = 0;
+  private lastObstacleStep = 0;
   private debugEnabled = false;
   private fps = 60;
   private lastNearMiss = false;
@@ -172,10 +186,14 @@ export class Game {
   private campaignGravityScale = 1;
   private lastShardsGained = 0;
   private lastPrecisionRank: PrecisionRank | null = null;
+  private campaignStory: StoryMoment | null = null;
+  private storyReturn: 'READY' | 'LEVEL_COMPLETE' | 'WORLD_COMPLETE' | 'CAMPAIGN_COMPLETE' = 'READY';
   private storyBeat: string | null = null;
   private pendingWorldComplete = false;
   private secondChancePending = false;
   private helpOffer = false;
+  private campaignShotFired=false;
+  private readonly openingScene = new OpeningScene();
   private openingTimer = 0;
   private openingStage = 0;
   private pendingCampaignFail = false;
@@ -191,8 +209,10 @@ export class Game {
     this.camera = new CameraController();
 
     this.scene.add(
+      this.openingScene.group,
       this.projectile.mesh,
       this.trajectory.group,
+      this.reflectors.group,
       this.obstacles[0].group,
       this.obstacles[1].group,
       this.target.group,
@@ -264,11 +284,11 @@ export class Game {
 
   resume(): void {
     this.syncCampaignEnergyOnSave();
-    if (!this.running) {
-      this.start();
-    }
     if (!this.adShowing) {
       AudioManager.restoreFromSettings(this.save.settings.soundEnabled);
+    }
+    if (!this.running) {
+      this.start();
     }
     this.emitHud();
   }
@@ -309,17 +329,11 @@ export class Game {
   }
 
   canAcceptInput(): boolean {
-    return this.hydrated && (
-      this.state.canAcceptInput() ||
-      this.state.phase === 'CAMPAIGN_OPENING'
-    );
+    return this.hydrated && this.running && this.state.canAcceptInput();
   }
 
   onTouchStart(x: number, y: number): void {
-    if (this.state.phase === 'CAMPAIGN_OPENING') {
-      this.skipCampaignOpening();
-      return;
-    }
+    if (!this.canAcceptInput()) return;
     if (this.state.phase === 'RUN_START') {
       this.state.set('READY');
       this.camera.clearEffects();
@@ -344,7 +358,7 @@ export class Game {
   }
 
   onTouchMove(x: number, y: number): void {
-    if (this.state.phase !== 'AIMING') {
+    if (!this.running || this.state.phase !== 'AIMING') {
       return;
     }
     const wasCancelReady = this.aim.isCancelReady;
@@ -359,7 +373,7 @@ export class Game {
   }
 
   onTouchEnd(): void {
-    if (this.state.phase !== 'AIMING') {
+    if (!this.running || this.state.phase !== 'AIMING') {
       return;
     }
     if (!this.aim.shouldLaunch()) {
@@ -387,6 +401,8 @@ export class Game {
         gravityScale: this.campaignGravityScale,
         wells: this.projectileSystem.wells,
       },
+      this.simTime,
+      this.campaignDef?.challenge.ricochet,
     );
     this.maxPathError = 0;
     this.projectile.velocity.set(velocity.vx, velocity.vy, velocity.vz);
@@ -394,12 +410,14 @@ export class Game {
     this.obstacleCleared = [false, false];
     this.targetResolved = false;
     this.flightTime = 0;
+    this.ricochetStatus={bounces:0,blocked:false};
     this.lastNearMiss = false;
     this.lastCloseCallClearance = 0;
     this.closeCallTimer = 0;
     this.lastFail = null;
     this.run.markAttempt();
     this.throwsThisRun += 1;
+    if(this.sessionMode==='campaign')this.campaignShotFired=true;
     Analytics.track(ANALYTICS_EVENTS.shotStarted, this.shotAnalyticsProps());
     this.camera.allowShake = true;
     this.camera.punchLaunch();
@@ -643,6 +661,7 @@ export class Game {
     this.projectileSystem.windX = 0;
     this.projectileSystem.gravityScale = 1;
     this.projectileSystem.wells = [];
+    this.reflectors.setReflectors([]);
     this.gravityWellField.setWells([]);
     this.selectedBoosts = {};
     this.secondChancePending = false;
@@ -651,6 +670,26 @@ export class Game {
     this.pendingCampaignFail = false;
     this.syncTrajectoryDebugFull();
     this.restart(undefined, { awaitStart: true });
+  }
+
+  canChooseCampaignBoosts():boolean {
+    return this.sessionMode==='campaign'&&this.state.phase==='READY'&&!this.campaignShotFired&&Object.keys(this.selectedBoosts).length===0&&(this.campaignDef?.levelNumber??0)>5;
+  }
+
+  equipCampaignBoosts(boosts:SelectedBoosts):boolean {
+    if(!this.canChooseCampaignBoosts())return false;
+    const additions:SelectedBoosts={};
+    for(const id of ['guidance','slowField','secondChance'] as const){
+      if(boosts[id]&&!this.selectedBoosts[id]&&this.save.campaign.boostInventory[id]>0)additions[id]=true;
+    }
+    if(Object.keys(additions).length){
+      this.save={...this.save,campaign:consumeBoosts(this.save.campaign,additions)};
+      this.selectedBoosts={...this.selectedBoosts,...additions};
+      this.secondChancePending ||= Boolean(additions.secondChance);
+      this.slowFieldActive ||= Boolean(additions.slowField);
+      this.syncTrajectoryDebugFull();void saveGameSave(this.save);this.emitHud();
+    }
+    return true;
   }
 
   startCampaignLevel(levelNumber: number, boosts: SelectedBoosts): void {
@@ -664,13 +703,15 @@ export class Game {
     if (
       this.sessionMode === 'campaign' &&
       this.campaignDef?.levelNumber === levelNumber &&
-      (this.state.phase === 'READY' || this.state.phase === 'CAMPAIGN_OPENING')
+      (this.state.phase === 'READY' || this.state.phase === 'CAMPAIGN_OPENING' || this.state.phase === 'CAMPAIGN_STORY')
     ) {
       return;
     }
     this.syncCampaignEnergyOnSave();
     this.sessionMode = 'campaign';
+    this.campaignStory = null;
     this.campaignDef = def;
+    this.campaignShotFired=false;
     this.helpOffer = false;
     this.pendingCampaignFail = false;
     this.pendingWorldComplete = false;
@@ -714,6 +755,8 @@ export class Game {
     this.obstacleTime = 0;
     this.storyBeat = def.storyBeat ?? worldForLevel(def.levelNumber)?.storyBeat ?? null;
     this.applyChallenge(def.challenge, true);
+    this.reflectors.setReflectors(def.challenge.ricochet?.reflectors ?? []);
+    this.ricochetAccumulator=0;this.ricochetPreviewAt=-Infinity;
     this.resetProjectile();
     this.aim.cancel();
     this.trajectory.setVisible(false);
@@ -738,6 +781,8 @@ export class Game {
       this.state.set('CAMPAIGN_OPENING');
     } else {
       this.state.set('READY');
+      const story = pendingWorldStory(levelNumber, this.save.campaign.seenStoryIds ?? [], this.save.campaign.completedLevels) ?? storyForLevel(levelNumber, this.save.campaign.seenStoryIds ?? []);
+      if (story) this.showCampaignStory(story, 'READY');
     }
     this.emitHud();
   }
@@ -749,7 +794,28 @@ export class Game {
     this.startCampaignLevel(this.campaignDef.levelNumber, {});
   }
 
+  private showCampaignStory(story: StoryMoment, returnTo: 'READY' | 'LEVEL_COMPLETE' | 'WORLD_COMPLETE' | 'CAMPAIGN_COMPLETE'): void {
+    this.campaignStory = story; this.storyReturn = returnTo;
+    this.aim.cancel(); this.trajectory.setVisible(false);
+    this.state.set('CAMPAIGN_STORY');
+  }
+
   continueAfterLevel(): void {
+    if (this.state.phase === 'CAMPAIGN_STORY' && this.campaignStory) {
+      const id = this.campaignStory.id;
+      this.save = {...this.save,campaign:{...this.save.campaign,seenStoryIds:[...new Set([...(this.save.campaign.seenStoryIds ?? []),id,...(this.campaignStory.acknowledgements??[])])]}};
+      void saveGameSave(this.save);
+      this.campaignStory = null;
+      this.state.set(this.storyReturn);
+      if (this.storyReturn === 'READY') {
+        const next = this.campaignDef ? storyForLevel(this.campaignDef.levelNumber, this.save.campaign.seenStoryIds ?? []) : null;
+        if (next) this.showCampaignStory(next, 'READY');
+        this.emitHud(); return;
+      }
+      if (this.storyReturn === 'WORLD_COMPLETE' || this.storyReturn === 'CAMPAIGN_COMPLETE') { this.emitHud(); return; }
+    }
+    // Ignore double taps after an entry story has already handed control back.
+    if (!['LEVEL_COMPLETE','WORLD_COMPLETE','SPARK_UNLOCKED','CAMPAIGN_COMPLETE'].includes(this.state.phase)) return;
     if (!this.campaignDef) {
       this.state.set('READY');
       this.emitHud();
@@ -773,9 +839,8 @@ export class Game {
       return;
     }
     if (this.campaignDef.levelNumber >= RELEASE_POLICY.campaignMaxLevel) {
-      this.pendingWorldComplete = false;
-      this.state.set('CAMPAIGN_COMPLETE');
-      this.emitHud();
+      // A replay of the final level offers another attempt, not another ending.
+      this.retryCampaignLevel();
       return;
     }
     const nextLevel = this.campaignDef.levelNumber + 1;
@@ -1040,9 +1105,13 @@ export class Game {
   private applySettings(): void {
     if (!this.adShowing) {
       AudioManager.enabled = this.save.settings.soundEnabled;
+      if (!this.save.settings.soundEnabled) AudioManager.pauseAll();
     }
     GameHaptics.enabled = this.save.settings.hapticsEnabled;
     this.camera.reduceMotion = this.save.settings.reduceMotion || this.systemReduceMotion;
+    this.scene.environment.setReduceMotion(
+      this.save.settings.reduceMotion || this.systemReduceMotion,
+    );
   }
 
   private applyProjectileLook(): void {
@@ -1058,13 +1127,16 @@ export class Game {
   private applySparkLook(): void {
     const spark = sparkById(this.save.campaign.equippedSparkId);
     const trail = trailById(this.save.campaign.equippedTrailId);
-    this.projectile.applyStyle({
-      color: spark.color,
-      emissive: spark.emissive,
-      emissiveIntensity: spark.emissiveIntensity,
-      shininess: spark.shininess,
-    });
-    this.trail.setStyle(trail.color, trail.width);
+    this.projectile.applyStyle(
+      {
+        color: spark.color,
+        emissive: spark.emissive,
+        emissiveIntensity: spark.emissiveIntensity,
+        shininess: spark.shininess,
+      },
+      sparkVisualProfile(spark),
+    );
+    this.trail.setStyle(spark.trailColor || trail.color, spark.trailWidth || trail.width);
   }
 
   private syncCampaignEnergyOnSave(): void {
@@ -1081,18 +1153,18 @@ export class Game {
   }
 
   skipCampaignOpening(): void {
-    this.markCampaignOpeningSeen();
-    this.openingTimer = 0;
-    this.openingStage = CAMPAIGN_OPENING_STAGES - 1;
-    this.state.set('READY');
-    this.camera.clearEffects();
-    this.camera.allowShake = false;
+    if (this.state.phase !== 'CAMPAIGN_OPENING') return;
+    this.finishCampaignOpening();
     AudioManager.play('ui');
-    this.emitHud();
   }
 
-  completeFirstRunStory(): void {
-    this.markCampaignOpeningSeen();
+  replayCampaignOpening(): void {
+    this.startCampaignLevel(1, {});
+    this.simTime = 0;
+    this.obstacleTime = 0;
+    this.openingTimer = CAMPAIGN_OPENING_DURATION;
+    this.openingStage = 0;
+    this.state.set('CAMPAIGN_OPENING');
     this.emitHud();
   }
 
@@ -1100,6 +1172,13 @@ export class Game {
     this.markCampaignOpeningSeen();
     this.openingTimer = 0;
     this.openingStage = CAMPAIGN_OPENING_STAGES - 1;
+    this.openingScene.hide();
+    this.scene.environment.group.visible = true;
+    if (this.campaignDef) this.applyChallenge(this.campaignDef.challenge, true);
+    this.resetProjectile();
+    this.camera.clearEffects();
+    this.camera.rebase();
+    this.camera.update(0);
     this.state.set('READY');
     this.emitHud();
   }
@@ -1115,6 +1194,13 @@ export class Game {
     if (!this.campaignDef) {
       return;
     }
+    this.simTime = 0;
+    this.obstacleTime = 0;
+    this.lastObstacleStep = 0;
+    this.closeCallTimer = 0;
+    this.banner = null;
+    this.bannerTimer = 0;
+    this.camera.rebase();
     this.applyChallenge(this.campaignDef.challenge, true);
     this.resetProjectile();
     this.pendingCampaignFail = false;
@@ -1291,7 +1377,11 @@ export class Game {
       lastShardsGained: this.lastShardsGained,
       lastPrecisionRank: this.lastPrecisionRank,
       storyBeat: this.storyBeat,
+      campaignStory: this.campaignStory,
       windActive: Math.abs(this.campaignWindX) > 0.001,
+      // Gameplay camera faces +Z, so world +X projects toward screen left.
+      windDirection: this.campaignWindX > 0 ? 'left' : 'right',
+      canChooseBoosts: this.canChooseCampaignBoosts(),
       helpOffer: this.helpOffer,
       unlockedSparkName: this.unlockedSparkName,
     };
@@ -1367,7 +1457,7 @@ export class Game {
       vz: round3(prediction?.vz ?? this.projectile.velocity.z),
       predA: formatRotorPred(prediction?.rotors[0]),
       predB: formatRotorPred(prediction?.rotors[1]),
-      predT: formatTargetPred(prediction?.target),
+      predT: `${prediction?.bounces ? `BOUNCES ${prediction.bounces.length} · ` : ''}${formatTargetPred(prediction?.target)}`,
       timeA: round3(prediction?.rotors[0].time ?? 0),
       timeB: round3(prediction?.rotors[1].time ?? 0),
       timeT: round3(prediction?.target.time ?? 0),
@@ -1428,7 +1518,10 @@ export class Game {
       }
     }
 
-    this.update(rawDt * this.timeScale, rawDt);
+    if(this.sessionMode==='campaign'&&this.campaignDef?.challenge.ricochet){
+      this.ricochetAccumulator+=rawDt;
+      while(this.ricochetAccumulator>=RICOCHET_STEP){this.update(RICOCHET_STEP*this.timeScale,RICOCHET_STEP);this.ricochetAccumulator-=RICOCHET_STEP;}
+    }else this.update(rawDt * this.timeScale, rawDt);
     this.render();
   };
 
@@ -1438,6 +1531,7 @@ export class Game {
       this.state.phase === 'CONTINUE_OFFER' ||
       this.state.phase === 'RUN_OVER' ||
       this.state.phase === 'PROTOTYPE_COMPLETE' ||
+      this.state.phase === 'CAMPAIGN_STORY' ||
       this.state.phase === 'CAMPAIGN_OPENING' ||
       this.state.phase === 'LEVEL_COMPLETE' ||
       this.state.phase === 'LEVEL_FAILED' ||
@@ -1452,17 +1546,20 @@ export class Game {
     if (this.director.isAuthored && !freezeWorld) {
       this.authored.noteTime(this.director.index, dt);
     }
+    const deferObstacleUpdate=Boolean(this.sessionMode==='campaign'&&this.campaignDef?.challenge.ricochet&&this.state.phase==='PROJECTILE_ACTIVE');
     if (!freezeWorld) {
       const obstacleDt =
         this.sessionMode === 'campaign' && this.slowFieldActive
           ? dt * ECONOMY.boostSlowFieldMultiplier
           : dt;
+      this.lastObstacleStep = obstacleDt;
       this.obstacleTime += obstacleDt;
       for (const rotor of this.obstacles) {
-        rotor.update(obstacleDt, this.obstacleTime);
+        if(!deferObstacleUpdate)rotor.update(obstacleDt, this.obstacleTime);
       }
       this.target.update(dt, this.simTime);
     }
+    this.reflectors.update(this.simTime,this.save.settings.reduceMotion || this.systemReduceMotion,this.debugEnabled);
     this.particles.update(dt);
     this.windField.update(dt, this.save.settings.reduceMotion || this.systemReduceMotion);
     this.gravityWellField.update(
@@ -1484,7 +1581,7 @@ export class Game {
       this.state.phase !== 'OUT_OF_ENERGY' &&
       !this.adShowing;
     this.camera.update(dt);
-    this.scene.environment.update(dt);
+    this.scene.environment.update(freezeWorld ? 0 : dt);
 
     if (this.bannerTimer > 0) {
       this.bannerTimer -= rawDt;
@@ -1506,13 +1603,28 @@ export class Game {
       this.state.phase === 'PROJECTILE_ACTIVE' ||
       (this.state.phase === 'RESULT' && (this.lastResult === 'ROTOR_HIT' || this.lastResult === 'MISS'));
     if (shouldIntegrate) {
-      this.projectileSystem.integrate(this.projectile, dt);
+      const ricochet=this.sessionMode==='campaign'?this.campaignDef?.challenge.ricochet:undefined;
+      if(ricochet&&this.state.phase==='PROJECTILE_ACTIVE'){
+        const p=this.projectile;const motion={x:p.position.x,y:p.position.y,z:p.position.z,vx:p.velocity.x,vy:p.velocity.y,vz:p.velocity.z};
+        stepRicochet(motion,dt,this.simTime-dt,{windX:this.campaignWindX,gravityScale:this.campaignGravityScale,wells:this.projectileSystem.wells},ricochet,this.ricochetStatus,GAME_TUNING.projectile.radius,
+          (a,b,clock,duration)=>this.checkRicochetSegment(a,b,clock,duration),bounce=>{
+            this.particles.spawnHit(new Vector3(bounce.point.x,bounce.point.y,bounce.point.z),6,0x85f5ff,1.4);
+            GameHaptics.forCloseCall();AudioManager.play('ricochet');this.trail.pulseFlare();
+            if(ricochet.fullGuide){this.banner='RICOCHET';this.bannerTimer=.65;this.emitHud();}
+          });
+        if(this.state.phase==='PROJECTILE_ACTIVE'){
+          p.position.set(motion.x,motion.y,motion.z);p.velocity.set(motion.vx,motion.vy,motion.vz);
+          if(this.ricochetStatus.blocked){this.lastFail='REFLECTOR FRAME / BACKING';this.particles.spawnSparks(p.position,8);this.beginResult('ROTOR_HIT',0,.4);}
+        }
+      }else this.projectileSystem.integrate(this.projectile, dt);
       this.flightTime += dt;
       if (this.state.phase === 'PROJECTILE_ACTIVE') {
-        this.checkCollisions();
+        if(!ricochet)this.checkCollisions();
         this.checkOutOfBounds();
       }
     }
+
+    if(deferObstacleUpdate&&!freezeWorld)for(const obstacle of this.obstacles)obstacle.update(this.lastObstacleStep,this.obstacleTime);
 
     if (this.state.phase === 'RESULT') {
       this.resultTimer -= rawDt;
@@ -1532,10 +1644,13 @@ export class Game {
     if (this.state.phase === 'CAMPAIGN_OPENING') {
       this.openingTimer -= rawDt;
       const elapsed = CAMPAIGN_OPENING_DURATION - Math.max(0, this.openingTimer);
-      const stage = Math.min(
-        CAMPAIGN_OPENING_STAGES - 1,
-        Math.floor(elapsed / (CAMPAIGN_OPENING_DURATION / CAMPAIGN_OPENING_STAGES)),
-      );
+      AudioManager.syncOpening(elapsed);
+      const { stage, progress } = sampleOpening(elapsed);
+      this.scene.environment.setOpeningLighting(stage, progress);
+      const space = this.openingScene.sample(elapsed, this.camera.camera, this.save.settings.reduceMotion || this.systemReduceMotion);
+      this.scene.environment.group.visible = !space;
+      this.obstacles.forEach((obstacle, index) => { obstacle.group.visible = stage >= 4 && index < (this.campaignDef?.challenge.obstacles.length ?? 0); });
+      this.target.group.visible = stage >= 4;
       if (stage !== this.openingStage) {
         this.openingStage = stage;
         this.emitHud();
@@ -1562,10 +1677,15 @@ export class Game {
       }
     }
 
+    this.target.updateVisual(rawDt, this.save.settings.reduceMotion || this.systemReduceMotion);
     this.projectile.syncMesh();
     this.projectile.updateVisual(
-      this.simTime,
+      this.state.phase === 'CAMPAIGN_OPENING' ? CAMPAIGN_OPENING_DURATION - this.openingTimer : this.simTime,
       this.save.settings.reduceMotion || this.systemReduceMotion,
+      sparkStateFor(this.state.phase, this.lastResult, this.openingStage),
+      this.scene.environment.group.visible &&
+        (this.sessionMode === 'campaign' ? this.campaignDef?.challenge.environment : this.director.current.environment) !== 'space',
+      rawDt,
     );
     this.updateDiagnostics();
     this.debugVisuals.sync(
@@ -1573,7 +1693,7 @@ export class Game {
       this.obstacles,
       this.target,
       this.state.phase === 'AIMING' ? this.livePrediction : this.launchPrediction,
-      this.state.phase === 'PROJECTILE_ACTIVE'
+      this.state.phase === 'PROJECTILE_ACTIVE'&&!this.campaignDef?.challenge.ricochet
         ? analyticPosition(this.launchStart, this.launchVelocity, this.flightTime)
         : null,
     );
@@ -1582,7 +1702,7 @@ export class Game {
   private updateDiagnostics(): void {
     if (this.state.phase === 'AIMING' && this.aim.hasEnteredAim && !this.aim.isCancelReady) {
       this.syncTrajectory();
-      this.livePrediction = predictShot(
+      if(!this.campaignDef?.challenge.ricochet)this.livePrediction = predictShot(
         {
           x: this.projectile.position.x,
           y: this.projectile.position.y,
@@ -1598,12 +1718,14 @@ export class Game {
           gravityScale: this.campaignGravityScale,
           wells: this.projectileSystem.wells,
         },
+        this.simTime,
+        this.campaignDef?.challenge.ricochet,
       );
     } else if (this.state.phase !== 'PROJECTILE_ACTIVE' && this.state.phase !== 'RESULT') {
       this.livePrediction = null;
     }
 
-    if (this.state.phase === 'PROJECTILE_ACTIVE') {
+    if (this.state.phase === 'PROJECTILE_ACTIVE'&&!this.campaignDef?.challenge.ricochet) {
       const predicted = analyticPosition(this.launchStart, this.launchVelocity, this.flightTime);
       const dx = predicted.x - this.projectile.position.x;
       const dy = predicted.y - this.projectile.position.y;
@@ -1616,6 +1738,25 @@ export class Game {
     return this.sessionMode === 'campaign' && this.slowFieldActive
       ? ECONOMY.boostSlowFieldMultiplier
       : 1;
+  }
+
+  private checkRicochetSegment(a:Vec3,b:Vec3,clock:number,duration:number):boolean {
+    const p=this.projectile;p.previousPosition.set(a.x,a.y,a.z);p.position.set(b.x,b.y,b.z);
+    for(let i=0;i<this.obstacles.length;i++){
+      const o=this.obstacles[i];if(!o.active||(a.z-o.z)*(b.z-o.z)>0||a.z===b.z)continue;
+      const u=(o.z-a.z)/(b.z-a.z);if(u<0||u>1)continue;
+      const at={x:a.x+(b.x-a.x)*u,y:a.y+(b.y-a.y)*u,z:o.z};
+      const hit=o.evaluateAt(at.x,at.y,GAME_TUNING.projectile.radius,o.predictState(Math.max(0,clock+duration*u-(this.simTime-RICOCHET_STEP))*this.obstacleTimeScale(),this.obstacleTime-this.lastObstacleStep));
+      if(hit.hit){p.position.set(at.x,at.y,at.z);this.lastFail=failLabel(o.type,i);this.particles.spawnSparks(p.position,14);GameHaptics.forResult('ROTOR_HIT');AudioManager.play(collisionEvent(o.type));this.beginResult('ROTOR_HIT',0,.4);return false;}
+      this.obstacleCleared[i]=true;
+    }
+    if(a.z<this.target.z&&b.z>=this.target.z){
+      const required=this.campaignDef?.challenge.ricochet?.requiredBounces??0;
+      if(this.ricochetStatus.bounces<required){this.lastFail='USE THE REFLECTOR';this.beginResult('MISS',0,.4);return false;}
+      // Collision was checked above; retain the existing portal precision/reward path.
+      this.obstacleCleared=[true,true];this.checkCollisions();
+      return this.state.phase==='PROJECTILE_ACTIVE';
+    }return true;
   }
 
   private checkCollisions(): void {
@@ -1632,6 +1773,8 @@ export class Game {
         this.projectile.previousPosition,
         this.projectile.position,
         GAME_TUNING.projectile.radius,
+        this.obstacleTime,
+        this.lastObstacleStep,
       );
       if (!result) {
         continue;
@@ -1686,6 +1829,7 @@ export class Game {
     const distance = distanceToTarget(atPlane.x, atPlane.y, this.target.x, this.target.y);
     const scored = scoreTarget(distance, this.target.radius);
     this.targetResolved = true;
+    this.debugVisuals.recordTargetCrossing(atPlane);
     this.projectile.position.set(atPlane.x, atPlane.y, atPlane.z);
 
     if (scored.kind === 'MISS') {
@@ -1704,6 +1848,7 @@ export class Game {
     const pulse =
       scored.kind === 'PERFECT' ? 1.6 : scored.kind === 'BULLSEYE' ? 1.25 : scored.kind === 'GREAT' ? 0.9 : 0.55;
     this.target.triggerPulse(pulse);
+    if (!this.target.isBreach) this.projectile.beginPortalEntry();
     const particleCount =
       scored.kind === 'PERFECT' ? 22 : scored.kind === 'BULLSEYE' ? 16 : scored.kind === 'GREAT' ? 12 : 8;
     const color = scored.kind === 'PERFECT' ? 0xfff1a8 : scored.kind === 'BULLSEYE' ? 0x7ef0ff : 0xffffff;
@@ -1724,7 +1869,7 @@ export class Game {
       this.timeScale = GAME_TUNING.timing.perfectTimeScale;
       this.slowdownRemaining = GAME_TUNING.timing.perfectSlowdownDuration;
     }
-    this.beginResult(scored.kind, scored.points, GAME_TUNING.timing.hitAdvanceDelay / 1000);
+    this.beginResult(scored.kind, scored.points, this.target.isBreach ? GAME_TUNING.timing.hitAdvanceDelay / 1000 : .5);
   }
 
   private checkOutOfBounds(): void {
@@ -1892,6 +2037,11 @@ export class Game {
           ? 'CAMPAIGN_COMPLETE'
           : 'LEVEL_COMPLETE',
     );
+    const milestone = storyAfterWorld(def.levelNumber, this.save.campaign.seenStoryIds ?? []);
+    if (milestone) this.showCampaignStory(milestone, outcome.worldComplete ? 'WORLD_COMPLETE' : outcome.campaignComplete ? 'CAMPAIGN_COMPLETE' : 'LEVEL_COMPLETE');
+    if (def.levelNumber === 1 && !(this.save.campaign.seenStoryIds ?? []).includes(FIRST_ESCAPE.id)) {
+      this.showCampaignStory(FIRST_ESCAPE, 'LEVEL_COMPLETE');
+    }
     this.emitHud();
   }
 
@@ -2139,16 +2289,41 @@ export class Game {
   }
 
   private applyChallenge(config: ChallengeConfig, immediateEnv: boolean): void {
+    const encounter = this.sessionMode === 'campaign'
+      ? campaignEncounterStart(config)
+      : {offset: this.obstacleTime, obstacles: config.obstacles};
+    this.obstacleTime = encounter.offset;
+    AudioManager.syncOpening(null);
+    this.openingScene.hide();
+    this.scene.environment.group.visible = true;
     this.scene.environment.setEnvironment(config.environment, this.scene.scene, immediateEnv);
+    this.scene.environment.setSpaceWorld(this.sessionMode === 'campaign' ? this.campaignDef?.worldId ?? null : null);
+    this.scene.environment.setCampaignLevel(this.sessionMode === 'campaign' && this.campaignDef?.worldId === 'containment' ? this.campaignDef.levelNumber : null);
+    const showBreachPlate = config.obstacles.some(
+      (obstacle) =>
+        obstacle.type === 'slidingGate' && obstacle.appearance === 'containmentGlass',
+    );
+    this.scene.environment.setBreachPlateVisible(showBreachPlate);
+    if (showBreachPlate) {
+      const glass = config.obstacles.find(obstacle => obstacle.type === 'slidingGate' && obstacle.appearance === 'containmentGlass');
+      if (glass?.type === 'slidingGate') {
+        this.openingScene.setBreach({x: glass.baseX, y: glass.baseY ?? GAME_TUNING.gate.baseY, z: glass.z, width: glass.openingWidth, height: glass.openingHeight});
+      }
+      this.openingScene.showPlayableVessel();
+    }
     for (let i = 0; i < this.obstacles.length; i += 1) {
-      const rotorConfig = config.obstacles[i];
+      const rotorConfig = encounter.obstacles[i];
       if (rotorConfig) {
         this.obstacles[i].applyConfig(rotorConfig, config.environment);
+        this.obstacles[i].update(0, this.obstacleTime);
       } else {
         this.obstacles[i].hide();
       }
     }
+    this.debugVisuals.recordTargetCrossing(null);
     this.target.applyConfig(config.target);
+    this.target.setWorld(this.sessionMode === 'campaign' ? this.campaignDef?.worldId ?? 'containment' : config.environment === 'rooftop' ? 'city' : config.environment === 'space' ? 'orbit' : 'containment');
+    this.target.setBreachPresentation(showBreachPlate);
     this.obstacleCleared = [false, false];
   }
 
@@ -2170,6 +2345,7 @@ export class Game {
     this.obstacleCleared = [false, false];
     this.targetResolved = false;
     this.flightTime = 0;
+    this.ricochetStatus={bounces:0,blocked:false};
     this.aim.cancel();
     this.trajectory.setVisible(false);
   }
@@ -2191,6 +2367,15 @@ export class Game {
 
   private syncTrajectory(): void {
     this.syncTrajectoryDebugFull();
+    const ricochet=this.sessionMode==='campaign'?this.campaignDef?.challenge.ricochet:undefined;
+    if(ricochet){
+      const velocity=this.aim.getLaunchVelocity(),old=this.ricochetPreviewVelocity;
+      if(this.simTime-this.ricochetPreviewAt<1/30&&Math.abs(velocity.vx-old.vx)+Math.abs(velocity.vy-old.vy)+Math.abs(velocity.vz-old.vz)<.025)return;
+      this.ricochetPreviewAt=this.simTime;this.ricochetPreviewVelocity=velocity;
+      const prediction=predictShot(this.projectile.position,this.aim.getLaunchVelocity(),this.obstacles,this.target,this.obstacleTime,this.obstacleTimeScale(),{windX:this.campaignWindX,gravityScale:this.campaignGravityScale,wells:this.projectileSystem.wells},this.simTime,ricochet);
+      this.livePrediction=prediction;
+      this.trajectory.showRicochet(prediction,Boolean(ricochet.fullGuide||this.selectedBoosts.guidance||this.debugEnabled));return;
+    }
     this.trajectory.update(
       this.projectile.position,
       this.aim.getLaunchVelocity(),
@@ -2269,6 +2454,12 @@ export class Game {
         this.state.phase === 'OUT_OF_ENERGY'
       ) {
         this.retryCampaignLevel();
+      } else if (this.state.phase === 'CAMPAIGN_OPENING') {
+        this.replayCampaignOpening();
+      } else if (['READY', 'AIMING', 'PROJECTILE_ACTIVE', 'RESULT', 'RESETTING'].includes(this.state.phase)) {
+        this.resetCampaignAttempt();
+        this.state.set('READY');
+        this.emitHud();
       }
       return;
     }

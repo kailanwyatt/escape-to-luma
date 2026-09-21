@@ -62,6 +62,8 @@ export const WORLD2_SAMPLE_LEVELS: CampaignLevelDefinition[] = [
     [
       {
         type: 'slidingGate',
+        movementMode: 'rapidShutter',
+        shutter: {pattern:'standard',closedHold:.45,openingDuration:.35,openHold:.7,warningDuration:.2,slamDuration:.2,visualVariant:'citySecurity'},
         z: Z_A,
         openingWidth: 1.85,
         openingHeight: 2.9,
@@ -71,7 +73,7 @@ export const WORLD2_SAMPLE_LEVELS: CampaignLevelDefinition[] = [
       },
     ],
     center,
-    { windX: 0.14 },
+    { windX: 0.14, tutorialHint: 'CYAN: OPEN · AMBER: WARNING · RED: SLAM. Aim for your arrival time.' },
   ),
   // Offset with gentle wind — still wide opening
   level(

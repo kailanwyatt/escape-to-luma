@@ -4,15 +4,28 @@ export type AssetPreloadGroup = 'boot' | 'world1' | 'world2' | 'optional';
 export type RuntimeAssetKind = 'image' | 'model' | 'audio';
 
 export type RuntimeAssetId =
+  | 'world.nebulaBackdrop'
+  | 'world.networkBackdrop'
+  | 'world.homewardBackdrop'
+  | 'home.cityGateway'
   | 'brand.wordmark'
   | 'ui.energy.full'
   | 'ui.energy.empty'
   | 'ui.shard'
   | 'ui.heart.full'
   | 'ui.heart.empty'
+  | 'story.openingScore'
+  | 'story.01'
+  | 'story.02'
+  | 'story.03'
+  | 'story.04'
+  | 'story.05'
   | 'spark.original'
+  | 'spark.reactor'
+  | 'spark.neon'
   | 'target.jumpGate'
   | 'world1.containment'
+  | 'world1.crackEscape'
   | 'world1.rotor'
   | 'world1.gate'
   | 'world1.laser'
@@ -27,19 +40,106 @@ export type RuntimeAssetEntry = {
   version: number;
   source: number | null;
   fallback: string;
-  disposalOwner: 'expo-asset' | 'three-scene' | 'react-native';
+  disposalOwner: 'expo-asset' | 'three-scene' | 'react-native' | 'audio-manager';
 };
 
 const entries: RuntimeAssetEntry[] = [
+  { id: 'world.nebulaBackdrop', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/worlds/nebula.jpg'), fallback: '3D scenery and starfield', disposalOwner: 'three-scene' },
+  { id: 'world.networkBackdrop', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/worlds/network.jpg'), fallback: '3D scenery and starfield', disposalOwner: 'three-scene' },
+  { id: 'world.homewardBackdrop', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/worlds/homeward.jpg'), fallback: '3D scenery and starfield', disposalOwner: 'three-scene' },
+
+  { id: 'home.cityGateway', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/home/city-gateway.jpg'), fallback: 'navy home background', disposalOwner: 'react-native' },
+  { id: 'story.openingScore', kind: 'audio', group: 'optional', version: 1,
+    source: require('../../assets/sfx/opening-score.wav'), fallback: 'silent cinematic with captions', disposalOwner: 'audio-manager' },
   { id: 'brand.wordmark', kind: 'image', group: 'boot', version: 1, source: null, fallback: 'BrandHero text', disposalOwner: 'react-native' },
   { id: 'ui.energy.full', kind: 'image', group: 'boot', version: 1, source: null, fallback: 'energy glyph', disposalOwner: 'react-native' },
   { id: 'ui.energy.empty', kind: 'image', group: 'boot', version: 1, source: null, fallback: 'energy outline glyph', disposalOwner: 'react-native' },
   { id: 'ui.shard', kind: 'image', group: 'boot', version: 1, source: null, fallback: 'diamond glyph', disposalOwner: 'react-native' },
   { id: 'ui.heart.full', kind: 'image', group: 'optional', version: 1, source: null, fallback: 'filled heart glyph', disposalOwner: 'react-native' },
   { id: 'ui.heart.empty', kind: 'image', group: 'optional', version: 1, source: null, fallback: 'empty heart glyph', disposalOwner: 'react-native' },
-  { id: 'spark.original', kind: 'model', group: 'world1', version: 1, source: null, fallback: 'procedural layered Spark', disposalOwner: 'three-scene' },
+  {
+    id: 'story.01',
+    kind: 'image',
+    group: 'optional',
+    version: 1,
+    source: require('../../assets/art/story/story-01-living-light.png'),
+    fallback: 'ContainmentScene living',
+    disposalOwner: 'expo-asset',
+  },
+  {
+    id: 'story.02',
+    kind: 'image',
+    group: 'optional',
+    version: 1,
+    source: require('../../assets/art/story/story-02-found.png'),
+    fallback: 'ContainmentScene found',
+    disposalOwner: 'expo-asset',
+  },
+  {
+    id: 'story.03',
+    kind: 'image',
+    group: 'optional',
+    version: 1,
+    source: require('../../assets/art/story/story-03-signal.png'),
+    fallback: 'ContainmentScene signal',
+    disposalOwner: 'expo-asset',
+  },
+  {
+    id: 'story.04',
+    kind: 'image',
+    group: 'optional',
+    version: 1,
+    source: require('../../assets/art/story/story-04-breach.png'),
+    fallback: 'ContainmentScene breach',
+    disposalOwner: 'expo-asset',
+  },
+  {
+    id: 'story.05',
+    kind: 'image',
+    group: 'optional',
+    version: 1,
+    source: require('../../assets/art/story/story-05-mission.png'),
+    fallback: 'ContainmentScene mission',
+    disposalOwner: 'expo-asset',
+  },
+  {
+    id: 'spark.original',
+    kind: 'image',
+    group: 'world1',
+    version: 1,
+    source: require('../../assets/art/sparks/spark-original.png'),
+    fallback: 'procedural layered Spark',
+    disposalOwner: 'expo-asset',
+  },
+  {
+    id: 'spark.reactor',
+    kind: 'image',
+    group: 'world1',
+    version: 1,
+    source: require('../../assets/art/sparks/spark-reactor.png'),
+    fallback: 'procedural Reactor tint',
+    disposalOwner: 'expo-asset',
+  },
+  {
+    id: 'spark.neon',
+    kind: 'image',
+    group: 'world2',
+    version: 1,
+    source: require('../../assets/art/sparks/spark-neon.png'),
+    fallback: 'procedural Neon tint',
+    disposalOwner: 'expo-asset',
+  },
   { id: 'target.jumpGate', kind: 'model', group: 'world1', version: 1, source: null, fallback: 'procedural scoring rings', disposalOwner: 'three-scene' },
   { id: 'world1.containment', kind: 'model', group: 'world1', version: 1, source: null, fallback: 'procedural workshop kit', disposalOwner: 'three-scene' },
+  {
+    id: 'world1.crackEscape',
+    kind: 'image',
+    group: 'optional',
+    version: 1,
+    source: require('../../assets/art/world1/containment-crack-escape.png'),
+    fallback: 'procedural vessel + breach',
+    disposalOwner: 'expo-asset',
+  },
   { id: 'world1.rotor', kind: 'model', group: 'world1', version: 1, source: null, fallback: 'procedural modular rotor', disposalOwner: 'three-scene' },
   { id: 'world1.gate', kind: 'model', group: 'world1', version: 1, source: null, fallback: 'procedural sliding gate', disposalOwner: 'three-scene' },
   { id: 'world1.laser', kind: 'model', group: 'world1', version: 1, source: null, fallback: 'procedural emitters and beams', disposalOwner: 'three-scene' },
@@ -67,6 +167,10 @@ export function getRuntimeAsset(id: RuntimeAssetId): RuntimeAssetEntry {
     console.info(`[assets] ${assetCacheKeyUnsafe(entry)} uses fallback: ${entry.fallback}`);
   }
   return entry;
+}
+
+export function getAssetSource(id: RuntimeAssetId): number | null {
+  return getRuntimeAsset(id).source;
 }
 
 export async function preloadAssetGroup(group: AssetPreloadGroup): Promise<void> {

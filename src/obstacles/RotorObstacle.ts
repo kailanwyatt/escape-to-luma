@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 
 import type { EnvironmentId } from '../config/ChallengeConfig';
-import type { RotorConfig } from '../config/RotorConfig';
+import type { RotorConfig, RotorVisualVariant } from '../config/RotorConfig';
 import type { MovementConfig } from '../config/MovementConfig';
 import { sampleMovement } from '../config/MovementConfig';
 import { GAME_TUNING } from '../game/gameTuning';
 import { lerp, smoothstep } from '../utils/math';
 import { evaluateRotorCollision, type ObstacleCollisionResult } from './ObstacleCollision';
-import { replaceRotorVisual } from './RotorVisuals';
+import { replaceRotorVisual, syncRotorHousing, defaultRotorVariant } from './RotorVisuals';
 
 export class RotorObstacle {
   readonly id: string;
@@ -28,6 +28,7 @@ export class RotorObstacle {
   private visual: THREE.Group | null = null;
   private environment: EnvironmentId = 'workshop';
   private initialRotation = 0;
+  private visualVariant?: RotorVisualVariant;
 
   constructor(id: string) {
     this.id = id;
@@ -58,12 +59,14 @@ export class RotorObstacle {
       phase: config.movement?.phase ?? 0,
     };
 
+    const variant = config.visualVariant ?? defaultRotorVariant(environment);
     const needsRebuild =
-      !this.visual || config.bladeCount !== this.bladeCount || environment !== this.environment;
+      !this.visual || config.bladeCount !== this.bladeCount || environment !== this.environment || variant !== this.visualVariant;
     this.bladeCount = config.bladeCount;
     this.environment = environment;
+    this.visualVariant = variant;
     if (needsRebuild) {
-      this.visual = replaceRotorVisual(this.group, this.visual, environment, this.bladeCount);
+      this.visual = replaceRotorVisual(this.group, this.visual, environment, this.bladeCount, variant);
     }
 
     this.update(0, 0);
@@ -84,6 +87,7 @@ export class RotorObstacle {
     const signedDirection = this.directionAt(this.elapsed);
     this.currentSpeed = this.speedMagnitude(this.elapsed) * signedDirection;
     this.group.rotation.z -= this.currentSpeed * dt;
+    syncRotorHousing(this.visual, this.angle);
 
     const x =
       this.movement.type === 'horizontal'
@@ -132,6 +136,7 @@ export class RotorObstacle {
   resetClock(): void {
     this.elapsed = 0;
     this.group.rotation.z = this.initialRotation;
+    syncRotorHousing(this.visual, this.angle);
   }
 
   predictState(

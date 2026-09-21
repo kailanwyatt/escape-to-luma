@@ -1,216 +1,141 @@
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {LinearGradient} from 'expo-linear-gradient';
+import {useEffect, useRef, useState} from 'react';
+import {Animated, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {TOTAL_CORE_LEVELS, worldForLevel} from '../campaign/worlds';
+import {getCampaignLevel} from '../campaign/levels';
+import {HOME_BRAND} from '../config/branding';
+import {ECONOMY} from '../config/economy';
+import {devLevelsUnlocked} from '../config/devAccess';
+import {NavIcon} from '../design/components/NavIcon';
+import {formatCountdown, msUntilNextEnergy, regenerateEnergy} from '../economy/energy';
+import {hasUnlimitedEnergy, isEndlessUnlocked, type PersistentGameData} from '../persistence/GameSave';
 
-import { TOTAL_CORE_LEVELS, worldForLevel } from '../campaign/worlds';
-import { HOME_BRAND } from '../config/branding';
-import { ContainmentScene } from '../design/components/ContainmentScene';
-import { ECONOMY } from '../config/economy';
-import {
-  BottomNav,
-  BrandHero,
-  Button,
-  ContinueJourneyButton,
-  Screen,
-  StatusPanel,
-  color,
-  space,
-  textStyles,
-} from '../design';
-import { formatCountdown, msUntilNextEnergy, regenerateEnergy } from '../economy/energy';
-import { hasUnlimitedEnergy, isEndlessUnlocked, type PersistentGameData } from '../persistence/GameSave';
-
+const CITY_ART = require('../../assets/art/home/city-gateway.jpg');
 type Props = {
-  save: PersistentGameData;
-  onContinue: () => void;
-  onJourney: () => void;
-  onSparks: () => void;
-  onShop: () => void;
-  onStats: () => void;
-  onSettings: () => void;
-  onEndless: () => void;
-  currentLevel: number;
+  save: PersistentGameData; currentLevel: number;
+  onContinue: () => void; onSelectLevel: (level: number) => void;
+  onJourney: () => void; onSparks: () => void; onShop: () => void;
+  onStats: () => void; onSettings: () => void; onEndless: () => void;
 };
 
-export function HomeScreen({
-  save,
-  onContinue,
-  onJourney,
-  onSparks,
-  onShop,
-  onStats,
-  onSettings,
-  onEndless,
-  currentLevel,
-}: Props) {
+export function HomeScreen({save, currentLevel, onContinue, onSelectLevel, onJourney, onSparks, onShop, onStats, onSettings, onEndless}: Props) {
+  const insets = useSafeAreaInsets();
+  const {width, height} = useWindowDimensions();
+  const tablet = width >= 700;
+  const landscape = width >= 900 && width > height;
+  const sceneHeight = landscape ? Math.max(600, height - 48) : tablet ? Math.min(850, height * .72) : 0;
+  const compact = width < 370;
   const [now, setNow] = useState(Date.now);
+  const [selected, setSelected] = useState(currentLevel);
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => setSelected(currentLevel), [currentLevel]);
+  useEffect(() => {const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer);}, []);
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-  const campaign = save.campaign;
-  const unlimited = hasUnlimitedEnergy(campaign);
-  const level = Math.max(1, Math.min(currentLevel, TOTAL_CORE_LEVELS));
-  const world = worldForLevel(level);
-  const energy = regenerateEnergy(campaign.currentEnergy, campaign.energyUpdatedAt, now, unlimited);
-  const nextMs = msUntilNextEnergy(energy.energy, energy.energyUpdatedAt, now);
-  const post = campaign.campaignCompleted;
-  const worldIndex = world?.index ?? 1;
-  const worldName = post ? HOME_BRAND.destination : (world?.name ?? 'THE CONTAINMENT');
-
-  const ctaLabel = post ? 'ENDLESS VOYAGE' : 'CONTINUE JOURNEY';
-  const ctaSub = post
-    ? 'EXPLORE THE NETWORK'
-    : `WORLD ${worldIndex} · LEVEL ${level}`;
-
-  return (
-    <Screen>
-      <View style={styles.topBar}>
-        <View style={styles.topSpacer} />
-        {isEndlessUnlocked(campaign) && !post ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Endless voyage" onPress={onEndless} hitSlop={12} style={styles.topGhost}>
-            <Text style={textStyles.caption}>ENDLESS</Text>
-          </Pressable>
-        ) : (
-          <View style={styles.topGhost} />
-        )}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Settings"
-          onPress={onSettings}
-          hitSlop={12}
-          style={styles.settingsBtn}
-        >
-          <Text style={styles.settingsGlyph}>⚙</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.layout}>
-        <View style={styles.topBlock}>
-          <BrandHero
-            kicker={post ? 'HOME REACHED' : HOME_BRAND.eyebrow}
-            title={HOME_BRAND.title}
-            productLine={HOME_BRAND.subtitle}
-            tagline={
-              post ? 'THE NETWORK IS OPEN.' : HOME_BRAND.tagline
-            }
-          />
-
-          <StatusPanel
-            worldIndex={worldIndex}
-            worldName={worldName}
-            level={level}
-            totalLevels={TOTAL_CORE_LEVELS}
-            energyLabel={unlimited ? '∞' : `${energy.energy} / ${ECONOMY.maxEnergy}`}
-            shardsLabel={String(campaign.shards)}
-          />
-          {!unlimited && energy.energy < ECONOMY.maxEnergy ? (
-            <Text style={[textStyles.caption, styles.nextEnergy]}>
-              NEXT +1  {formatCountdown(nextMs)}
-            </Text>
-          ) : null}
-        </View>
-
-        <ContainmentScene />
-
-        <View style={styles.midBlock}>
-          <View style={styles.ctaContainer}>
-            <ContinueJourneyButton
-              label={ctaLabel}
-              onPress={post ? onEndless : onContinue}
-            />
-          </View>
-          <Text style={[textStyles.caption, styles.ctaSub]}>{ctaSub}</Text>
-          {post ? (
-            <Button label="REPLAY JOURNEY" variant="ghost" onPress={onContinue} />
-          ) : null}
-        </View>
-
-        <View style={styles.bottomBlock}>
-          <BottomNav
-            items={[
-              { id: 'journey', label: 'JOURNEY', subtitle: 'WORLDS', glyph: '⌖', onPress: onJourney },
-              { id: 'sparks', label: 'SPARKS', subtitle: 'CUSTOMIZE', glyph: '✦', onPress: onSparks },
-              { id: 'shop', label: 'SHOP', subtitle: 'SKINS & BOOSTS', glyph: '▣', onPress: onShop },
-              { id: 'stats', label: 'STATS', subtitle: 'YOUR PROGRESS', glyph: '▦', onPress: onStats },
-            ]}
-          />
-
-          <View style={styles.quoteRow}>
-            <View style={styles.quoteLine} />
-            <Text style={textStyles.quote}>{HOME_BRAND.closing}</Text>
-            <View style={styles.quoteLine} />
-          </View>
-        </View>
-      </View>
-    </Screen>
+    if (save.settings.reduceMotion) {pulse.setValue(0); return;}
+    const animation = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, {toValue: 1, duration: 1600, useNativeDriver: true}),
+      Animated.timing(pulse, {toValue: 0, duration: 1900, useNativeDriver: true}),
+    ]));
+    animation.start(); return () => animation.stop();
+  }, [pulse, save.settings.reduceMotion]);
+  const c = save.campaign;
+  const level = Math.max(1, Math.min(TOTAL_CORE_LEVELS, selected));
+  const world = worldForLevel(level)!;
+  const unlimited = hasUnlimitedEnergy(c, now);
+  const energy = regenerateEnergy(c.currentEnergy, c.energyUpdatedAt, now, unlimited);
+  const energyLabel = unlimited ? 'UNLIMITED' : energy.energy === ECONOMY.maxEnergy ? 'FULL' : formatCountdown(msUntilNextEnergy(energy.energy, energy.energyUpdatedAt, now));
+  const maxLevel = devLevelsUnlocked() ? TOTAL_CORE_LEVELS : c.highestUnlockedLevel;
+  const start = Math.max(1, Math.min(TOTAL_CORE_LEVELS - 4, level - 2));
+  const cleared = Object.values(c.completedLevels).filter(p => p.cleared).length;
+  const play = () => c.campaignCompleted && level === currentLevel ? onEndless() : level === currentLevel ? onContinue() : onSelectLevel(level);
+  const nav = (name: string, label: string, action: () => void) => (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={action} style={({pressed}) => [s.nav, tablet && s.tabletNav, pressed && s.pressed]}>
+      <NavIcon name={name}/><Text style={s.navLabel}>{label}</Text>
+    </Pressable>
   );
+  return <View style={s.root}>
+    <ScrollView contentContainerStyle={{alignItems:'center', paddingHorizontal:Math.max(insets.left,insets.right), flexGrow:1, paddingBottom:Math.max(insets.bottom, landscape ? 12 : 24)}}>
+      <View style={[s.page, tablet && s.tabletPage, landscape && s.landscapePage, {paddingTop:Math.max(insets.top,12)}]}>
+        <View style={[s.scene, landscape && {flex:1,minHeight:sceneHeight}, tablet && !landscape && {height:sceneHeight}]}>
+        <View pointerEvents="none" style={[s.art, {height:tablet ? (landscape ? '100%' : sceneHeight + 130) : compact?570:660}]}>
+          <Image source={CITY_ART} style={[StyleSheet.absoluteFill, {width:'100%',height:'100%'}]} resizeMode="cover"/>
+          <LinearGradient colors={['rgba(0,15,29,.6)','transparent','transparent','#031522']} locations={[0,.25,.65,1]} style={StyleSheet.absoluteFill}/>
+        </View>
+        <View style={[s.resources, tablet && s.tabletResources]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={onSettings} style={s.settings}><Text style={s.gear}>⚙</Text></Pressable>
+          <View accessibilityLabel={`Energy ${unlimited?'unlimited':`${energy.energy} of ${ECONOMY.maxEnergy}`}, ${energyLabel}`} style={s.resource}>
+            <Text style={s.bolt}>ϟ</Text><View><Text style={s.value}>{unlimited?'∞':`${energy.energy} / ${ECONOMY.maxEnergy}`}</Text><Text style={s.resourceLabel}>{energyLabel}</Text></View>
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel={`${c.shards} shards, open shop`} onPress={onShop} style={s.resource}>
+            <Text style={s.gem}>◆</Text><View><Text style={s.value}>{c.shards.toLocaleString()}</Text><Text style={s.resourceLabel}>SHARDS</Text></View><Text style={s.plus}>+</Text>
+          </Pressable>
+        </View>
+        <View style={[s.brand, tablet && {paddingTop:42}]}>
+          <Text style={s.eyebrow}>PREDICT · ADAPT · OVERCOME</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit style={[s.title,{fontSize:tablet?82:compact?49:62}]}>{HOME_BRAND.title}</Text>
+          <Text style={s.subtitle}>{HOME_BRAND.subtitle}</Text>
+        </View>
+        <View style={[s.stage,tablet ? {flex:1,paddingHorizontal:32,paddingBottom:28} : {height:compact?265:310}]}>
+          <View style={s.side}>{nav('stats','STATS',onStats)}{nav('sparks','SPARKS',onSparks)}</View>
+          <View pointerEvents="none" style={[s.sparkPlacement,tablet && {bottom:66,transform:[{scale:1.3}]}]}>
+            <Animated.View style={[s.aura,{opacity:pulse.interpolate({inputRange:[0,1],outputRange:[.25,.6]}),transform:[{scale:pulse.interpolate({inputRange:[0,1],outputRange:[.85,1.2]})}]}]}/>
+            <LinearGradient colors={['#FFFFFF','#D7FFFF','#41DFFF']} style={s.spark}/>
+          </View>
+          <View style={s.side}>{nav('shop','SHOP',onShop)}{nav('journey','WORLDS',onJourney)}</View>
+        </View>
+        </View>
+        <View style={[s.controls,tablet && !landscape && s.tabletControls,landscape && s.landscapeControls]}>
+        <Text style={s.tap}>YOUR NEXT LEAP AWAITS</Text>
+        <View style={s.playRow}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Previous level" disabled={level<=1} onPress={()=>setSelected(level-1)} style={[s.arrow,level<=1&&s.disabled]}><Text style={s.arrowText}>‹</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={c.campaignCompleted&&level===currentLevel?'Endless voyage':`Play level ${level}`} onPress={play} style={({pressed})=>[s.play,pressed&&s.pressed]}>
+            <LinearGradient colors={['#65EFFF','#15C8ED','#0498CD']} style={s.playInner}>
+              <Text style={s.playLabel}>▶ {c.campaignCompleted&&level===currentLevel?'VOYAGE':'PLAY'}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={s.playWorld}>{world.name}</Text><Text style={s.playLevel}>LEVEL {level}</Text>
+            </LinearGradient>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Next available level" disabled={level>=maxLevel} onPress={()=>setSelected(level+1)} style={[s.arrow,level>=maxLevel&&s.disabled]}><Text style={s.arrowText}>›</Text></Pressable>
+        </View>
+        <View style={s.levelTrack}>
+          <View style={s.trackLine}/>
+          {Array.from({length:5},(_,i)=>start+i).map(n=>{
+            const p=c.completedLevels[getCampaignLevel(n)?.id??'']; const locked=n>maxLevel;
+            return <Pressable key={n} accessibilityRole="button" accessibilityLabel={`Level ${n}, ${locked?'locked':p?.cleared?p.bestRank:'available'}`} accessibilityState={{selected:n===level,disabled:locked}} disabled={locked} onPress={()=>setSelected(n)} style={s.nodeWrap}>
+              <View style={[s.node,p?.cleared&&s.cleared,n===level&&s.current,locked&&s.locked]}><Text style={[s.nodeText,locked&&{color:'#6D8CA2'}]}>{n}</Text></View>
+              <Text style={[s.rank,p?.cleared&&{color:'#F8D988'}]}>{locked?'LOCKED':p?.cleared?p.bestRank:n===level?'CURRENT':'PLAY'}</Text>
+            </Pressable>;
+          })}
+        </View>
+        <View style={s.chapter}><Text style={s.chapterTitle}>WORLD {world.index} · {world.name}</Text><Text style={s.chapterCopy}>{world.subtitle}</Text><Text style={s.completion}>{cleared} / {TOTAL_CORE_LEVELS} LEVELS CLEARED</Text></View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Explore your journey" onPress={onJourney} style={s.storyCard}>
+          <Image source={CITY_ART} style={s.storyImage}/><View style={s.storyCopy}><Text style={s.eyebrow}>YOUR JOURNEY CONTINUES</Text><Text style={s.quote}>{HOME_BRAND.tagline}</Text></View><Text style={s.arrowText}>›</Text>
+        </Pressable>
+        {isEndlessUnlocked(c)&&!c.campaignCompleted?<Pressable accessibilityRole="button" onPress={onEndless} style={s.endless}><Text style={s.chapterTitle}>EXPLORE ENDLESS VOYAGE ›</Text></Pressable>:null}
+        </View>
+      </View>
+    </ScrollView>
+  </View>;
 }
-
-const styles = StyleSheet.create({
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: space.sm,
-  },
-  topSpacer: {
-    flex: 1,
-  },
-  topGhost: {
-    minWidth: 44,
-    alignItems: 'center',
-  },
-  settingsBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: color.panelBorder,
-    backgroundColor: color.panel,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingsGlyph: {
-    color: color.cyanBright,
-    fontSize: 22,
-  },
-  layout: {
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingBottom: space.xs,
-  },
-  topBlock: {
-    gap: space.md,
-    alignItems: 'stretch',
-  },
-  nextEnergy: {
-    textAlign: 'center',
-    marginTop: -space.sm,
-  },
-  midBlock: {
-    alignItems: 'center',
-    gap: space.xs,
-    paddingVertical: space.md,
-  },
-  ctaContainer: {
-    width: '100%',
-    paddingHorizontal: 4,
-    alignItems: 'center',
-  },
-  ctaSub: {
-    letterSpacing: 2,
-  },
-  bottomBlock: {
-    gap: space.md,
-  },
-  quoteRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    paddingHorizontal: space.xs,
-  },
-  quoteLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: color.strokeStrong,
-  },
+const s=StyleSheet.create({
+  root:{...StyleSheet.absoluteFill,backgroundColor:'#031522'},page:{width:'100%',maxWidth:600,overflow:'hidden'},
+  scene:{position:'relative'},controls:{width:'100%'},
+  tabletPage:{maxWidth:'100%'},landscapePage:{flexDirection:'row',alignItems:'stretch',paddingHorizontal:24,gap:28,flex:1},
+  tabletResources:{width:'100%',maxWidth:560,alignSelf:'center',paddingHorizontal:24},
+  tabletNav:{width:82,minHeight:80},
+  tabletControls:{maxWidth:680,alignSelf:'center'},
+  landscapeControls:{width:400,alignSelf:'center',paddingVertical:28},
+  art:{position:'absolute',top:0,left:0,right:0},resources:{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:14},
+  settings:{width:44,height:46,alignItems:'center',justifyContent:'center',backgroundColor:'#041E30',borderColor:'#258AAE',borderWidth:1,borderRadius:12},gear:{fontSize:27,color:'#DBF8FF'},
+  resource:{flex:1,minHeight:46,flexDirection:'row',gap:7,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(0,20,35,.9)',borderColor:'#246786',borderWidth:1,borderRadius:12,paddingHorizontal:7},
+  bolt:{fontSize:36,color:'#35E9FF'},gem:{fontSize:22,color:'#BB8EFD'},value:{fontSize:16,color:'#F0FAFF',fontWeight:'800'},resourceLabel:{fontSize:8,color:'#7FD6F5',letterSpacing:1.8,textAlign:'center',marginTop:1},plus:{color:'#41DEFF',fontSize:22,marginLeft:2},
+  brand:{alignItems:'center',paddingTop:30},eyebrow:{fontSize:9,color:'#8ADBFA',letterSpacing:2,fontWeight:'700'},title:{color:'#F3FDFF',fontWeight:'300',letterSpacing:12,marginLeft:12,textShadowColor:'#00BDFF',textShadowRadius:18,textShadowOffset:{width:0,height:0},marginTop:8},subtitle:{fontSize:12,color:'#83DEFA',letterSpacing:5,marginTop:2},
+  stage:{flexDirection:'row',justifyContent:'space-between',alignItems:'flex-end',paddingHorizontal:14,paddingBottom:10},side:{gap:12},
+  nav:{width:64,minHeight:67,alignItems:'center',justifyContent:'center',paddingVertical:8,borderRadius:13,borderWidth:1,borderColor:'#2385AA',backgroundColor:'rgba(0,19,34,.89)'},navLabel:{fontSize:9,color:'#E4F6FF',fontWeight:'800',letterSpacing:1},
+  sparkPlacement:{position:'absolute',bottom:37,left:'50%',width:50,height:50,marginLeft:-25,alignItems:'center',justifyContent:'center'},aura:{position:'absolute',width:90,height:90,borderRadius:45,backgroundColor:'#02B9FF',shadowColor:'#00CAFF',shadowRadius:28,shadowOpacity:1,shadowOffset:{width:0,height:0}},spark:{width:45,height:45,borderRadius:24,borderWidth:1,borderColor:'#E1FFFF',shadowColor:'#26DAFF',shadowRadius:18,shadowOpacity:1,shadowOffset:{width:0,height:0}},
+  tap:{fontSize:10,letterSpacing:3,color:'#A2DBF6',textAlign:'center',marginTop:4,marginBottom:17},playRow:{flexDirection:'row',alignItems:'center',paddingHorizontal:18,gap:12},arrow:{width:40,height:46,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'#2383AA',borderRadius:24,backgroundColor:'#032037'},arrowText:{fontSize:34,color:'#89E2FF',lineHeight:38},disabled:{opacity:.25},pressed:{opacity:.75},
+  play:{flex:1,borderRadius:18,shadowColor:'#00CFFF',shadowRadius:18,shadowOpacity:.55,shadowOffset:{width:0,height:0}},playInner:{borderRadius:18,borderWidth:1,borderColor:'#7BF0FF',alignItems:'center',paddingVertical:13,paddingHorizontal:8},playLabel:{fontSize:28,fontWeight:'900',letterSpacing:4,color:'#00263B'},playWorld:{fontSize:11,letterSpacing:2,color:'#03384C',marginTop:3},playLevel:{fontSize:9,letterSpacing:2,color:'#075470',marginTop:4},
+  levelTrack:{marginTop:28,flexDirection:'row',justifyContent:'space-between',paddingHorizontal:15},trackLine:{position:'absolute',height:1,backgroundColor:'#38627B',top:22,left:25,right:25},nodeWrap:{alignItems:'center',width:58},node:{width:44,height:44,borderRadius:22,backgroundColor:'#061F32',borderWidth:1,borderColor:'#52829B',alignItems:'center',justifyContent:'center'},nodeText:{color:'#D5EDF8',fontSize:17,fontWeight:'700'},cleared:{borderColor:'#66E5BE',backgroundColor:'#0D383A'},current:{borderColor:'#35E9FF',borderWidth:2,shadowColor:'#00D7FF',shadowRadius:12,shadowOpacity:.7,shadowOffset:{width:0,height:0}},locked:{borderColor:'#36556D'},rank:{fontSize:7,color:'#78B4D1',marginTop:8,letterSpacing:.7},
+  chapter:{alignItems:'center',paddingHorizontal:20,paddingTop:22,gap:7},chapterTitle:{fontSize:11,letterSpacing:2,color:'#69D7FA',fontWeight:'700',textAlign:'center'},chapterCopy:{fontSize:12,color:'#B0CADD',textAlign:'center'},completion:{fontSize:9,color:'#5C8BA7',letterSpacing:1.5,marginTop:3},
+  storyCard:{margin:18,marginTop:24,borderRadius:18,overflow:'hidden',borderWidth:1,borderColor:'#245977',backgroundColor:'#061D2E',flexDirection:'row',alignItems:'center',paddingRight:14,minHeight:104},storyImage:{width:'27%',height:110},storyCopy:{flex:1,padding:14,gap:10},quote:{color:'#D7E5EF',fontSize:12,lineHeight:19,letterSpacing:1},endless:{padding:14},
 });

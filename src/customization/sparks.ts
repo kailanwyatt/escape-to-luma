@@ -1,4 +1,19 @@
+import type { RuntimeAssetId } from '../graphics/assetRegistry';
+
 export type SkinAcquisition = 'default' | 'shards' | 'world_completion' | 'mastery' | 'premium';
+
+export type SparkOrbitStyle = 'calm' | 'reactor' | 'neon' | 'storm';
+export type SparkTrailMode = 'soft' | 'hot' | 'ribbon';
+
+export type SparkVisualProfile = {
+  orbitStyle: SparkOrbitStyle;
+  pulseRate: number;
+  trailMode: SparkTrailMode;
+  shellOpacity: number;
+  glowScale: number;
+  orbitSpeed: number;
+  portraitAssetId?: RuntimeAssetId;
+};
 
 export type SparkDefinition = {
   id: string;
@@ -13,6 +28,16 @@ export type SparkDefinition = {
   shininess: number;
   trailWidth: number;
   trailColor: number;
+  visualProfile?: SparkVisualProfile;
+};
+
+const DEFAULT_PROFILE: SparkVisualProfile = {
+  orbitStyle: 'calm',
+  pulseRate: 1,
+  trailMode: 'soft',
+  shellOpacity: 0.24,
+  glowScale: 1,
+  orbitSpeed: 1,
 };
 
 export const SPARK_CATALOG: SparkDefinition[] = [
@@ -26,18 +51,36 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 80,
     trailWidth: 0.07,
     trailColor: 0x7ef0ff,
+    visualProfile: {
+      orbitStyle: 'calm',
+      pulseRate: 1,
+      trailMode: 'soft',
+      shellOpacity: 0.24,
+      glowScale: 1,
+      orbitSpeed: 1,
+      portraitAssetId: 'spark.original',
+    },
   },
   {
     id: 'neon',
     name: 'Neon',
-    acquisition: 'shards',
-    shardCost: 500,
+    acquisition: 'world_completion',
+    worldId: 'city',
     color: 0xff4ad2,
     emissive: 0xff2fb2,
-    emissiveIntensity: 0.9,
+    emissiveIntensity: 0.95,
     shininess: 60,
-    trailWidth: 0.08,
+    trailWidth: 0.09,
     trailColor: 0xff7ae0,
+    visualProfile: {
+      orbitStyle: 'neon',
+      pulseRate: 1.45,
+      trailMode: 'hot',
+      shellOpacity: 0.32,
+      glowScale: 1.18,
+      orbitSpeed: 1.55,
+      portraitAssetId: 'spark.neon',
+    },
   },
   {
     id: 'solar',
@@ -74,6 +117,14 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 70,
     trailWidth: 0.08,
     trailColor: 0xc0d0ff,
+    visualProfile: {
+      orbitStyle: 'storm',
+      pulseRate: 1.2,
+      trailMode: 'ribbon',
+      shellOpacity: 0.28,
+      glowScale: 1.1,
+      orbitSpeed: 1.25,
+    },
   },
   {
     id: 'aurora',
@@ -154,10 +205,19 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     worldId: 'containment',
     color: 0x7dff9a,
     emissive: 0x2cff6a,
-    emissiveIntensity: 0.8,
+    emissiveIntensity: 0.88,
     shininess: 75,
-    trailWidth: 0.08,
+    trailWidth: 0.085,
     trailColor: 0xa8ffc0,
+    visualProfile: {
+      orbitStyle: 'reactor',
+      pulseRate: 1.25,
+      trailMode: 'ribbon',
+      shellOpacity: 0.3,
+      glowScale: 1.14,
+      orbitSpeed: 1.35,
+      portraitAssetId: 'spark.reactor',
+    },
   },
   {
     id: 'ancient',
@@ -200,4 +260,8 @@ export const DEFAULT_SPARK_ID = 'original';
 
 export function sparkById(id: string): SparkDefinition {
   return SPARK_CATALOG.find((spark) => spark.id === id) ?? SPARK_CATALOG[0];
+}
+
+export function sparkVisualProfile(spark: SparkDefinition): SparkVisualProfile {
+  return spark.visualProfile ?? DEFAULT_PROFILE;
 }

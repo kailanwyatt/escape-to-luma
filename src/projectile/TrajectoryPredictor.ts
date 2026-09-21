@@ -1,3 +1,4 @@
+import type {ShotPrediction} from '../debug/ShotDiagnostics';
 import * as THREE from 'three';
 
 import { GAME_TUNING } from '../game/gameTuning';
@@ -7,8 +8,16 @@ export class TrajectoryPredictor {
   readonly dots: THREE.Mesh[] = [];
   readonly group = new THREE.Group();
   private debugFull = false;
+  private readonly bounceMarkers:THREE.Mesh[]=[];
+  private readonly ricochetPath:THREE.Line;
+  private readonly ricochetPoints=new Float32Array(1024*3);
 
   constructor() {
+    const pathGeometry=new THREE.BufferGeometry();pathGeometry.setAttribute('position',new THREE.BufferAttribute(this.ricochetPoints,3));
+    this.ricochetPath=new THREE.Line(pathGeometry,new THREE.LineBasicMaterial({color:0x8eeeff,transparent:true,opacity:.7}));
+    this.ricochetPath.visible=false;this.group.add(this.ricochetPath);
+    const diamond=new THREE.OctahedronGeometry(.11);
+    for(let i=0;i<2;i++){const m=new THREE.Mesh(diamond,new THREE.MeshBasicMaterial({color:0xb1ffff}));m.visible=false;this.bounceMarkers.push(m);this.group.add(m);}
     const geometry = new THREE.SphereGeometry(0.07, 10, 8);
     for (let i = 0; i < GAME_TUNING.aim.trajectoryDots; i += 1) {
       const material = new THREE.MeshBasicMaterial({
@@ -23,10 +32,26 @@ export class TrajectoryPredictor {
     }
   }
 
+  showRicochet(prediction:ShotPrediction,full:boolean):void {
+    for(const dot of this.dots)dot.visible=false;
+    const points=prediction.path;
+    let count=points.length;
+    if(!full&&!this.debugFull&&prediction.bounces?.length){
+      const first=prediction.bounces[0].point;const i=points.findIndex(p=>p.x===first.x&&p.y===first.y&&p.z===first.z);
+      if(i>=0)count=Math.min(count,i+9);
+    }
+    count=Math.min(count,1024);
+    for(let i=0;i<count;i++){this.ricochetPoints[i*3]=points[i].x;this.ricochetPoints[i*3+1]=points[i].y;this.ricochetPoints[i*3+2]=points[i].z;}
+    this.ricochetPath.geometry.setDrawRange(0,count);this.ricochetPath.geometry.attributes.position.needsUpdate=true;
+    this.ricochetPath.frustumCulled=false;this.ricochetPath.visible=true;
+    // Solid sampled curve keeps shared geometry fixed; bounce diamonds show the turns.
+    for(let i=0;i<2;i++){const bounce=prediction.bounces?.[i];this.bounceMarkers[i].visible=Boolean(bounce)&&(i===0||full||this.debugFull);if(bounce)this.bounceMarkers[i].position.set(bounce.point.x,bounce.point.y,bounce.point.z);}
+  }
+
   setVisible(visible: boolean): void {
     this.group.visible = visible;
     for (const dot of this.dots) {
-      dot.visible = visible;
+      dot.visible = visible && !this.ricochetPath.visible;
     }
   }
 
@@ -58,6 +83,7 @@ export class TrajectoryPredictor {
       wells?: { x: number; y: number; z: number; strength: number; radius: number }[];
     },
   ): void {
+    this.ricochetPath.visible=false;for(const marker of this.bounceMarkers)marker.visible=false;
     const count = this.dots.length;
     const travelZ = Math.max(0.5, endZ - start.z);
     const tEnd =

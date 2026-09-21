@@ -68,6 +68,7 @@ export class ObstacleSlot {
   }
 
   applyConfig(config: ObstacleConfig, environment: EnvironmentId): void {
+    this.group.visible = true;
     const nextType = obstacleTypeOf(config);
     if (this.impl.type !== nextType) {
       this.group.remove(this.impl.group);
@@ -80,6 +81,7 @@ export class ObstacleSlot {
   }
 
   hide(): void {
+    this.group.visible = false;
     this.impl.hide();
   }
 
@@ -97,8 +99,25 @@ export class ObstacleSlot {
     previous: THREE.Vector3,
     current: THREE.Vector3,
     projectileRadius: number,
+    currentSimulationTime?: number,
+    stepSeconds?: number,
   ): ObstacleCollisionResult | null {
+    if (this.impl instanceof LaserGridObstacle || this.impl instanceof SlidingGateObstacle) {
+      return this.impl.testProjectileCrossing(
+        previous,
+        current,
+        projectileRadius,
+        currentSimulationTime,
+        stepSeconds,
+      );
+    }
     return this.impl.testProjectileCrossing(previous, current, projectileRadius);
+  }
+
+  laserBeamsAtTime(elapsedTime: number) {
+    return this.impl instanceof LaserGridObstacle
+      ? this.impl.beamsAtTime(elapsedTime)
+      : [];
   }
 
   interpolateCrossing(previous: THREE.Vector3, current: THREE.Vector3): THREE.Vector3 {

@@ -12,7 +12,7 @@ export function validateChallenge(
   forces: PhysicsForces = {},
 ): string | null {
   const obstacles = challenge.obstacles;
-  const allowsOpenFinale = challenge.template === 'HOME_FINALE';
+  const allowsOpenFinale = challenge.template === 'HOME_FINALE' || Boolean(challenge.ricochet);
   if ((obstacles.length < 1 && !allowsOpenFinale) || obstacles.length > 2) {
     return 'obstacle-count';
   }
@@ -27,6 +27,15 @@ export function validateChallenge(
     return 'illegal-combo';
   }
 
+  const ricochet=challenge.ricochet;
+  if(ricochet){
+    if(![1,2].includes(ricochet.maxBounces)||ricochet.requiredBounces<1||ricochet.requiredBounces>ricochet.maxBounces||ricochet.reflectors.length<1||ricochet.reflectors.length>2)return 'reflector-count';
+    if(new Set(ricochet.reflectors.map(r=>r.id)).size!==ricochet.reflectors.length)return 'reflector-id';
+    for(const r of ricochet.reflectors){
+      const values=[r.width,r.height,r.position.x,r.position.y,r.position.z,r.normal.x,r.normal.y,r.normal.z];
+      if(!values.every(Number.isFinite)||r.width<=GAME_TUNING.projectile.radius*2||r.height<=GAME_TUNING.projectile.radius*2||Math.hypot(r.normal.x,r.normal.y,r.normal.z)<.001)return 'reflector-shape';
+    }
+  }
   const target = challenge.target;
   if (target.radius < GAME_TUNING.target.minRadius) {
     return 'target-radius';
@@ -132,11 +141,18 @@ export function validateChallenge(
       continue;
     }
     if (type === 'laserGrid' && obstacle.type === 'laserGrid') {
+      const beamCount = obstacle.beamCount ?? 4;
+      const amplitude = obstacle.amplitude ?? 0.2;
+      const minimumGap =
+        obstacle.spacing - amplitude * 2 - obstacle.thickness * 2;
       if (
-        obstacle.openingSize < GAME_TUNING.projectile.radius * 2 + 0.2 ||
-        obstacle.spacing <= obstacle.thickness ||
+        beamCount < 2 ||
+        beamCount > 12 ||
+        (obstacle.speed ?? 0) <= 0 ||
+        amplitude < 0 ||
+        minimumGap < GAME_TUNING.projectile.radius * 2 + 0.06 ||
         obstacle.span < 2 ||
-        (obstacle.mode === 'pulse' && (obstacle.speed ?? 0) <= 0)
+        (obstacle.mode === 'pulse' && (obstacle.pulseSpeed ?? 0) <= 0)
       ) {
         return 'laser-layout';
       }

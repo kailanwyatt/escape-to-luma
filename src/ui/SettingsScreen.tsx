@@ -6,6 +6,8 @@ import { BackButton, Screen, ScreenTitle, color, space } from '../design';
 import type { GameSettings } from '../persistence/GameSave';
 
 type Props = {
+  devUnlockAll?:boolean;
+  onToggleDevUnlock?:()=>void;
   settings: GameSettings;
   systemReduceMotion: boolean;
   removeAds: boolean;
@@ -15,10 +17,12 @@ type Props = {
   onRemoveAds: () => void;
   onRestore: () => void;
   onShareDiagnostics: () => void;
+  onReplayOpening: () => void;
   onBack: () => void;
 };
 
 export function SettingsScreen({
+  devUnlockAll=false,onToggleDevUnlock,
   settings,
   systemReduceMotion,
   removeAds,
@@ -29,10 +33,12 @@ export function SettingsScreen({
   onRestore,
   onShareDiagnostics,
   onBack,
+  onReplayOpening,
 }: Props) {
   return (
     <Screen>
       <ScreenTitle title="SETTINGS" />
+      {__DEV__ && onToggleDevUnlock ? <View><Text style={styles.section}>DEVELOPMENT</Text><Toggle label="UNLOCK ALL LEVELS" value={devUnlockAll} onPress={onToggleDevUnlock}/><Text style={styles.note}>Session only. Unlocking grants no rewards. Played levels still save normal results.</Text></View> : null}
       <Toggle
         label="SOUND EFFECTS"
         value={settings.soundEnabled}
@@ -85,6 +91,9 @@ export function SettingsScreen({
       <Text style={styles.build}>
         VERSION {Constants.expoConfig?.version ?? 'LOCAL'} · BUILD {Constants.expoConfig?.ios?.buildNumber ?? 'DEV'}
       </Text>
+      <Pressable accessibilityRole="button" style={styles.diagnostics} onPress={onReplayOpening}>
+        <Text style={styles.restoreText}>REPLAY OPENING</Text>
+      </Pressable>
       <BackButton onPress={onBack} />
     </Screen>
   );
@@ -102,7 +111,7 @@ function Toggle({
   onPress: () => void;
 }) {
   return (
-    <Pressable style={styles.row} onPress={locked ? undefined : onPress}>
+    <Pressable accessibilityRole="switch" accessibilityLabel={label} accessibilityState={{checked:value,disabled:locked}} style={styles.row} onPress={locked ? undefined : onPress}>
       <Text style={styles.label}>{label}</Text>
       <Text style={[styles.value, value && styles.on]}>{value ? 'ON' : 'OFF'}</Text>
     </Pressable>

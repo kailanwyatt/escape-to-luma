@@ -61,6 +61,14 @@ describe('save integrity', () => {
     expect(migrated.campaign.equippedSparkId).toBe('original');
   });
 
+  it('preserves story acknowledgements across saving and loading, and supports older saves', async () => {
+    const save=emptySave();save.campaign.seenStoryIds=['containment.first-escape','arrival.level-4'];
+    await saveGameSave(save);await flushGameSaveWrites();
+    expect((await loadGameSave()).campaign.seenStoryIds).toEqual(save.campaign.seenStoryIds);
+    const old=emptySave();delete old.campaign.seenStoryIds;
+    expect(migrateSaveData(SAVE_VERSION,old).campaign.seenStoryIds).toEqual([]);
+  });
+
   it('serializes writes and recovers the retained backup', async () => {
     const first = emptySave();
     first.campaign.shards = 10;

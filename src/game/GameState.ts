@@ -1,3 +1,4 @@
+import type {StoryMoment} from '../campaign/StoryMoments';
 import type { RecordFlags } from '../persistence/PersonalBests';
 
 export type { RecordFlags };
@@ -13,6 +14,7 @@ export type GamePhase =
   | 'CONTINUE_OFFER'
   | 'RUN_OVER'
   | 'PROTOTYPE_COMPLETE'
+  | 'CAMPAIGN_STORY'
   | 'CAMPAIGN_OPENING'
   | 'LEVEL_COMPLETE'
   | 'LEVEL_FAILED'
@@ -103,7 +105,10 @@ export type HudSnapshot = {
   lastShardsGained: number;
   lastPrecisionRank: string | null;
   storyBeat: string | null;
+  campaignStory?: StoryMoment | null;
   windActive: boolean;
+  windDirection: 'left' | 'right';
+  canChooseBoosts?: boolean;
   helpOffer: boolean;
   unlockedSparkName: string | null;
 };

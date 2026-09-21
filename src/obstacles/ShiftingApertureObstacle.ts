@@ -1,3 +1,5 @@
+import {ancientSurface} from '../graphics/AncientSurface';
+import {createOrbitalIris,layoutOrbitalIris} from './OrbitalIrisVisual';
 import * as THREE from 'three';
 
 import type { EnvironmentId } from '../config/ChallengeConfig';
@@ -21,8 +23,7 @@ export class ShiftingApertureObstacle {
   centerY = 3;
   openingRadius = 1;
   private config: ShiftingApertureConfig | null = null;
-  private rim: THREE.Mesh | null = null;
-  private hole: THREE.Mesh | null = null;
+  private visual: THREE.Group | null = null;
 
   constructor(id: string) {
     this.id = id;
@@ -34,27 +35,22 @@ export class ShiftingApertureObstacle {
     this.active = true;
     this.group.visible = true;
     this.z = config.z;
-    if (!this.rim) {
-      const accent = environment === 'space' ? 0xffd24a : 0xd06a32;
-      this.rim = new THREE.Mesh(
-        new THREE.RingGeometry(0.85, 1.05, 32),
-        new THREE.MeshLambertMaterial({
-          color: accent,
-          side: THREE.DoubleSide,
-          emissive: environment === 'space' ? accent : 0x000000,
-          emissiveIntensity: environment === 'space' ? 0.35 : 0,
-        }),
-      );
-      this.hole = new THREE.Mesh(
-        new THREE.CircleGeometry(1, 28),
-        new THREE.MeshBasicMaterial({
-          color: 0x0a0807,
-          transparent: true,
-          opacity: 0.55,
-          side: THREE.DoubleSide,
-        }),
-      );
-      this.group.add(this.rim, this.hole);
+    if (!this.visual) {
+      this.visual=createOrbitalIris();
+      const carved=ancientSurface();
+      this.visual.traverse(object=>{
+        if(object instanceof THREE.Mesh && object.material instanceof THREE.MeshPhongMaterial){
+          object.material.map=carved;object.material.bumpMap=carved;object.material.bumpScale=.035;
+          object.material.color.setHex(object.name.startsWith('petal')?0x697071:0x9d865e);
+          object.material.shininess=35;
+        }
+      });
+      const edge=this.visual.getObjectByName('aperture') as THREE.Mesh;
+      (edge.material as THREE.MeshBasicMaterial).color.setHex(0xffcf70);
+      this.visual.traverse(object=>{
+        if(object instanceof THREE.Mesh && object.material instanceof THREE.MeshBasicMaterial && object.material.color.getHex()===0x92e8f2)object.material.color.setHex(0xffcf70);
+      });
+      this.group.add(this.visual);
     }
     this.update(0, 0);
   }
@@ -74,14 +70,7 @@ export class ShiftingApertureObstacle {
     this.centerY = state.y;
     this.openingRadius = state.radius;
     this.group.position.set(state.x, state.y, this.z);
-    const outer = Math.max(state.radius + 0.35, 1.2);
-    if (this.rim) {
-      this.rim.geometry.dispose();
-      this.rim.geometry = new THREE.RingGeometry(state.radius, outer, 32);
-    }
-    if (this.hole) {
-      this.hole.scale.setScalar(Math.max(0.15, state.radius));
-    }
+    if(this.visual)layoutOrbitalIris(this.visual,state.radius);
   }
 
   testProjectileCrossing(

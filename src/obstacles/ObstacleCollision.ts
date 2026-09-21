@@ -1,3 +1,4 @@
+import {breachClearance} from './BreachBoundary';
 import { GAME_TUNING } from '../game/gameTuning';
 import { clamp } from '../utils/math';
 
@@ -27,6 +28,11 @@ function closeCall(clearance: number): ObstacleCollisionResult {
     nearMiss: clearance > 0 && clearance <= GAME_TUNING.rotor.closeCallThreshold,
     clearance,
   };
+}
+
+export function evaluateBreachCollision(x: number, y: number, radius: number, openingX: number, openingY: number, width: number, height: number): ObstacleCollisionResult {
+  const clearance = breachClearance(x,y,radius,openingX,openingY,width,height);
+  return clearance < 0 ? {hit: 'gate', nearMiss: false, clearance} : closeCall(clearance);
 }
 
 export function evaluateGateCollision(
@@ -131,47 +137,6 @@ export type LaserBeam = {
   centerX: number;
   centerY: number;
 };
-
-export function laserBeamsFromLayout(params: {
-  orientation: 'vertical' | 'horizontal' | 'both';
-  openingSize: number;
-  spacing: number;
-  span: number;
-  thickness: number;
-  centerX: number;
-  centerY: number;
-}): LaserBeam[] {
-  const beams: LaserBeam[] = [];
-  const halfOpen = params.openingSize / 2;
-  const halfSpan = params.span / 2;
-  const halfThickness = params.thickness / 2;
-
-  const place = (orientation: 'vertical' | 'horizontal') => {
-    // Place beams outward from the safe gap until span is filled.
-    for (let side of [-1, 1] as const) {
-      let pos = halfOpen + params.spacing * 0.5;
-      while (pos <= halfSpan + 0.01) {
-        beams.push({
-          orientation,
-          position: (orientation === 'vertical' ? params.centerX : params.centerY) + side * pos,
-          halfSpan,
-          halfThickness,
-          centerX: params.centerX,
-          centerY: params.centerY,
-        });
-        pos += params.spacing;
-      }
-    }
-  };
-
-  if (params.orientation === 'vertical' || params.orientation === 'both') {
-    place('vertical');
-  }
-  if (params.orientation === 'horizontal' || params.orientation === 'both') {
-    place('horizontal');
-  }
-  return beams;
-}
 
 export function evaluateLaserCollision(
   x: number,

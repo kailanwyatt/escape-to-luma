@@ -7,10 +7,14 @@ import type { Target } from '../target/Target';
 
 export class DebugVisuals {
   readonly group = new THREE.Group();
+  private readonly bounceArrows:THREE.ArrowHelper[]=[];
+  private readonly bounceDirection=new THREE.Vector3();
   private readonly projectileRing: THREE.Line;
   private readonly planes: THREE.Mesh[] = [];
   private readonly targetHit: THREE.Line;
   private readonly targetEdge: THREE.Line;
+  private readonly actualTargetCrossing = new THREE.Mesh(new THREE.SphereGeometry(.06,8,6),new THREE.MeshBasicMaterial({color:0xff75de,depthTest:false}));
+  private readonly precisionZones: THREE.Line[] = [];
   private readonly hubs: THREE.Line[] = [];
   private readonly ringsInner: THREE.Line[] = [];
   private readonly ringsOuter: THREE.Line[] = [];
@@ -24,9 +28,12 @@ export class DebugVisuals {
   private readonly ghostOpenings: THREE.Line[] = [];
   private readonly pendulumArms: THREE.Line[] = [];
   private readonly ghostPendulumArms: THREE.Line[] = [];
+  private readonly ghostLaserBeams: THREE.Line[][] = [];
 
   constructor() {
     this.group.visible = false;
+    for(let i=0;i<6;i++){const arrow=new THREE.ArrowHelper(new THREE.Vector3(0,1,0),new THREE.Vector3(),.8,[0xffbd60,0x91ffff,0xff79c8][i%3]);arrow.visible=false;this.bounceArrows.push(arrow);this.group.add(arrow);}
+    this.actualTargetCrossing.visible=false;this.group.add(this.actualTargetCrossing);
     this.projectileRing = makeCircle(GAME_TUNING.projectile.radius, 0x7ef0ff);
     this.group.add(this.projectileRing);
 
@@ -77,6 +84,16 @@ export class DebugVisuals {
       const ghostArm = makeLine(0x7ef0ff);
       this.ghostPendulumArms.push(ghostArm);
       this.group.add(ghostArm);
+      const ghostLasers: THREE.Line[] = [];
+      for (let i = 0; i < 12; i += 1) {
+        const laser = makeLine(0x7ef0ff);
+        (laser.material as THREE.LineBasicMaterial).transparent = true;
+        (laser.material as THREE.LineBasicMaterial).opacity = 0.58;
+        laser.visible = false;
+        ghostLasers.push(laser);
+        this.group.add(laser);
+      }
+      this.ghostLaserBeams.push(ghostLasers);
     }
 
     const targetPlane = makePlane(4.2, 4.2, 0xffd24a, GAME_TUNING.target.z);
@@ -86,6 +103,9 @@ export class DebugVisuals {
     this.targetHit = makeCircle(1, 0x66ff99);
     this.targetEdge = makeCircle(1, 0xff5d6c);
     this.group.add(this.targetHit, this.targetEdge);
+    for(const fraction of [GAME_TUNING.target.zones.great,GAME_TUNING.target.zones.bullseye,GAME_TUNING.target.zones.perfect]) {
+      const zone=makeCircle(fraction,0x8fefff);this.precisionZones.push(zone);this.group.add(zone);
+    }
 
     const crossColors = [0x4fd2ff, 0xff8a4a, 0xffd24a];
     for (const color of crossColors) {
@@ -114,6 +134,11 @@ export class DebugVisuals {
     this.group.add(this.analyticMarker);
   }
 
+  recordTargetCrossing(position: {x:number;y:number;z:number} | null): void {
+    this.actualTargetCrossing.visible=position!==null;
+    if(position)this.actualTargetCrossing.position.set(position.x,position.y,position.z-.22);
+  }
+
   setEnabled(enabled: boolean): void {
     this.group.visible = enabled;
   }
@@ -128,8 +153,13 @@ export class DebugVisuals {
     if (!this.group.visible) {
       return;
     }
+    this.bounceArrows.forEach((arrow,i)=>{
+      const bounce=prediction?.bounces?.[Math.floor(i/3)];arrow.visible=Boolean(bounce);
+      if(bounce){const direction=[bounce.incoming,bounce.normal,bounce.outgoing][i%3];arrow.position.set(bounce.point.x,bounce.point.y,bounce.point.z);this.bounceDirection.set(direction.x,direction.y,direction.z).normalize();arrow.setDirection(this.bounceDirection);}
+    });
     this.projectileRing.position.copy(projectile);
-    this.targetHit.position.set(target.x, target.y, target.z + 0.02);
+    this.targetHit.position.set(target.x, target.y, target.z - 0.2);
+    for(const zone of this.precisionZones){zone.position.set(target.x,target.y,target.z-.2);zone.scale.setScalar(target.radius);}
     this.targetHit.scale.setScalar(target.radius);
     this.targetEdge.position.set(target.x, target.y, target.z + 0.03);
     this.targetEdge.scale.setScalar(target.radius + GAME_TUNING.projectile.radius);
@@ -189,6 +219,7 @@ export class DebugVisuals {
         obstacle,
         ghost,
       );
+      syncGhostLasers(this.ghostLaserBeams[r], obstacle, ghost);
     }
 
     if (prediction) {
@@ -217,6 +248,46 @@ export class DebugVisuals {
       this.analyticMarker.position.set(analyticNow.x, analyticNow.y, analyticNow.z);
     } else {
       this.analyticMarker.visible = false;
+    }
+  }
+}
+
+function syncGhostLasers(
+  lines: THREE.Line[],
+  obstacle: ObstacleSlot,
+  prediction: ShotPrediction['rotors'][number] | undefined,
+): void {
+  const show = obstacle.active && obstacle.type === 'laserGrid' && Boolean(prediction?.active);
+  const beams =
+    show && prediction
+      ? obstacle.laserBeamsAtTime(prediction.predicted.angle)
+      : [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const beam = beams[index];
+    line.visible = Boolean(beam);
+    if (!beam) {
+      continue;
+    }
+    const z = obstacle.z + 0.06;
+    if (beam.orientation === 'vertical') {
+      setLine(
+        line,
+        beam.position,
+        beam.centerY - beam.halfSpan,
+        beam.position,
+        beam.centerY + beam.halfSpan,
+        z,
+      );
+    } else {
+      setLine(
+        line,
+        beam.centerX - beam.halfSpan,
+        beam.position,
+        beam.centerX + beam.halfSpan,
+        beam.position,
+        z,
+      );
     }
   }
 }
