@@ -1,6 +1,7 @@
+import {BorderGlint,HomeSpark,useBorderSpotlight} from './HomeEffects';
 import {LinearGradient} from 'expo-linear-gradient';
-import {useEffect, useRef, useState} from 'react';
-import {Animated, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View} from 'react-native';
+import {useEffect, useState} from 'react';
+import {Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {TOTAL_CORE_LEVELS, worldForLevel} from '../campaign/worlds';
 import {getCampaignLevel} from '../campaign/levels';
@@ -13,13 +14,14 @@ import {hasUnlimitedEnergy, isEndlessUnlocked, type PersistentGameData} from '..
 
 const CITY_ART = require('../../assets/art/home/city-gateway.jpg');
 type Props = {
+  reduceMotion?:boolean;
   save: PersistentGameData; currentLevel: number;
   onContinue: () => void; onSelectLevel: (level: number) => void;
   onJourney: () => void; onSparks: () => void; onShop: () => void;
   onStats: () => void; onSettings: () => void; onEndless: () => void;
 };
 
-export function HomeScreen({save, currentLevel, onContinue, onSelectLevel, onJourney, onSparks, onShop, onStats, onSettings, onEndless}: Props) {
+export function HomeScreen({reduceMotion=false,save, currentLevel, onContinue, onSelectLevel, onJourney, onSparks, onShop, onStats, onSettings, onEndless}: Props) {
   const insets = useSafeAreaInsets();
   const {width, height} = useWindowDimensions();
   const tablet = width >= 700;
@@ -28,17 +30,10 @@ export function HomeScreen({save, currentLevel, onContinue, onSelectLevel, onJou
   const compact = width < 370;
   const [now, setNow] = useState(Date.now);
   const [selected, setSelected] = useState(currentLevel);
-  const pulse = useRef(new Animated.Value(0)).current;
+  const motionReduced=reduceMotion||save.settings.reduceMotion;
+  const borderSpotlight=useBorderSpotlight(motionReduced);
   useEffect(() => setSelected(currentLevel), [currentLevel]);
   useEffect(() => {const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer);}, []);
-  useEffect(() => {
-    if (save.settings.reduceMotion) {pulse.setValue(0); return;}
-    const animation = Animated.loop(Animated.sequence([
-      Animated.timing(pulse, {toValue: 1, duration: 1600, useNativeDriver: true}),
-      Animated.timing(pulse, {toValue: 0, duration: 1900, useNativeDriver: true}),
-    ]));
-    animation.start(); return () => animation.stop();
-  }, [pulse, save.settings.reduceMotion]);
   const c = save.campaign;
   const level = Math.max(1, Math.min(TOTAL_CORE_LEVELS, selected));
   const world = worldForLevel(level)!;
@@ -51,7 +46,7 @@ export function HomeScreen({save, currentLevel, onContinue, onSelectLevel, onJou
   const play = () => c.campaignCompleted && level === currentLevel ? onEndless() : level === currentLevel ? onContinue() : onSelectLevel(level);
   const nav = (name: string, label: string, action: () => void) => (
     <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={action} style={({pressed}) => [s.nav, tablet && s.tabletNav, pressed && s.pressed]}>
-      <NavIcon name={name}/><Text style={s.navLabel}>{label}</Text>
+      <BorderGlint active={borderSpotlight===['stats','sparks','shop','journey'].indexOf(name)}/><NavIcon name={name}/><Text style={s.navLabel}>{label}</Text>
     </Pressable>
   );
   return <View style={s.root}>
@@ -68,7 +63,7 @@ export function HomeScreen({save, currentLevel, onContinue, onSelectLevel, onJou
             <Text style={s.bolt}>ϟ</Text><View><Text style={s.value}>{unlimited?'∞':`${energy.energy} / ${ECONOMY.maxEnergy}`}</Text><Text style={s.resourceLabel}>{energyLabel}</Text></View>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel={`${c.shards} shards, open shop`} onPress={onShop} style={s.resource}>
-            <Text style={s.gem}>◆</Text><View><Text style={s.value}>{c.shards.toLocaleString()}</Text><Text style={s.resourceLabel}>SHARDS</Text></View><Text style={s.plus}>+</Text>
+            <BorderGlint active={borderSpotlight===4}/><Text style={s.gem}>◆</Text><View><Text style={s.value}>{c.shards.toLocaleString()}</Text><Text style={s.resourceLabel}>SHARDS</Text></View><Text style={s.plus}>+</Text>
           </Pressable>
         </View>
         <View style={[s.brand, tablet && {paddingTop:42}]}>
@@ -79,8 +74,7 @@ export function HomeScreen({save, currentLevel, onContinue, onSelectLevel, onJou
         <View style={[s.stage,tablet ? {flex:1,paddingHorizontal:32,paddingBottom:28} : {height:compact?265:310}]}>
           <View style={s.side}>{nav('stats','STATS',onStats)}{nav('sparks','SPARKS',onSparks)}</View>
           <View pointerEvents="none" style={[s.sparkPlacement,tablet && {bottom:66,transform:[{scale:1.3}]}]}>
-            <Animated.View style={[s.aura,{opacity:pulse.interpolate({inputRange:[0,1],outputRange:[.25,.6]}),transform:[{scale:pulse.interpolate({inputRange:[0,1],outputRange:[.85,1.2]})}]}]}/>
-            <LinearGradient colors={['#FFFFFF','#D7FFFF','#41DFFF']} style={s.spark}/>
+            <HomeSpark reduceMotion={motionReduced}/>
           </View>
           <View style={s.side}>{nav('shop','SHOP',onShop)}{nav('journey','WORLDS',onJourney)}</View>
         </View>
@@ -90,7 +84,7 @@ export function HomeScreen({save, currentLevel, onContinue, onSelectLevel, onJou
         <View style={s.playRow}>
           <Pressable accessibilityRole="button" accessibilityLabel="Previous level" disabled={level<=1} onPress={()=>setSelected(level-1)} style={[s.arrow,level<=1&&s.disabled]}><Text style={s.arrowText}>‹</Text></Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={c.campaignCompleted&&level===currentLevel?'Endless voyage':`Play level ${level}`} onPress={play} style={({pressed})=>[s.play,pressed&&s.pressed]}>
-            <LinearGradient colors={['#65EFFF','#15C8ED','#0498CD']} style={s.playInner}>
+            <LinearGradient colors={['#FFE05B','#FFC83D','#F5A623']} style={s.playInner}>
               <Text style={s.playLabel}>▶ {c.campaignCompleted&&level===currentLevel?'VOYAGE':'PLAY'}</Text>
               <Text numberOfLines={1} adjustsFontSizeToFit style={s.playWorld}>{world.name}</Text><Text style={s.playLevel}>LEVEL {level}</Text>
             </LinearGradient>
@@ -109,7 +103,7 @@ export function HomeScreen({save, currentLevel, onContinue, onSelectLevel, onJou
         </View>
         <View style={s.chapter}><Text style={s.chapterTitle}>WORLD {world.index} · {world.name}</Text><Text style={s.chapterCopy}>{world.subtitle}</Text><Text style={s.completion}>{cleared} / {TOTAL_CORE_LEVELS} LEVELS CLEARED</Text></View>
         <Pressable accessibilityRole="button" accessibilityLabel="Explore your journey" onPress={onJourney} style={s.storyCard}>
-          <Image source={CITY_ART} style={s.storyImage}/><View style={s.storyCopy}><Text style={s.eyebrow}>YOUR JOURNEY CONTINUES</Text><Text style={s.quote}>{HOME_BRAND.tagline}</Text></View><Text style={s.arrowText}>›</Text>
+          <BorderGlint active={borderSpotlight===5} radius={18}/><Image source={CITY_ART} style={s.storyImage}/><View style={s.storyCopy}><Text style={s.eyebrow}>YOUR JOURNEY CONTINUES</Text><Text style={s.quote}>{HOME_BRAND.tagline}</Text></View><Text style={s.arrowText}>›</Text>
         </Pressable>
         {isEndlessUnlocked(c)&&!c.campaignCompleted?<Pressable accessibilityRole="button" onPress={onEndless} style={s.endless}><Text style={s.chapterTitle}>EXPLORE ENDLESS VOYAGE ›</Text></Pressable>:null}
         </View>
@@ -134,7 +128,7 @@ const s=StyleSheet.create({
   nav:{width:64,minHeight:67,alignItems:'center',justifyContent:'center',paddingVertical:8,borderRadius:13,borderWidth:1,borderColor:'#2385AA',backgroundColor:'rgba(0,19,34,.89)'},navLabel:{fontSize:9,color:'#E4F6FF',fontWeight:'800',letterSpacing:1},
   sparkPlacement:{position:'absolute',bottom:37,left:'50%',width:50,height:50,marginLeft:-25,alignItems:'center',justifyContent:'center'},aura:{position:'absolute',width:90,height:90,borderRadius:45,backgroundColor:'#02B9FF',shadowColor:'#00CAFF',shadowRadius:28,shadowOpacity:1,shadowOffset:{width:0,height:0}},spark:{width:45,height:45,borderRadius:24,borderWidth:1,borderColor:'#E1FFFF',shadowColor:'#26DAFF',shadowRadius:18,shadowOpacity:1,shadowOffset:{width:0,height:0}},
   tap:{fontSize:10,letterSpacing:3,color:'#A2DBF6',textAlign:'center',marginTop:4,marginBottom:17},playRow:{flexDirection:'row',alignItems:'center',paddingHorizontal:18,gap:12},arrow:{width:40,height:46,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'#2383AA',borderRadius:24,backgroundColor:'#032037'},arrowText:{fontSize:34,color:'#89E2FF',lineHeight:38},disabled:{opacity:.25},pressed:{opacity:.75},
-  play:{flex:1,borderRadius:18,shadowColor:'#00CFFF',shadowRadius:18,shadowOpacity:.55,shadowOffset:{width:0,height:0}},playInner:{borderRadius:18,borderWidth:1,borderColor:'#7BF0FF',alignItems:'center',paddingVertical:13,paddingHorizontal:8},playLabel:{fontSize:28,fontWeight:'900',letterSpacing:4,color:'#00263B'},playWorld:{fontSize:11,letterSpacing:2,color:'#03384C',marginTop:3},playLevel:{fontSize:9,letterSpacing:2,color:'#075470',marginTop:4},
+  play:{flex:1,borderRadius:18,shadowColor:'#FFBB32',shadowRadius:22,shadowOpacity:.55,shadowOffset:{width:0,height:0}},playInner:{borderRadius:18,borderWidth:1,borderColor:'#FFE995',alignItems:'center',paddingVertical:13,paddingHorizontal:8},playLabel:{fontSize:28,fontWeight:'900',letterSpacing:4,color:'#241b06'},playWorld:{fontSize:11,letterSpacing:2,color:'#48360c',marginTop:3},playLevel:{fontSize:9,letterSpacing:2,color:'#695019',marginTop:4},
   levelTrack:{marginTop:28,flexDirection:'row',justifyContent:'space-between',paddingHorizontal:15},trackLine:{position:'absolute',height:1,backgroundColor:'#38627B',top:22,left:25,right:25},nodeWrap:{alignItems:'center',width:58},node:{width:44,height:44,borderRadius:22,backgroundColor:'#061F32',borderWidth:1,borderColor:'#52829B',alignItems:'center',justifyContent:'center'},nodeText:{color:'#D5EDF8',fontSize:17,fontWeight:'700'},cleared:{borderColor:'#66E5BE',backgroundColor:'#0D383A'},current:{borderColor:'#35E9FF',borderWidth:2,shadowColor:'#00D7FF',shadowRadius:12,shadowOpacity:.7,shadowOffset:{width:0,height:0}},locked:{borderColor:'#36556D'},rank:{fontSize:7,color:'#78B4D1',marginTop:8,letterSpacing:.7},
   chapter:{alignItems:'center',paddingHorizontal:20,paddingTop:22,gap:7},chapterTitle:{fontSize:11,letterSpacing:2,color:'#69D7FA',fontWeight:'700',textAlign:'center'},chapterCopy:{fontSize:12,color:'#B0CADD',textAlign:'center'},completion:{fontSize:9,color:'#5C8BA7',letterSpacing:1.5,marginTop:3},
   storyCard:{margin:18,marginTop:24,borderRadius:18,overflow:'hidden',borderWidth:1,borderColor:'#245977',backgroundColor:'#061D2E',flexDirection:'row',alignItems:'center',paddingRight:14,minHeight:104},storyImage:{width:'27%',height:110},storyCopy:{flex:1,padding:14,gap:10},quote:{color:'#D7E5EF',fontSize:12,lineHeight:19,letterSpacing:1},endless:{padding:14},

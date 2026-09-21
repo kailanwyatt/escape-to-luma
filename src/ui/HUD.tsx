@@ -11,6 +11,7 @@ import { color, ContinueJourneyButton } from '../design';
 import { CampaignOpening } from './CampaignOpening';
 
 type Props = {
+  reduceMotion?:boolean;
   hud: HudSnapshot;
   debugEnabled: boolean;
   onToggleDebug: () => void;
@@ -42,6 +43,7 @@ const CAMPAIGN_OVERLAY_PHASES = new Set<HudSnapshot['phase']>([
 
 export function HUD({
   hud,
+  reduceMotion=false,
   debugEnabled,
   onToggleDebug,
   onRestart,
@@ -72,7 +74,7 @@ export function HUD({
     : `⚡ ${hud.energy}/${hud.maxEnergy}`;
 
   if (hud.phase === 'CAMPAIGN_STORY' && hud.campaignStory) {
-    return <StoryScreen story={hud.campaignStory} onContinue={onContinueLevel} onHome={onHome}/>;
+    return <StoryScreen level={hud.campaignLevel} reduceMotion={reduceMotion} story={hud.campaignStory} onContinue={onContinueLevel} onHome={onHome}/>;
   }
 
   return (
@@ -188,7 +190,7 @@ export function HUD({
       ) : null}
 
       {hud.phase === 'CAMPAIGN_OPENING' && !paused ? (
-        <CampaignOpening stage={hud.openingStage} onSkip={onSkipOpening} onPause={onPause} />
+        <CampaignOpening reduceMotion={reduceMotion} stage={hud.openingStage} onSkip={onSkipOpening} onPause={onPause} />
       ) : null}
 
       {hud.phase === 'LEVEL_COMPLETE' ? (

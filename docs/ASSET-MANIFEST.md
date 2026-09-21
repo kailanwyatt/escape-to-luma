@@ -53,6 +53,7 @@ All dimensions below are contracts; code/config remains authoritative.
 
 - **jump-gate** — runtime: brighter cyan portal/frame; status: animation-review; human approval: required.
 - **wordmark** — reference: all approved boards; runtime: transparent SVG plus PNG 1x/2x/3x; size: 1200×300 master; origin: visual center; children: mark and subtitle may separate; materials: n/a; collision: none; budget: ≤150 KB SVG; fallback: `BrandHero` text; status: fallback; human approval: required.
+- **app-icon** — runtime: `assets/icon.png` (1024 Expo/iOS), `assets/android-icon.png`, adaptive FG/BG/mono 1024, favicon 48/32/16, splash-icon; masters in `assets/brand/app-icon-*.png`; status: material-review; human approval: required.
 - **ui-energy** — reference: World 1 HUD boards; runtime: transparent PNG/SVG filled and empty; size: 64 square master; origin: center; children: none; materials: n/a; collision: none; budget: ≤20 KB each; fallback: text glyph; status: fallback; human approval: required.
 - **ui-shard** — reference: Spark profile currency dots and UI boards; runtime: transparent PNG/SVG; size: 64 square master; origin: center; children: none; materials: n/a; collision: none; budget: ≤20 KB; fallback: diamond glyph; status: fallback; human approval: required.
 - **ui-hearts** — reference: existing Endless HUD role; runtime: transparent PNG/SVG full/empty; size: 64 square master; origin: center; children: none; materials: n/a; collision: none; budget: ≤20 KB each; fallback: heart glyph; status: fallback; human approval: required.

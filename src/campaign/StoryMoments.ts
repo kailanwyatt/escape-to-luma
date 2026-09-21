@@ -1,4 +1,5 @@
 import {getCampaignLevel, getPlayableCampaignLevels} from './levels';
+import {ENCOUNTER_LESSONS} from './levels/NewEncounters';
 import {WORLDS} from './worlds';
 import type {WorldId} from './types';
 
@@ -44,6 +45,8 @@ export function storyForLevel(level: number, seen: readonly string[]): StoryMome
   if (level === 1) return null;
   if (level === 2) return seen.includes(FIRST_ESCAPE.id) ? null : FIRST_ESCAPE;
   const def = getCampaignLevel(level); if (!def) return null;
+  const encounter=ENCOUNTER_LESSONS[level],encounterId=`encounter.${level}.v1`;
+  if(encounter)return seen.includes(encounterId)?null:{id:encounterId,eyebrow:encounter.name.toUpperCase(),title:encounter.name,body:encounter.body,instruction:encounter.hint,action:'TRY THE CHALLENGE'};
   if(level===16)return seen.includes('arrival.level-16')?null:{id:'arrival.level-16',acknowledgements:['mechanic.rapidShutter.v1'],eyebrow:'WORLD 2',title:'The City',body:WORLD_COPY.city,instruction:'Rooftop shutters retract, then slam shut. Cyan: open. Amber: warning. Red: slam. Time Spark’s arrival.',action:'ENTER THE CITY'};
   const cityLessons:Record<number,[string,string]>={21:['The shutters change direction.','Top and bottom panels now close the opening. Watch where Spark will arrive.'],23:['A second chance opens.','The shutters open twice, then pause. Learn both windows before committing.'],26:['One opening beyond another.','Each shutter has its own clock. Your shot must clear both at their arrival times.'],28:['Do not trust the first close.','The panels partially close and reopen before the warning and full slam. Read the complete pattern.'],29:['One side moves first.','The two panels close slightly apart. Watch both edges of the safe opening.']};
   const lesson=cityLessons[level],cityLessonId=`city.shutter.${level}.v1`;

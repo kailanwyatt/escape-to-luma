@@ -26,6 +26,7 @@ export function estimateDifficulty(challenge: ChallengeConfig): number {
   let total = 0;
   const obstacles = challenge.obstacles;
   for (const obstacle of obstacles) {
+    if(obstacle.type==='formation'){total+=2+(obstacle.speed>1?1:0);continue;}
     const type = obstacleTypeOf(obstacle);
     if (type === 'slidingGate') {
       total += costs.slidingGate;

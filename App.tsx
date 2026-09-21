@@ -405,6 +405,7 @@ function AppShell() {
       {playing ? <ResultFeedback text={hud.resultText} kind={hud.resultKind} /> : null}
       {playing ? (
         <HUD
+          reduceMotion={systemReduceMotion || save.settings.reduceMotion}
           hud={hud}
           onBoosts={()=>tap(()=>{
             const game=gameRef.current;if(!game?.canChooseCampaignBoosts())return;
@@ -535,6 +536,7 @@ function AppShell() {
       />
       {screen === 'home' ? (
         <HomeScreen
+          reduceMotion={systemReduceMotion || save.settings.reduceMotion}
           save={save}
           onSelectLevel={(level)=>tap(()=>startSelectedLevel(level))}
           onContinue={()=>tap(()=>startSelectedLevel(continueLevelNumber(gameRef.current?.getSave()??save)))}

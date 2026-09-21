@@ -52,6 +52,8 @@ export function isLegalCombination(obstacles: ObstacleConfig[]): boolean {
   if (obstacles.length <= 1) {
     return true;
   }
+  if (obstacles.every(o=>o.type==='iris') && obstacles.length===3)return true;
+  if (obstacles.length===2 && obstacles.every(o=>o.type==='formation'))return true;
   if (obstacles.length > 2) {
     return false;
   }

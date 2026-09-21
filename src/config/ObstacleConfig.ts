@@ -11,7 +11,8 @@ export type ObstacleType =
   | 'driftingBlocker'
   | 'phaseField'
   | 'shiftingAperture'
-  | 'laserGrid';
+  | 'laserGrid'
+  | 'formation';
 
 export type RingMovementType = 'horizontal' | 'vertical' | 'ellipse';
 
@@ -159,6 +160,18 @@ export interface LaserGridConfig {
   onRatio?: number;
 }
 
+export interface FormationConfig {
+  type: 'formation';
+  variant: 'alternatingDoors' | 'conveyor' | 'expandingDebris' | 'phaseColumns' | 'rotatingMaze';
+  z: number;
+  centerY?: number;
+  speed: number;
+  phase?: number;
+  direction?: 1 | -1;
+  /** Radius of the passable hole in a rotating plate. */
+  openingRadius?: number;
+}
+
 export type RotorObstacleConfig = RotorConfig & { type?: 'rotor' };
 
 export type ObstacleConfig =
@@ -171,7 +184,8 @@ export type ObstacleConfig =
   | DriftingBlockerConfig
   | PhaseFieldConfig
   | ShiftingApertureConfig
-  | LaserGridConfig;
+  | LaserGridConfig
+  | FormationConfig;
 
 export function obstacleTypeOf(config: ObstacleConfig): ObstacleType {
   return config.type ?? 'rotor';

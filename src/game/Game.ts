@@ -109,7 +109,7 @@ export class Game {
   private ricochetAccumulator=0;
   private ricochetPreviewAt=-Infinity;
   private ricochetPreviewVelocity={vx:Infinity,vy:Infinity,vz:Infinity};
-  private readonly obstacles = [new ObstacleSlot('A'), new ObstacleSlot('B')];
+  private readonly obstacles = [new ObstacleSlot('A'), new ObstacleSlot('B'), new ObstacleSlot('C')];
   private readonly target = new Target();
   private readonly particles = new ParticleSystem();
   private readonly trail = new ProjectileTrail();
@@ -129,7 +129,7 @@ export class Game {
   private pendingAdvance = false;
   private pendingRunOver = false;
   private pendingEnvironment: EnvironmentId | null = null;
-  private obstacleCleared = [false, false];
+  private obstacleCleared = [false, false, false];
   private lastResult: HudSnapshot['resultKind'] = null;
   private lastResultPoints = 0;
   private flightTime = 0;
@@ -215,6 +215,7 @@ export class Game {
       this.reflectors.group,
       this.obstacles[0].group,
       this.obstacles[1].group,
+      this.obstacles[2].group,
       this.target.group,
       this.particles.group,
       this.trail.group,
@@ -407,7 +408,7 @@ export class Game {
     this.maxPathError = 0;
     this.projectile.velocity.set(velocity.vx, velocity.vy, velocity.vz);
     this.projectile.previousPosition.copy(this.projectile.position);
-    this.obstacleCleared = [false, false];
+    this.obstacleCleared = [false, false, false];
     this.targetResolved = false;
     this.flightTime = 0;
     this.ricochetStatus={bounces:0,blocked:false};
@@ -1754,7 +1755,7 @@ export class Game {
       const required=this.campaignDef?.challenge.ricochet?.requiredBounces??0;
       if(this.ricochetStatus.bounces<required){this.lastFail='USE THE REFLECTOR';this.beginResult('MISS',0,.4);return false;}
       // Collision was checked above; retain the existing portal precision/reward path.
-      this.obstacleCleared=[true,true];this.checkCollisions();
+      this.obstacleCleared=this.obstacles.map(()=>true);this.checkCollisions();
       return this.state.phase==='PROJECTILE_ACTIVE';
     }return true;
   }
@@ -2324,7 +2325,7 @@ export class Game {
     this.target.applyConfig(config.target);
     this.target.setWorld(this.sessionMode === 'campaign' ? this.campaignDef?.worldId ?? 'containment' : config.environment === 'rooftop' ? 'city' : config.environment === 'space' ? 'orbit' : 'containment');
     this.target.setBreachPresentation(showBreachPlate);
-    this.obstacleCleared = [false, false];
+    this.obstacleCleared = [false, false, false];
   }
 
   private showPortalFor(environment: EnvironmentId): void {
@@ -2342,7 +2343,7 @@ export class Game {
     this.trail.reset();
     this.camera.clearEffects();
     this.camera.allowShake = false;
-    this.obstacleCleared = [false, false];
+    this.obstacleCleared = [false, false, false];
     this.targetResolved = false;
     this.flightTime = 0;
     this.ricochetStatus={bounces:0,blocked:false};
@@ -2625,8 +2626,9 @@ function failLabel(type: string, index: number): string {
     phaseField: 'PHASE',
     shiftingAperture: 'APERTURE',
     laserGrid: 'LASER',
+    formation: 'OBSTACLE',
   };
-  return `${names[type] ?? type.toUpperCase()} ${index === 0 ? 'A' : 'B'}`;
+  return `${names[type] ?? type.toUpperCase()} ${String.fromCharCode(65 + index)}`;
 }
 
 function collisionEvent(

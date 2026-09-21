@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {FormationObstacle} from './FormationObstacle';
 
 import type { EnvironmentId } from '../config/ChallengeConfig';
 import {
@@ -30,7 +31,8 @@ type ObstacleImpl =
   | DriftingBlockerObstacle
   | PhaseFieldObstacle
   | ShiftingApertureObstacle
-  | LaserGridObstacle;
+  | LaserGridObstacle
+  | FormationObstacle;
 
 export class ObstacleSlot {
   readonly id: string;
@@ -102,7 +104,7 @@ export class ObstacleSlot {
     currentSimulationTime?: number,
     stepSeconds?: number,
   ): ObstacleCollisionResult | null {
-    if (this.impl instanceof LaserGridObstacle || this.impl instanceof SlidingGateObstacle) {
+    if (this.impl instanceof FormationObstacle || this.impl instanceof LaserGridObstacle || this.impl instanceof SlidingGateObstacle) {
       return this.impl.testProjectileCrossing(
         previous,
         current,
@@ -174,6 +176,8 @@ export class ObstacleSlot {
 
 function createImpl(id: string, type: ObstacleType): ObstacleImpl {
   switch (type) {
+    case 'formation':
+      return new FormationObstacle(id);
     case 'slidingGate':
       return new SlidingGateObstacle(id);
     case 'iris':
@@ -202,6 +206,7 @@ function applyTypedConfig(
   config: ObstacleConfig,
   environment: EnvironmentId,
 ): void {
+  if (impl instanceof FormationObstacle && config.type === 'formation') {impl.applyConfig(config,environment);return;}
   if (impl instanceof SlidingGateObstacle && config.type === 'slidingGate') {
     impl.applyConfig(config, environment);
     return;

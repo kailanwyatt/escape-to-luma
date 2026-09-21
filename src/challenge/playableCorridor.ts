@@ -1,5 +1,6 @@
 import {traceRicochet} from '../reflectors/RicochetTrace';
 import {AimSystem} from '../projectile/AimSystem';
+import {evaluateFormation} from '../obstacles/FormationState';
 import type { ChallengeConfig } from '../config/ChallengeConfig';
 import { sampleMovement } from '../config/MovementConfig';
 import type { ObstacleConfig } from '../config/ObstacleConfig';
@@ -136,6 +137,7 @@ function clearsObstacle(
   ball: number,
   arrivalTime: number,
 ): boolean {
+  if(obstacle.type==='formation')return !evaluateFormation(obstacle,arrivalTime,x,y,ball).hit;
   const type = obstacleTypeOf(obstacle);
   if (type === 'slidingGate' && obstacle.type === 'slidingGate') {
     const openingX =

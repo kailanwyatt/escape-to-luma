@@ -13,7 +13,7 @@ export function validateChallenge(
 ): string | null {
   const obstacles = challenge.obstacles;
   const allowsOpenFinale = challenge.template === 'HOME_FINALE' || Boolean(challenge.ricochet);
-  if ((obstacles.length < 1 && !allowsOpenFinale) || obstacles.length > 2) {
+  if ((obstacles.length < 1 && !allowsOpenFinale) || obstacles.length > 3) {
     return 'obstacle-count';
   }
 
@@ -61,6 +61,10 @@ export function validateChallenge(
   }
 
   for (const obstacle of obstacles) {
+    if(obstacle.type==='formation'){
+      if(!Number.isFinite(obstacle.speed)||obstacle.speed<=0||!Number.isFinite(obstacle.z))return 'formation-shape';
+      continue;
+    }
     const type = obstacleTypeOf(obstacle);
     if (type === 'slidingGate' && obstacle.type === 'slidingGate') {
       if (

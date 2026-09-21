@@ -57,8 +57,8 @@ export const GRAPHICS_NEEDS: GraphicsNeed[] = [
     kind: 'store',
     priority: 'P0',
     name: 'App icon',
-    current: 'Expo default icon.png',
-    need: '1024×1024 SPARK mark (living energy mote / aperture gate cue)',
+    current: 'assets/icon.png + Android adaptive set from Escape to Luma key art',
+    need: 'Human approval on device masks; optional textless adaptive FG for tiny sizes',
     format: 'PNG (opaque) + Android adaptive FG/BG/mono',
   },
   {
@@ -66,8 +66,8 @@ export const GRAPHICS_NEEDS: GraphicsNeed[] = [
     kind: 'store',
     priority: 'P0',
     name: 'Splash / launch',
-    current: 'Expo splash-icon.png',
-    need: 'Centered SPARK mark on #1a1612 (brand ink)',
+    current: 'assets/splash-icon.png (same key art on #050B15)',
+    need: 'Optional simplified mark-only splash if full icon feels busy at launch',
     format: 'PNG / Expo splash config',
   },
   {
