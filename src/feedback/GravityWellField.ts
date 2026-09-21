@@ -1,3 +1,4 @@
+import {disposeThreeObject} from '../utils/disposeThree';
 import * as THREE from 'three';
 
 type Well = { x: number; y: number; z: number; strength: number; radius: number };
@@ -23,6 +24,7 @@ export class GravityWellField {
         ring.position.set(well.x, well.y, well.z);
         ring.userData.spin = (0.12 + index * 0.08) * Math.sign(well.strength || 1);
         ring.userData.phase = index * 2.1;
+        const packet=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),new THREE.MeshBasicMaterial({color:0xbbeeff,transparent:true,opacity:.65}));packet.position.x=well.radius*(.28+index*.18);ring.add(packet);
         this.rings.push(ring);
         this.group.add(ring);
       }
@@ -48,8 +50,7 @@ export class GravityWellField {
   private clear(): void {
     for (const ring of this.rings) {
       this.group.remove(ring);
-      ring.geometry.dispose();
-      (ring.material as THREE.Material).dispose();
+      disposeThreeObject(ring);
     }
     this.rings.length = 0;
     this.group.visible = false;

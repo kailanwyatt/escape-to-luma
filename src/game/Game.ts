@@ -1,3 +1,4 @@
+import {t} from '../i18n';
 import {ReflectorField} from '../reflectors/ReflectorField';
 import {stepRicochet,RICOCHET_STEP} from '../reflectors/Reflection';
 import type {Vec3} from '../reflectors/ReflectorConfig';
@@ -25,6 +26,7 @@ import {
   applyLevelFailure,
   applyLevelSuccess,
   consumeBoosts,
+  canStartLevel,
   syncCampaignEnergy,
 } from '../campaign/CampaignPlay';
 import { getCampaignLevel, WORLD1_LEVELS } from '../campaign/levels';
@@ -181,6 +183,7 @@ export class Game {
   private throwsThisRun = 0;
   private sessionMode: 'campaign' | 'endless' = 'endless';
   private campaignDef: CampaignLevelDefinition | null = null;
+  private boostsCommitted=false;
   private selectedBoosts: SelectedBoosts = {};
   private campaignWindX = 0;
   private campaignGravityScale = 1;
@@ -380,6 +383,10 @@ export class Game {
     if (!this.aim.shouldLaunch()) {
       this.cancelAim();
       return;
+    }
+    if(this.sessionMode==='campaign'&&!this.boostsCommitted){
+      this.save={...this.save,campaign:consumeBoosts(this.save.campaign,this.selectedBoosts)};
+      this.boostsCommitted=true;void saveGameSave(this.save);
     }
     const velocity = this.aim.end();
     this.trajectory.setVisible(false);
@@ -680,15 +687,15 @@ export class Game {
   equipCampaignBoosts(boosts:SelectedBoosts):boolean {
     if(!this.canChooseCampaignBoosts())return false;
     const additions:SelectedBoosts={};
-    for(const id of ['guidance','slowField','secondChance'] as const){
+    for(const id of ['guidance','slowField','secondChance','portalBloom'] as const){
       if(boosts[id]&&!this.selectedBoosts[id]&&this.save.campaign.boostInventory[id]>0)additions[id]=true;
     }
     if(Object.keys(additions).length){
-      this.save={...this.save,campaign:consumeBoosts(this.save.campaign,additions)};
+      // Selection reserves stock; only an actual launch consumes it.
       this.selectedBoosts={...this.selectedBoosts,...additions};
       this.secondChancePending ||= Boolean(additions.secondChance);
       this.slowFieldActive ||= Boolean(additions.slowField);
-      this.syncTrajectoryDebugFull();void saveGameSave(this.save);this.emitHud();
+      this.applyBloom();this.syncTrajectoryDebugFull();this.emitHud();
     }
     return true;
   }
@@ -709,6 +716,7 @@ export class Game {
       return;
     }
     this.syncCampaignEnergyOnSave();
+    if(canStartLevel(this.save.campaign,levelNumber).reason==='energy'){this.campaignDef=def;this.state.set('OUT_OF_ENERGY');this.emitHud();return;}
     this.sessionMode = 'campaign';
     this.campaignStory = null;
     this.campaignDef = def;
@@ -725,18 +733,12 @@ export class Game {
 
     const inv = this.save.campaign.boostInventory;
     const toConsume: SelectedBoosts = {};
-    for (const id of ['guidance', 'slowField', 'secondChance'] as const) {
+    for (const id of ['guidance', 'slowField', 'secondChance', 'portalBloom'] as const) {
       if (boosts[id] && (inv[id] ?? 0) > 0) {
         toConsume[id] = true;
       }
     }
-    if (Object.keys(toConsume).length > 0) {
-      this.save = {
-        ...this.save,
-        campaign: consumeBoosts(this.save.campaign, toConsume),
-      };
-      void saveGameSave(this.save);
-    }
+    this.boostsCommitted=false;
     this.selectedBoosts = toConsume;
     this.secondChancePending = Boolean(toConsume.secondChance);
     this.slowFieldActive = Boolean(toConsume.slowField);
@@ -865,8 +867,8 @@ export class Game {
     this.emitHud();
   }
 
-  watchRewardedEnergy(): void {
-    void this.watchRewardedEnergyAsync();
+  watchRewardedEnergy(): Promise<void> {
+    return this.watchRewardedEnergyAsync();
   }
 
   activateUnlimitedEnergy(durationMs: number): void {
@@ -965,7 +967,7 @@ export class Game {
     this.emitHud();
   }
 
-  buyBoostWithShards(boostId: 'guidance' | 'slowField' | 'secondChance'): boolean {
+  buyBoostWithShards(boostId: 'guidance' | 'slowField' | 'secondChance' | 'portalBloom'): boolean {
     const cost = ECONOMY.boostCosts[boostId];
     if (this.save.campaign.shards < cost) {
       return false;
@@ -1081,7 +1083,7 @@ export class Game {
 
   debugForceContinueFailure(): void {
     AdService.forceRewardedFailure();
-    this.adMessage = 'CONTINUE UNAVAILABLE';
+    this.adMessage = t("game.continue_unavailable");
     this.enterRunOver();
   }
 
@@ -1191,6 +1193,18 @@ export class Game {
     }
   }
 
+  private applyBloom():void {
+    if(this.sessionMode==='campaign'&&this.campaignDef)this.target.applyConfig({...this.campaignDef.challenge.target,radius:this.campaignDef.challenge.target.radius*(this.selectedBoosts.portalBloom?ECONOMY.portalBloomMultiplier:1)});
+  }
+  buyEnergyRefill():boolean {
+    this.syncCampaignEnergyOnSave();
+    if(this.save.campaign.currentEnergy>=ECONOMY.maxEnergy||this.save.campaign.shards<ECONOMY.energyRefillCost)return false;
+    this.save.campaign.shards-=ECONOMY.energyRefillCost;this.save.campaign.currentEnergy=ECONOMY.maxEnergy;this.save.campaign.energyUpdatedAt=Date.now();void saveGameSave(this.save);this.emitHud();return true;
+  }
+  grantTestShardPack(amount:number):boolean {
+    if(typeof __DEV__==='undefined'||!__DEV__||![250,700,1600].includes(amount))return false;
+    this.save.campaign.shards+=amount;void saveGameSave(this.save);this.emitHud();return true;
+  }
   private resetCampaignAttempt(): void {
     if (!this.campaignDef) {
       return;
@@ -1229,17 +1243,15 @@ export class Game {
     const result = await AdService.showRewarded();
     this.continueBusy = false;
     if (result === 'completed') {
+      this.syncCampaignEnergyOnSave();
       this.save.campaign.currentEnergy = Math.min(
         ECONOMY.maxEnergy,
         this.save.campaign.currentEnergy + ECONOMY.rewardedAdEnergyAmount,
       );
-      this.save.campaign.energyUpdatedAt = Date.now();
+      if(this.save.campaign.currentEnergy===ECONOMY.maxEnergy)this.save.campaign.energyUpdatedAt = Date.now();
       this.syncCampaignEnergyOnSave();
       void saveGameSave(this.save);
-      if (this.state.phase === 'OUT_OF_ENERGY' && this.campaignDef) {
-        this.resetCampaignAttempt();
-        this.state.set('READY');
-      }
+
     }
     this.emitHud();
   }
@@ -1247,17 +1259,17 @@ export class Game {
   private onboardingCopy(): string | null {
     if (this.firstLevelOnboardingActive()) {
       if (this.state.phase === 'AIMING' && this.aim.isCancelReady) {
-        return 'PULL BACK TO CENTER TO CANCEL';
+        return t("game.pull_back_to_center_to_cancel");
       }
       if (this.state.phase === 'AIMING') {
-        return 'DRAG TO AIM · FINGER UP TO RELEASE';
+        return t("game.drag_to_aim_finger_up_to_release");
       }
       if (this.state.phase === 'READY') {
-        return 'PULL TO POWER UP';
+        return t("game.pull_to_power_up");
       }
     }
     if (this.state.phase === 'AIMING' && this.aim.isCancelReady && this.throwsThisRun >= 1) {
-      return 'RETURN TO START TO CANCEL';
+      return t("game.return_to_start_to_cancel");
     }
     if (
       this.sessionMode === 'campaign' &&
@@ -1274,10 +1286,10 @@ export class Game {
       (this.state.phase === 'READY' || this.state.phase === 'AIMING') &&
       !this.aim.hasEnteredAim
     ) {
-      return 'DRAG TO AIM';
+      return t("game.drag_to_aim");
     }
     if (this.director.challengeNumber === 2 && this.state.phase === 'READY') {
-      return 'TIME THE OPENING';
+      return t("game.time_the_opening");
     }
     return null;
   }
@@ -1323,7 +1335,7 @@ export class Game {
               this.sessionMode === 'campaign',
             )
           : null,
-      showOnboarding: Boolean(this.onboardingCopy() === 'DRAG TO AIM'),
+      showOnboarding: Boolean(this.onboardingCopy() === t("game.drag_to_aim")),
       onboardingText: this.onboardingCopy(),
       firstLevelOnboarding: this.firstLevelOnboardingActive(),
       shotsReached: this.run.challengesCleared,
@@ -1343,7 +1355,7 @@ export class Game {
       closeCall: this.lastNearMiss && this.closeCallTimer > 0,
       closeCallText:
         this.lastNearMiss && this.closeCallTimer > 0
-          ? `CLOSE CALL +${GAME_TUNING.score.CLOSE_CALL}`
+          ? t("game.close_call", {value1: GAME_TUNING.score.CLOSE_CALL})
           : null,
       closeCalls: this.run.closeCalls,
       cancelReady: this.state.phase === 'AIMING' && this.aim.isCancelReady,
@@ -1458,7 +1470,7 @@ export class Game {
       vz: round3(prediction?.vz ?? this.projectile.velocity.z),
       predA: formatRotorPred(prediction?.rotors[0]),
       predB: formatRotorPred(prediction?.rotors[1]),
-      predT: `${prediction?.bounces ? `BOUNCES ${prediction.bounces.length} · ` : ''}${formatTargetPred(prediction?.target)}`,
+      predT: `${prediction?.bounces ? t("game.bounces", {value1: prediction.bounces.length}) : ''}${formatTargetPred(prediction?.target)}`,
       timeA: round3(prediction?.rotors[0].time ?? 0),
       timeB: round3(prediction?.rotors[1].time ?? 0),
       timeT: round3(prediction?.target.time ?? 0),
@@ -1611,11 +1623,11 @@ export class Game {
           (a,b,clock,duration)=>this.checkRicochetSegment(a,b,clock,duration),bounce=>{
             this.particles.spawnHit(new Vector3(bounce.point.x,bounce.point.y,bounce.point.z),6,0x85f5ff,1.4);
             GameHaptics.forCloseCall();AudioManager.play('ricochet');this.trail.pulseFlare();
-            if(ricochet.fullGuide){this.banner='RICOCHET';this.bannerTimer=.65;this.emitHud();}
+            if(ricochet.fullGuide){this.banner=t('labels.RICOCHET');this.bannerTimer=.65;this.emitHud();}
           });
         if(this.state.phase==='PROJECTILE_ACTIVE'){
           p.position.set(motion.x,motion.y,motion.z);p.velocity.set(motion.vx,motion.vy,motion.vz);
-          if(this.ricochetStatus.blocked){this.lastFail='REFLECTOR FRAME / BACKING';this.particles.spawnSparks(p.position,8);this.beginResult('ROTOR_HIT',0,.4);}
+          if(this.ricochetStatus.blocked){this.lastFail=t("game.reflector_frame_backing");this.particles.spawnSparks(p.position,8);this.beginResult('ROTOR_HIT',0,.4);}
         }
       }else this.projectileSystem.integrate(this.projectile, dt);
       this.flightTime += dt;
@@ -1753,7 +1765,7 @@ export class Game {
     }
     if(a.z<this.target.z&&b.z>=this.target.z){
       const required=this.campaignDef?.challenge.ricochet?.requiredBounces??0;
-      if(this.ricochetStatus.bounces<required){this.lastFail='USE THE REFLECTOR';this.beginResult('MISS',0,.4);return false;}
+      if(this.ricochetStatus.bounces<required){this.lastFail=t("game.use_the_reflector");this.beginResult('MISS',0,.4);return false;}
       // Collision was checked above; retain the existing portal precision/reward path.
       this.obstacleCleared=this.obstacles.map(()=>true);this.checkCollisions();
       return this.state.phase==='PROJECTILE_ACTIVE';
@@ -1840,7 +1852,7 @@ export class Game {
         { x: this.target.x, y: this.target.y },
         this.target.radius,
       );
-      this.lastFail = 'TARGET MISS';
+      this.lastFail = t("game.target_miss");
       this.beginResult('MISS', 0, GAME_TUNING.timing.resultDelay / 1000);
       return;
     }
@@ -1883,7 +1895,7 @@ export class Game {
       this.projectile.position.z < -3
     ) {
       this.targetResolved = true;
-      this.lastFail = 'TARGET MISS';
+      this.lastFail = t("game.target_miss");
       this.beginResult('MISS', 0, GAME_TUNING.timing.resultDelay / 1000);
     }
   }
@@ -1916,7 +1928,7 @@ export class Game {
       AudioManager.play('heart');
     }
     if (outcome.streakThreshold) {
-      this.banner = `x${outcome.multiplier} STREAK`;
+      this.banner = t("game.x_streak", {value1: outcome.multiplier});
       this.bannerTimer = 0.8;
       this.particles.spawnStreak(this.projectile.position);
       GameHaptics.forStreak();
@@ -2022,7 +2034,7 @@ export class Game {
     this.pendingWorldComplete = outcome.worldComplete;
     this.pendingCampaignComplete = outcome.campaignComplete;
     this.unlockedSparkName = outcome.unlockedSparkId
-      ? (sparkById(outcome.unlockedSparkId)?.name ?? 'NEW SPARK')
+      ? (sparkById(outcome.unlockedSparkId)?.name ?? t("game.new_spark"))
       : null;
     Analytics.track(ANALYTICS_EVENTS.levelCompleted, {
       levelNumber: def.levelNumber,
@@ -2052,7 +2064,7 @@ export class Game {
 
     if (this.firstLevelOnboardingActive()) {
       this.resetCampaignAttempt();
-      this.banner = 'TRY AGAIN · FIND THE CRACK';
+      this.banner = t("game.try_again_find_the_crack");
       this.bannerTimer = 1.6;
       this.state.set('READY');
       this.emitHud();
@@ -2082,6 +2094,7 @@ export class Game {
 
     if (
       !RELEASE_POLICY.freeRetries &&
+      !this.save.campaign.completedLevels[def.id]?.cleared &&
       !hasUnlimitedEnergy(this.save.campaign) &&
       this.save.campaign.currentEnergy <= 0
     ) {
@@ -2136,7 +2149,7 @@ export class Game {
     }
     this.liveNewBest = true;
     if (!this.banner) {
-      this.banner = 'NEW BEST';
+      this.banner = t("game.new_best");
       this.bannerTimer = 0.9;
     }
     GameHaptics.forNewBest();
@@ -2248,7 +2261,7 @@ export class Game {
     const projected = playerLevelFromXp(this.projectedXp());
     if (!this.levelUpAnnounced && projected > this.startingLevel) {
       this.levelUpAnnounced = true;
-      this.banner = `LEVEL UP  ${projected}`;
+      this.banner = t("game.level_up", {value1: projected});
       this.bannerTimer = 1.1;
       GameHaptics.forLevelUp();
       AudioManager.play('level-up');
@@ -2257,24 +2270,24 @@ export class Game {
 
   private logRunTelemetry(): void {
     const lines = [
-      '=== RUN TELEMETRY ===',
-      `duration ${this.run.durationSeconds().toFixed(1)}s`,
-      `score ${this.run.score}`,
-      `challengesCleared ${this.run.challengesCleared}`,
-      `attempts ${this.run.attempts}`,
-      `rotorHits ${this.run.rotorHits}`,
-      `targetMisses ${this.run.targetMisses}`,
-      `hits ${this.run.hits}`,
-      `greats ${this.run.greats}`,
-      `bullseyes ${this.run.bullseyes}`,
-      `perfects ${this.run.perfects}`,
-      `closeCalls ${this.run.closeCalls}`,
-      `bestStreak ${this.run.bestStreak}`,
-      `loop ${this.director.loopNumber}`,
-      `environment ${this.director.current.environment}`,
-      `seed ${this.director.seed.toString(16)}`,
-      `theme ${this.director.theme}`,
-      `xp ${this.run.runXp}`,
+      t("game.run_telemetry"),
+      t("game.duration_s", {value1: this.run.durationSeconds().toFixed(1)}),
+      t("game.score", {value1: this.run.score}),
+      t("game.challengescleared", {value1: this.run.challengesCleared}),
+      t("game.attempts", {value1: this.run.attempts}),
+      t("game.rotorhits", {value1: this.run.rotorHits}),
+      t("game.targetmisses", {value1: this.run.targetMisses}),
+      t("game.hits", {value1: this.run.hits}),
+      t("game.greats", {value1: this.run.greats}),
+      t("game.bullseyes", {value1: this.run.bullseyes}),
+      t("game.perfects", {value1: this.run.perfects}),
+      t("game.closecalls", {value1: this.run.closeCalls}),
+      t("game.beststreak", {value1: this.run.bestStreak}),
+      t("game.loop", {value1: this.director.loopNumber}),
+      t("game.environment", {value1: this.director.current.environment}),
+      t("game.seed", {value1: this.director.seed.toString(16)}),
+      t("game.theme", {value1: this.director.theme}),
+      t("game.xp", {value1: this.run.runXp}),
     ];
     console.log(lines.join('\n'));
   }
@@ -2323,6 +2336,7 @@ export class Game {
     }
     this.debugVisuals.recordTargetCrossing(null);
     this.target.applyConfig(config.target);
+    this.applyBloom();
     this.target.setWorld(this.sessionMode === 'campaign' ? this.campaignDef?.worldId ?? 'containment' : config.environment === 'rooftop' ? 'city' : config.environment === 'space' ? 'orbit' : 'containment');
     this.target.setBreachPresentation(showBreachPlate);
     this.obstacleCleared = [false, false, false];
@@ -2418,7 +2432,7 @@ export class Game {
     Analytics.track(ANALYTICS_EVENTS.continueSelected, this.continueAnalyticsProps());
     const result = await AdService.showRewarded();
     if (result !== 'completed' || this.continueGrantedThisDeath || this.run.hasUsedRewardedContinue) {
-      this.adMessage = 'CONTINUE UNAVAILABLE';
+      this.adMessage = t("game.continue_unavailable");
       this.continueBusy = false;
       this.enterRunOver();
       return;
@@ -2594,8 +2608,8 @@ function formatRotorPred(
   }
   const part = rotor.hitPart ? `-${rotor.hitPart}` : '';
   const radius =
-    rotor.predicted.openingRadius > 0 ? ` r${rotor.predicted.openingRadius.toFixed(2)}` : '';
-  return `${rotor.type} ${rotor.verdict}${part} ${rotor.time.toFixed(2)}s${radius}`;
+    rotor.predicted.openingRadius > 0 ? t("game.r", {value1: rotor.predicted.openingRadius.toFixed(2)}) : '';
+  return t("game.s", {value1: rotor.type, value2: rotor.verdict, value3: part, value4: rotor.time.toFixed(2), value5: radius});
 }
 
 function formatTargetPred(
@@ -2604,14 +2618,14 @@ function formatTargetPred(
   if (!target) {
     return '-';
   }
-  return `${target.verdict} ${target.time.toFixed(2)}s d${target.distance.toFixed(2)}`;
+  return t("game.s_d", {value1: target.verdict, value2: target.time.toFixed(2), value3: target.distance.toFixed(2)});
 }
 
 function formatMiss(report: TargetMissReport | null): string {
   if (!report) {
     return '-';
   }
-  return `act ${report.actualX.toFixed(2)},${report.actualY.toFixed(2)} tgt ${report.targetX.toFixed(2)},${report.targetY.toFixed(2)} d${report.distance.toFixed(2)} r${report.targetRadius.toFixed(2)} ball${report.projectileRadius.toFixed(2)} edge${report.edgeWouldHit ? 'Y' : 'N'}`;
+  return t("game.act_tgt_d_r_ball_edge", {value1: report.actualX.toFixed(2), value2: report.actualY.toFixed(2), value3: report.targetX.toFixed(2), value4: report.targetY.toFixed(2), value5: report.distance.toFixed(2), value6: report.targetRadius.toFixed(2), value7: report.projectileRadius.toFixed(2), value8: report.edgeWouldHit ? 'Y' : 'N'});
 }
 
 function failLabel(type: string, index: number): string {

@@ -1,3 +1,4 @@
+import {t} from '../i18n';
 import {TypewriterText} from './TypewriterText';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,13 +7,13 @@ export function CampaignOpening({stage, onSkip, onPause,reduceMotion=false}: {re
   const insets = useSafeAreaInsets();
   const beat = OPENING_BEATS[Math.max(0, Math.min(OPENING_BEATS.length - 1, stage))];
   return <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-    <Pressable accessibilityRole="button" accessibilityLabel="Pause opening" onPress={onPause} style={[styles.pause, {top: insets.top + 12}]}><Text style={styles.label}>PAUSE</Text></Pressable>
-    <Pressable accessibilityRole="button" accessibilityLabel="Skip opening" onPress={onSkip} style={[styles.skip, {top: insets.top + 12}]}><Text style={styles.label}>SKIP</Text></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel={t("campaignopening.pause_opening")} onPress={onPause} style={[styles.pause, {top: insets.top + 12}]}><Text style={styles.label}>{t("campaignopening.pause")}</Text></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel={t("campaignopening.skip_opening")} onPress={onSkip} style={[styles.skip, {top: insets.top + 12}]}><Text style={styles.label}>{t("campaignopening.skip")}</Text></Pressable>
     <View style={[styles.copy, {bottom: insets.bottom + 24}]}>
-      <Text style={[styles.label,{fontSize:10,opacity:.7,marginBottom:8}]}>THE BEGINNING · {stage+1} / {OPENING_BEATS.length}</Text>
+      <Text style={[styles.label,{fontSize:10,opacity:.7,marginBottom:8}]}>{t("campaignopening.the_beginning")}{stage+1} / {OPENING_BEATS.length}</Text>
       <Text style={styles.label}>{beat.title}</Text>
       <TypewriterText key={stage} text={beat.caption} style={styles.caption} reduceMotion={reduceMotion}/>
-      {stage===OPENING_BEATS.length-1?<Text style={[styles.label,{marginTop:14,fontSize:10}]}>DRAG TO AIM · PULL FOR POWER · RELEASE TO THROW</Text>:null}
+      {stage===OPENING_BEATS.length-1?<Text style={[styles.label,{marginTop:14,fontSize:10}]}>{t("campaignopening.drag_to_aim_pull_for_power_release_to_throw")}</Text>:null}
       <View style={styles.progress}>{OPENING_BEATS.map((_, i) => <View key={i} style={[styles.dot, {opacity: i <= stage ? 1 : .2}]} />)}</View>
     </View>
   </View>;

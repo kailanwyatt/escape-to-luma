@@ -1,3 +1,4 @@
+import {t} from '../../i18n';
 import type { ChallengeConfig } from '../../config/ChallengeConfig';
 import type {
   LaserGridPattern,
@@ -125,30 +126,30 @@ export const WORLD1_LEVELS: CampaignLevelDefinition[] = [
   level(1, 'w1-01', 'BASIC_GATE', [
     gate(1.72, { openingHeight: 2.65, appearance: 'containmentGlass' }),
   ], center, {
-    tutorialHint: 'PULL TO POWER UP',
-    storyBeat: 'ESCAPE THE GLASS',
+    tutorialHint: t("game.pull_to_power_up"),
+    storyBeat: t("world1.escape_the_glass"),
   }),
   level(2, 'w1-02', 'BASIC_GATE', [gate(2.55, { openingHeight: 3.3 })], offset, {
-    tutorialHint: 'PULL FARTHER FOR POWER',
-    storyBeat: 'BREAK CONTAINMENT',
+    tutorialHint: t("world1.pull_farther_for_power"),
+    storyBeat: t("world1.break_containment"),
   }),
   level(3, 'w1-03', 'MOVING_GATE', [gate(2.45, { amplitude: 0.5, speed: 0.65 })], soft, {
-    tutorialHint: 'FOLLOW THE OPENING',
-    storyBeat: 'LOCKING DOWN',
+    tutorialHint: t("world1.follow_the_opening"),
+    storyBeat: t("world1.locking_down"),
   }),
   level(4, 'w1-04', 'BASIC_ROTOR', [rotor(0.28, { blades: 1 })], soft, {
-    tutorialHint: 'THROW AFTER THE ARM PASSES',
-    storyBeat: 'FIRST ROTOR',
+    tutorialHint: t("world1.throw_after_the_arm_passes"),
+    storyBeat: t("world1.first_rotor"),
   }),
   level(5, 'w1-05', 'BASIC_ROTOR', [rotor(0.38, { blades: 1 })], center, {
-    tutorialHint: 'TIMING BEATS SPEED',
+    tutorialHint: t("world1.timing_beats_speed"),
   }),
   level(6, 'w1-06', 'BASIC_ROTOR', [rotor(0.36, { blades: 2 })], center, {
-    tutorialHint: 'READ BOTH ARMS',
+    tutorialHint: t("world1.read_both_arms"),
   }),
   level(7, 'w1-07', 'REVERSE_ROTOR', [rotor(0.4, { reverse: true })], center, {
-    tutorialHint: 'WATCH THE DIRECTION',
-    storyBeat: 'SECURITY ROTATION',
+    tutorialHint: t("world1.watch_the_direction"),
+    storyBeat: t("world1.security_rotation"),
   }),
 
   // Security lasers: each layout is introduced alone before combinations.
@@ -168,8 +169,8 @@ export const WORLD1_LEVELS: CampaignLevelDefinition[] = [
     ],
     soft,
     {
-      tutorialHint: 'WATCH THE BEAMS MOVE UP AND DOWN',
-      storyBeat: 'SECURITY BARS',
+      tutorialHint: t("world1.watch_the_beams_move_up_and_down"),
+      storyBeat: t("world1.security_bars"),
     },
   ),
   level(
@@ -188,7 +189,7 @@ export const WORLD1_LEVELS: CampaignLevelDefinition[] = [
     ],
     { ...soft, radius: 1.04 },
     {
-      tutorialHint: 'WATCH THE BEAMS MOVE LEFT AND RIGHT',
+      tutorialHint: t("world1.watch_the_beams_move_left_and_right"),
     },
   ),
   level(
@@ -208,8 +209,8 @@ export const WORLD1_LEVELS: CampaignLevelDefinition[] = [
     ],
     center,
     {
-      tutorialHint: 'TRACK THE GAP · THROW WHILE OFF',
-      storyBeat: 'TIMING SEQUENCE',
+      tutorialHint: t("world1.track_the_gap_throw_while_off"),
+      storyBeat: t("world1.timing_sequence"),
     },
   ),
   level(
@@ -231,8 +232,8 @@ export const WORLD1_LEVELS: CampaignLevelDefinition[] = [
     ],
     { ...center, radius: 1.0 },
     {
-      tutorialHint: 'FOLLOW THE MOVING CROSSING',
-      storyBeat: 'FULL SECURITY GRID',
+      tutorialHint: t("world1.follow_the_moving_crossing"),
+      storyBeat: t("world1.full_security_grid"),
     },
   ),
   level(
@@ -241,7 +242,7 @@ export const WORLD1_LEVELS: CampaignLevelDefinition[] = [
     'ROTOR_GATE',
     [rotor(0.38, { blades: 2, z: Z_A }), gate(2.15, { amplitude: 0.18, speed: 0.24, z: Z_B })],
     center,
-    { tutorialHint: 'READ THE NEAR PLANE FIRST', storyBeat: 'DOUBLE LOCK' },
+    { tutorialHint: t("world1.read_the_near_plane_first"), storyBeat: t("world1.double_lock") },
   ),
   level(
     13,
@@ -258,7 +259,7 @@ export const WORLD1_LEVELS: CampaignLevelDefinition[] = [
       rotor(0.4, { blades: 2, z: Z_B }),
     ],
     center,
-    { tutorialHint: 'ONE OPENING AT A TIME', storyBeat: 'SECURITY OVERRIDE' },
+    { tutorialHint: t("world1.one_opening_at_a_time"), storyBeat: t("world1.security_override") },
   ),
   level(
     14,
@@ -266,7 +267,7 @@ export const WORLD1_LEVELS: CampaignLevelDefinition[] = [
     'DUAL_ROTOR',
     [rotor(0.42, { blades: 2, z: Z_A }), rotor(0.36, { blades: 2, reverse: true, z: Z_B })],
     center,
-    { tutorialHint: 'WAIT FOR BOTH PATHS', storyBeat: 'FULL LOCKDOWN' },
+    { tutorialHint: t("world1.wait_for_both_paths"), storyBeat: t("world1.full_lockdown") },
   ),
   level(
     15,
@@ -279,7 +280,7 @@ export const WORLD1_LEVELS: CampaignLevelDefinition[] = [
     late,
     {
       isWorldFinale: true,
-      storyBeat: 'ESCAPE — JUMP GATE',
+      storyBeat: t("world1.escape_jump_gate"),
     },
   ),
 ];

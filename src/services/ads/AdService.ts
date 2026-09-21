@@ -13,6 +13,8 @@ class AdServiceImpl {
   private rewarded = new SimulatedAdController('rewarded');
   private interstitial = new SimulatedAdController('interstitial');
   private hooks: AdServiceHooks = {};
+  private testPresenter:(()=>Promise<AdShowResult>)|null=null;
+  setTestRewardedPresenter(p:(()=>Promise<AdShowResult>)|null){this.testPresenter=p;}
   adsEnabledOverride: boolean | null = null;
 
   configure(hooks: AdServiceHooks): void {
@@ -79,7 +81,7 @@ class AdServiceImpl {
     }
     this.hooks.onPresentationChange?.(true);
     Analytics.track(ANALYTICS_EVENTS.continueAdStarted, { runId: Analytics.runId });
-    const result = await this.rewarded.show();
+    const result = typeof __DEV__!=='undefined'&&__DEV__&&this.testPresenter ? await this.testPresenter() : this.rewardedReady()?await this.rewarded.show():'failed';
     this.hooks.onPresentationChange?.(false);
     if (result === 'completed') {
       Analytics.track(ANALYTICS_EVENTS.continueAdCompleted, { runId: Analytics.runId });

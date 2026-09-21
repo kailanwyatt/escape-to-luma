@@ -1,3 +1,4 @@
+import {dressSecurityPanel,dressDebris,dressMaze} from './EncounterArt';
 import * as THREE from 'three';
 import type {FormationConfig} from '../config/ObstacleConfig';
 import type {EnvironmentId} from '../config/ChallengeConfig';
@@ -29,12 +30,18 @@ export class FormationObstacle {
    const body=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:.23,bevelEnabled:false,curveSegments:48}),metal);body.position.z=-.115;this.plate.add(body);
    const rim=new THREE.Mesh(new THREE.TorusGeometry(c.openingRadius??1.05,.035,6,64),glow);rim.position.set(.85,0,-.15);this.plate.add(rim);
    const outer=new THREE.Mesh(new THREE.TorusGeometry(2.55,.055,8,80),glow);outer.position.z=-.15;this.plate.add(outer);
+   dressMaze(this.plate,c.openingRadius??1.05);
    for(let i=0;i<20;i++){const a=i*Math.PI/10;const mark=new THREE.Mesh(new THREE.BoxGeometry(.13,.27,.025),metal.clone());mark.position.set(Math.cos(a)*2.32,Math.sin(a)*2.32,-.14);mark.rotation.z=a;this.plate.add(mark);}
   }else{
    for(const p of formationParts(c,0)){
     const mesh=p.radius?createReadableBlocker('debris'):new THREE.Mesh(new THREE.BoxGeometry(1,1,.2),metal.clone());
+    if(p.radius)dressDebris(mesh,this.pieces.length+ (c.variant==='conveyor'?20:40));
+    if(c.variant==='alternatingDoors')dressSecurityPanel(mesh,this.pieces.length>=5);
     this.pieces.push(mesh);this.group.add(mesh);
     if(!p.radius){
+     if(c.variant==='phaseColumns'){
+      const field=new THREE.Mesh(new THREE.PlaneGeometry(.94,.96),new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,uniforms:{time:{value:0},strength:{value:1}},vertexShader:'varying vec2 v;void main(){v=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'varying vec2 v;uniform float time;uniform float strength;void main(){float bands=pow(.5+.5*sin(v.y*95.-time*3.+sin(v.x*20.+time)*2.),9.);float edge=pow(abs(v.x-.5)*2.,5.);gl_FragColor=vec4(.5,.35,1.,(bands*.28+edge*.7)*strength);}' }));field.position.z=-.13;field.name='phase-energy';mesh.add(field);
+     }
      const edges=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,.205)),new THREE.LineBasicMaterial({color:0x657e99}));mesh.add(edges);
      const bar=new THREE.Mesh(new THREE.BoxGeometry(.05,.8,.025),glow.clone());bar.position.z=-.125;mesh.add(bar);this.indicators.push(bar);
     }
@@ -52,6 +59,8 @@ export class FormationObstacle {
    if(p.radius){mesh.rotation.z=time*.07*(i%2?1:-1)+i;return;}
    const m=mesh.material as THREE.MeshPhongMaterial;
    m.transparent=!p.active;m.opacity=p.active?1:.08;m.depthWrite=p.active;
+   const field=mesh.getObjectByName('phase-energy') as THREE.Mesh|undefined;
+   if(field){const material=field.material as THREE.ShaderMaterial;material.uniforms.time.value=time;material.uniforms.strength.value=p.active?1:0;}
    m.color.setHex(c.variant==='phaseColumns'?(p.active?0x6c3099:0x17293e):0x243443);
    const light=this.indicators[i]?.material as THREE.MeshBasicMaterial|undefined;
    light?.color.setHex(p.warning?0xffbd52:p.active&&c.variant==='phaseColumns'?0xe45eff:0x66edff);

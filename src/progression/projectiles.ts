@@ -1,3 +1,4 @@
+import {t} from '../i18n';
 export type ProjectileId =
   | 'classic'
   | 'steel'
@@ -23,7 +24,7 @@ export type ProjectileStyle = {
 export const PROJECTILE_STYLES: ProjectileStyle[] = [
   {
     id: 'classic',
-    name: 'Classic Ball',
+    name: t("projectiles.classic_ball"),
     unlockLevel: 1,
     color: 0x7ef0ff,
     emissive: 0x1aa8b8,
@@ -34,7 +35,7 @@ export const PROJECTILE_STYLES: ProjectileStyle[] = [
   },
   {
     id: 'steel',
-    name: 'Steel Ball',
+    name: t("projectiles.steel_ball"),
     unlockLevel: 3,
     color: 0xc5cdd4,
     emissive: 0x4a5860,
@@ -45,7 +46,7 @@ export const PROJECTILE_STYLES: ProjectileStyle[] = [
   },
   {
     id: 'neon',
-    name: 'Neon Ball',
+    name: t("projectiles.neon_ball"),
     unlockLevel: 5,
     color: 0xff4ad2,
     emissive: 0xff2fb2,
@@ -56,7 +57,7 @@ export const PROJECTILE_STYLES: ProjectileStyle[] = [
   },
   {
     id: 'fire',
-    name: 'Fireball',
+    name: t("projectiles.fireball"),
     unlockLevel: 7,
     color: 0xff7a2a,
     emissive: 0xff3b00,
@@ -67,7 +68,7 @@ export const PROJECTILE_STYLES: ProjectileStyle[] = [
   },
   {
     id: 'ice',
-    name: 'Ice Ball',
+    name: t("projectiles.ice_ball"),
     unlockLevel: 9,
     color: 0xe8f6ff,
     emissive: 0x7ec8ff,
@@ -78,7 +79,7 @@ export const PROJECTILE_STYLES: ProjectileStyle[] = [
   },
   {
     id: 'plasma',
-    name: 'Plasma Ball',
+    name: t("projectiles.plasma_ball"),
     unlockLevel: 12,
     color: 0xb07cff,
     emissive: 0x6a2bff,
@@ -89,7 +90,7 @@ export const PROJECTILE_STYLES: ProjectileStyle[] = [
   },
   {
     id: 'gold',
-    name: 'Gold Ball',
+    name: t("projectiles.gold_ball"),
     unlockLevel: 15,
     color: 0xffd24a,
     emissive: 0xc48a12,
@@ -100,7 +101,7 @@ export const PROJECTILE_STYLES: ProjectileStyle[] = [
   },
   {
     id: 'void',
-    name: 'Void Ball',
+    name: t("projectiles.void_ball"),
     unlockLevel: 20,
     color: 0x6a4ad2,
     emissive: 0xb07cff,

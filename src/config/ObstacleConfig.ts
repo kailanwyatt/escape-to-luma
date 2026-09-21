@@ -32,6 +32,7 @@ export interface SlidingGateConfig {
 }
 
 export interface IrisConfig {
+  sequenceIndex?:number;
   type: 'iris';
   z: number;
   minRadius: number;

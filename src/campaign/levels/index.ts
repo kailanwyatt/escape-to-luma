@@ -1,3 +1,4 @@
+import {applyEncounterProgression} from './EncounterProgression';
 import {applyNewEncounters} from './NewEncounters';
 import {applyPrecisionProgression} from './PrecisionProgression';
 import {applyPrecisionBenchmark} from './PrecisionBenchmarks';
@@ -15,7 +16,7 @@ const ALL_LEVELS: CampaignLevelDefinition[] = [
   ...WORLD1_LEVELS,
   ...WORLD2_LEVELS,
   ...buildWorlds3to10(),
-].map(applyPortalDifficulty).map(composeCampaignLevel).map(applyWorldRotorVariants).map(applyRicochetCourse).map(rebalanceCampaign).map(applyCityShutterProgression).map(applyPrecisionProgression).map(applyPrecisionBenchmark).map(applyNewEncounters);
+].map(applyPortalDifficulty).map(composeCampaignLevel).map(applyWorldRotorVariants).map(applyRicochetCourse).map(rebalanceCampaign).map(applyCityShutterProgression).map(applyPrecisionProgression).map(applyPrecisionBenchmark).map(applyNewEncounters).map(applyEncounterProgression);
 
 const BY_NUMBER = new Map<number, CampaignLevelDefinition>();
 for (const level of ALL_LEVELS) {

@@ -59,7 +59,7 @@ export function computeShardReward(
     bestRank: rankOrdinal(rank) > rankOrdinal(progress.bestRank) || !progress.cleared ? rank : progress.bestRank,
     bestScore: Math.max(progress.bestScore, scoreForRank(rank)),
   };
-  let shards = 0;
+  let shards = progress.cleared ? ECONOMY.shards.repeatClear : 0;
   const newlyGranted: string[] = [];
   if (!progress.rewardsGranted.clear) {
     shards += ECONOMY.shards.levelClear;

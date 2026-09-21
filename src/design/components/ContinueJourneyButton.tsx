@@ -1,3 +1,4 @@
+import {t} from '../../i18n';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Pressable,
@@ -24,7 +25,7 @@ type Props = {
  */
 export function ContinueJourneyButton({
   onPress,
-  label = 'CONTINUE JOURNEY',
+  label = t("storymoments.continue_journey"),
   style,
   disabled = false,
   playIcon = true,

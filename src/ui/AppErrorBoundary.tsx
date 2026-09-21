@@ -1,3 +1,4 @@
+import {t} from '../i18n';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -15,7 +16,7 @@ export class AppErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    GameLog.error(`UI error at ${info.componentStack?.slice(0, 500) ?? 'unknown component'}`, error);
+    GameLog.error(t("apperrorboundary.ui_error_at", {value1: info.componentStack?.slice(0, 500) ?? t("apperrorboundary.unknown_component")}), error);
   }
 
   render(): ReactNode {
@@ -24,14 +25,12 @@ export class AppErrorBoundary extends Component<Props, State> {
     }
     return (
       <View style={styles.root}>
-        <Text style={styles.kicker}>SPARK RECOVERY</Text>
-        <Text style={styles.title}>THE SIGNAL FLICKERED</Text>
+        <Text style={styles.kicker}>{t("apperrorboundary.spark_recovery")}</Text>
+        <Text style={styles.title}>{t("apperrorboundary.the_signal_flickered")}</Text>
         <Text style={styles.body}>
-          Your saved journey is still on this device. Retry the interface, then share diagnostics
-          from Settings if the problem returns.
-        </Text>
+          {t("apperrorboundary.your_saved_journey_is_still_on_this_device_retry_the_interface_th")}</Text>
         <Pressable style={styles.button} onPress={() => this.setState({ error: null })}>
-          <Text style={styles.buttonText}>RETRY</Text>
+          <Text style={styles.buttonText}>{t("apperrorboundary.retry")}</Text>
         </Pressable>
       </View>
     );

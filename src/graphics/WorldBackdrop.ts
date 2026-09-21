@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-export type BackdropWorld = 'nebula'|'network'|'homeward';
+export type BackdropWorld = 'nebula'|'network'|'homeward'|'opening';
 let loader:((world:BackdropWorld)=>Promise<THREE.Texture|null>)|null=null;
 export function setWorldBackdropLoader(next:typeof loader):void {loader=next;}
 /** One distant matte draw; gameplay objects remain in 3D. Scene disposal owns the texture. */

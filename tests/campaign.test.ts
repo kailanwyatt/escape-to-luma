@@ -78,7 +78,7 @@ describe('campaign progression', () => {
     const replay = applyLevelSuccess(first.save, definition, 'CLEAR', 0);
     expect(replay.worldComplete).toBe(false);
     expect(replay.save.campaign.stats.worldsCompleted).toBe(1);
-    expect(replay.save.campaign.shards).toBe(shardsAfterFirst);
+    expect(replay.save.campaign.shards).toBe(shardsAfterFirst + ECONOMY.shards.repeatClear);
   });
 
   it('unlocks World 3 normally after level 30', () => {
@@ -107,7 +107,7 @@ describe('campaign progression', () => {
     const replay = applyLevelSuccess(first.save, finale, 'CLEAR', 0);
     expect(replay.campaignComplete).toBe(false);
     expect(replay.worldComplete).toBe(false);
-    expect(replay.shardsGained).toBe(0);
+    expect(replay.shardsGained).toBe(ECONOMY.shards.repeatClear);
     expect(replay.save.campaign.campaignCompleted).toBe(true);
     for (const number of [1, 44, 68, 91, 149]) {
       const result = applyLevelSuccess(replay.save, getCampaignLevel(number)!, 'CLEAR', 0);
@@ -120,10 +120,10 @@ describe('campaign progression', () => {
     expect(world.campaignComplete).toBe(false);
   });
 
-  it('enforces locks while allowing free retries at zero energy', () => {
+  it('enforces energy for new levels and preserves level locks', () => {
     const save = emptySave();
     save.campaign.currentEnergy = 0;
-    expect(canStartLevel(save.campaign, 1)).toEqual({ ok: true });
+    expect(canStartLevel(save.campaign, 1)).toEqual({ ok: false, reason:'energy' });
     expect(canStartLevel(save.campaign, 2).reason).toBe('locked');
     expect(canStartLevel(save.campaign, 151).reason).toBe('missing');
   });

@@ -1,3 +1,4 @@
+import {t} from '../../i18n';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { textStyles } from '../typography';
@@ -25,12 +26,12 @@ export function StatusPanel({
     <View style={styles.panel}>
       <View style={styles.col}>
         <Text style={styles.icon}>◉</Text>
-        <Text style={textStyles.labelCyan}>WORLD {worldIndex}</Text>
+        <Text style={textStyles.labelCyan}>{t("statuspanel.world")}{worldIndex}</Text>
         <Text style={styles.sub}>{worldName}</Text>
       </View>
       <View style={styles.divider} />
       <View style={styles.col}>
-        <Text style={styles.muted}>LEVEL</Text>
+        <Text style={styles.muted}>{t("statuspanel.level")}</Text>
         <Text style={styles.levelValue}>
           {level} / {totalLevels}
         </Text>
@@ -38,9 +39,9 @@ export function StatusPanel({
       <View style={styles.divider} />
       <View style={styles.colWide}>
         <Text style={textStyles.labelAmber}>⚡ {energyLabel}</Text>
-        <Text style={styles.sub}>ENERGY</Text>
+        <Text style={styles.sub}>{t("statuspanel.energy")}</Text>
         <Text style={[textStyles.labelCyan, styles.shards]}>◆ {shardsLabel}</Text>
-        <Text style={styles.sub}>SHARDS</Text>
+        <Text style={styles.sub}>{t("statuspanel.shards")}</Text>
       </View>
     </View>
   );

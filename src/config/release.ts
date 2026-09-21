@@ -7,7 +7,7 @@
 export const RELEASE_POLICY = {
   channel: 'testflight',
   campaignMaxLevel: 150,
-  freeRetries: true,
+  freeRetries: false,
   adsEnabled: false,
   purchasesEnabled: false,
   analyticsEnabled: false,

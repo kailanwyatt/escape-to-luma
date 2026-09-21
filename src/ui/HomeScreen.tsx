@@ -1,3 +1,6 @@
+import {SettingsIcon} from '../design/components/SettingsIcon';
+import {t, displayLabel} from '../i18n';
+import {CurrencyIcon} from './CurrencyIcon';
 import {BorderGlint,HomeSpark,useBorderSpotlight} from './HomeEffects';
 import {LinearGradient} from 'expo-linear-gradient';
 import {useEffect, useState} from 'react';
@@ -39,7 +42,7 @@ export function HomeScreen({reduceMotion=false,save, currentLevel, onContinue, o
   const world = worldForLevel(level)!;
   const unlimited = hasUnlimitedEnergy(c, now);
   const energy = regenerateEnergy(c.currentEnergy, c.energyUpdatedAt, now, unlimited);
-  const energyLabel = unlimited ? 'UNLIMITED' : energy.energy === ECONOMY.maxEnergy ? 'FULL' : formatCountdown(msUntilNextEnergy(energy.energy, energy.energyUpdatedAt, now));
+  const energyLabel = unlimited ? t("homescreen.unlimited") : energy.energy === ECONOMY.maxEnergy ? t("homescreen.full") : formatCountdown(msUntilNextEnergy(energy.energy, energy.energyUpdatedAt, now));
   const maxLevel = devLevelsUnlocked() ? TOTAL_CORE_LEVELS : c.highestUnlockedLevel;
   const start = Math.max(1, Math.min(TOTAL_CORE_LEVELS - 4, level - 2));
   const cleared = Object.values(c.completedLevels).filter(p => p.cleared).length;
@@ -58,54 +61,54 @@ export function HomeScreen({reduceMotion=false,save, currentLevel, onContinue, o
           <LinearGradient colors={['rgba(0,15,29,.6)','transparent','transparent','#031522']} locations={[0,.25,.65,1]} style={StyleSheet.absoluteFill}/>
         </View>
         <View style={[s.resources, tablet && s.tabletResources]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={onSettings} style={s.settings}><Text style={s.gear}>⚙</Text></Pressable>
-          <View accessibilityLabel={`Energy ${unlimited?'unlimited':`${energy.energy} of ${ECONOMY.maxEnergy}`}, ${energyLabel}`} style={s.resource}>
-            <Text style={s.bolt}>ϟ</Text><View><Text style={s.value}>{unlimited?'∞':`${energy.energy} / ${ECONOMY.maxEnergy}`}</Text><Text style={s.resourceLabel}>{energyLabel}</Text></View>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("homescreen.settings")} onPress={onSettings} style={s.settings}><SettingsIcon/></Pressable>
+          <View accessibilityLabel={t("homescreen.energy", {value1: unlimited?'unlimited':t("homescreen.of", {value1: energy.energy, value2: ECONOMY.maxEnergy}), value2: energyLabel})} style={s.resource}>
+            <CurrencyIcon kind="energy" size={34}/><View><Text style={s.value}>{unlimited?'∞':`${energy.energy} / ${ECONOMY.maxEnergy}`}</Text><Text style={s.resourceLabel}>{energyLabel}</Text></View>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel={`${c.shards} shards, open shop`} onPress={onShop} style={s.resource}>
-            <BorderGlint active={borderSpotlight===4}/><Text style={s.gem}>◆</Text><View><Text style={s.value}>{c.shards.toLocaleString()}</Text><Text style={s.resourceLabel}>SHARDS</Text></View><Text style={s.plus}>+</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("homescreen.shards_open_shop", {value1: c.shards})} onPress={onShop} style={s.resource}>
+            <BorderGlint active={borderSpotlight===4}/><CurrencyIcon kind="shard" size={29}/><View><Text style={s.value}>{c.shards.toLocaleString()}</Text><Text style={s.resourceLabel}>{t("statuspanel.shards")}</Text></View><Text style={s.plus}>+</Text>
           </Pressable>
         </View>
         <View style={[s.brand, tablet && {paddingTop:42}]}>
-          <Text style={s.eyebrow}>PREDICT · ADAPT · OVERCOME</Text>
+          <Text style={s.eyebrow}>{t("homescreen.predict_adapt_overcome")}</Text>
           <Text numberOfLines={1} adjustsFontSizeToFit style={[s.title,{fontSize:tablet?82:compact?49:62}]}>{HOME_BRAND.title}</Text>
           <Text style={s.subtitle}>{HOME_BRAND.subtitle}</Text>
         </View>
         <View style={[s.stage,tablet ? {flex:1,paddingHorizontal:32,paddingBottom:28} : {height:compact?265:310}]}>
-          <View style={s.side}>{nav('stats','STATS',onStats)}{nav('sparks','SPARKS',onSparks)}</View>
+          <View style={s.side}>{nav('stats',t("homescreen.stats"),onStats)}{nav('sparks',t("homescreen.sparks"),onSparks)}</View>
           <View pointerEvents="none" style={[s.sparkPlacement,tablet && {bottom:66,transform:[{scale:1.3}]}]}>
             <HomeSpark reduceMotion={motionReduced}/>
           </View>
-          <View style={s.side}>{nav('shop','SHOP',onShop)}{nav('journey','WORLDS',onJourney)}</View>
+          <View style={s.side}>{nav('shop',t("homescreen.shop"),onShop)}{nav('journey',t("homescreen.worlds"),onJourney)}</View>
         </View>
         </View>
         <View style={[s.controls,tablet && !landscape && s.tabletControls,landscape && s.landscapeControls]}>
-        <Text style={s.tap}>YOUR NEXT LEAP AWAITS</Text>
+        <Text style={s.tap}>{t("homescreen.your_next_leap_awaits")}</Text>
         <View style={s.playRow}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Previous level" disabled={level<=1} onPress={()=>setSelected(level-1)} style={[s.arrow,level<=1&&s.disabled]}><Text style={s.arrowText}>‹</Text></Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={c.campaignCompleted&&level===currentLevel?'Endless voyage':`Play level ${level}`} onPress={play} style={({pressed})=>[s.play,pressed&&s.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("homescreen.previous_level")} disabled={level<=1} onPress={()=>setSelected(level-1)} style={[s.arrow,level<=1&&s.disabled]}><Text style={s.arrowText}>‹</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={c.campaignCompleted&&level===currentLevel?t("homescreen.endless_voyage"):t("homescreen.play_level", {value1: level})} onPress={play} style={({pressed})=>[s.play,pressed&&s.pressed]}>
             <LinearGradient colors={['#FFE05B','#FFC83D','#F5A623']} style={s.playInner}>
-              <Text style={s.playLabel}>▶ {c.campaignCompleted&&level===currentLevel?'VOYAGE':'PLAY'}</Text>
-              <Text numberOfLines={1} adjustsFontSizeToFit style={s.playWorld}>{world.name}</Text><Text style={s.playLevel}>LEVEL {level}</Text>
+              <Text style={s.playLabel}>▶ {c.campaignCompleted&&level===currentLevel?t("homescreen.voyage"):t("homescreen.play")}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={s.playWorld}>{world.name}</Text><Text style={s.playLevel}>{t("hud.level")}{level}</Text>
             </LinearGradient>
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Next available level" disabled={level>=maxLevel} onPress={()=>setSelected(level+1)} style={[s.arrow,level>=maxLevel&&s.disabled]}><Text style={s.arrowText}>›</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("homescreen.next_available_level")} disabled={level>=maxLevel} onPress={()=>setSelected(level+1)} style={[s.arrow,level>=maxLevel&&s.disabled]}><Text style={s.arrowText}>›</Text></Pressable>
         </View>
         <View style={s.levelTrack}>
           <View style={s.trackLine}/>
           {Array.from({length:5},(_,i)=>start+i).map(n=>{
             const p=c.completedLevels[getCampaignLevel(n)?.id??'']; const locked=n>maxLevel;
-            return <Pressable key={n} accessibilityRole="button" accessibilityLabel={`Level ${n}, ${locked?'locked':p?.cleared?p.bestRank:'available'}`} accessibilityState={{selected:n===level,disabled:locked}} disabled={locked} onPress={()=>setSelected(n)} style={s.nodeWrap}>
+            return <Pressable key={n} accessibilityRole="button" accessibilityLabel={t("homescreen.level", {value1: n, value2: locked?'locked':p?.cleared?displayLabel(p.bestRank):'available'})} accessibilityState={{selected:n===level,disabled:locked}} disabled={locked} onPress={()=>setSelected(n)} style={s.nodeWrap}>
               <View style={[s.node,p?.cleared&&s.cleared,n===level&&s.current,locked&&s.locked]}><Text style={[s.nodeText,locked&&{color:'#6D8CA2'}]}>{n}</Text></View>
-              <Text style={[s.rank,p?.cleared&&{color:'#F8D988'}]}>{locked?'LOCKED':p?.cleared?p.bestRank:n===level?'CURRENT':'PLAY'}</Text>
+              <Text style={[s.rank,p?.cleared&&{color:'#F8D988'}]}>{locked?t('labels.LOCKED'):p?.cleared?displayLabel(p.bestRank):n===level?t("homescreen.current"):t("homescreen.play")}</Text>
             </Pressable>;
           })}
         </View>
-        <View style={s.chapter}><Text style={s.chapterTitle}>WORLD {world.index} · {world.name}</Text><Text style={s.chapterCopy}>{world.subtitle}</Text><Text style={s.completion}>{cleared} / {TOTAL_CORE_LEVELS} LEVELS CLEARED</Text></View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Explore your journey" onPress={onJourney} style={s.storyCard}>
-          <BorderGlint active={borderSpotlight===5} radius={18}/><Image source={CITY_ART} style={s.storyImage}/><View style={s.storyCopy}><Text style={s.eyebrow}>YOUR JOURNEY CONTINUES</Text><Text style={s.quote}>{HOME_BRAND.tagline}</Text></View><Text style={s.arrowText}>›</Text>
+        <View style={s.chapter}><Text style={s.chapterTitle}>{t("statuspanel.world")}{world.index} · {world.name}</Text><Text style={s.chapterCopy}>{world.subtitle}</Text><Text style={s.completion}>{cleared} / {TOTAL_CORE_LEVELS} {t("homescreen.levels_cleared")}</Text></View>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("homescreen.explore_your_journey")} onPress={onJourney} style={s.storyCard}>
+          <BorderGlint active={borderSpotlight===5} radius={18}/><Image source={CITY_ART} style={s.storyImage}/><View style={s.storyCopy}><Text style={s.eyebrow}>{t("homescreen.your_journey_continues")}</Text><Text style={s.quote}>{HOME_BRAND.tagline}</Text></View><Text style={s.arrowText}>›</Text>
         </Pressable>
-        {isEndlessUnlocked(c)&&!c.campaignCompleted?<Pressable accessibilityRole="button" onPress={onEndless} style={s.endless}><Text style={s.chapterTitle}>EXPLORE ENDLESS VOYAGE ›</Text></Pressable>:null}
+        {isEndlessUnlocked(c)&&!c.campaignCompleted?<Pressable accessibilityRole="button" onPress={onEndless} style={s.endless}><Text style={s.chapterTitle}>{t("homescreen.explore_endless_voyage")}</Text></Pressable>:null}
         </View>
       </View>
     </ScrollView>
@@ -120,7 +123,7 @@ const s=StyleSheet.create({
   tabletControls:{maxWidth:680,alignSelf:'center'},
   landscapeControls:{width:400,alignSelf:'center',paddingVertical:28},
   art:{position:'absolute',top:0,left:0,right:0},resources:{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:14},
-  settings:{width:44,height:46,alignItems:'center',justifyContent:'center',backgroundColor:'#041E30',borderColor:'#258AAE',borderWidth:1,borderRadius:12},gear:{fontSize:27,color:'#DBF8FF'},
+  settings:{width:44,height:46,alignItems:'center',justifyContent:'center',backgroundColor:'#041E30',borderColor:'#258AAE',borderWidth:1,borderRadius:12},
   resource:{flex:1,minHeight:46,flexDirection:'row',gap:7,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(0,20,35,.9)',borderColor:'#246786',borderWidth:1,borderRadius:12,paddingHorizontal:7},
   bolt:{fontSize:36,color:'#35E9FF'},gem:{fontSize:22,color:'#BB8EFD'},value:{fontSize:16,color:'#F0FAFF',fontWeight:'800'},resourceLabel:{fontSize:8,color:'#7FD6F5',letterSpacing:1.8,textAlign:'center',marginTop:1},plus:{color:'#41DEFF',fontSize:22,marginLeft:2},
   brand:{alignItems:'center',paddingTop:30},eyebrow:{fontSize:9,color:'#8ADBFA',letterSpacing:2,fontWeight:'700'},title:{color:'#F3FDFF',fontWeight:'300',letterSpacing:12,marginLeft:12,textShadowColor:'#00BDFF',textShadowRadius:18,textShadowOffset:{width:0,height:0},marginTop:8},subtitle:{fontSize:12,color:'#83DEFA',letterSpacing:5,marginTop:2},

@@ -1,8 +1,9 @@
+import {t} from '../i18n';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 
 import { RELEASE_POLICY } from '../config/release';
-import { BackButton, Screen, ScreenTitle, color, space } from '../design';
+import { Screen, ScreenTitle, color, space } from '../design';
 import type { GameSettings } from '../persistence/GameSave';
 
 type Props = {
@@ -36,65 +37,64 @@ export function SettingsScreen({
   onReplayOpening,
 }: Props) {
   return (
-    <Screen>
-      <ScreenTitle title="SETTINGS" />
-      {__DEV__ && onToggleDevUnlock ? <View><Text style={styles.section}>DEVELOPMENT</Text><Toggle label="UNLOCK ALL LEVELS" value={devUnlockAll} onPress={onToggleDevUnlock}/><Text style={styles.note}>Session only. Unlocking grants no rewards. Played levels still save normal results.</Text></View> : null}
+    <Screen onBack={onBack} backLabel={t("journeyscreen.back_to_home")}>
+      <ScreenTitle title={t("settingsscreen.settings")} />
+      {__DEV__ && onToggleDevUnlock ? <View><Text style={styles.section}>{t("settingsscreen.development")}</Text><Toggle label={t("settingsscreen.unlock_all_levels")} value={devUnlockAll} onPress={onToggleDevUnlock}/><Text style={styles.note}>{t("settingsscreen.session_only_unlocking_grants_no_rewards_played_levels_still_save")}</Text></View> : null}
       <Toggle
-        label="SOUND EFFECTS"
+        label={t("settingsscreen.sound_effects")}
         value={settings.soundEnabled}
         onPress={() => onToggle('soundEnabled')}
       />
       <Toggle
-        label="HAPTICS"
+        label={t("settingsscreen.haptics")}
         value={settings.hapticsEnabled}
         onPress={() => onToggle('hapticsEnabled')}
       />
       <Toggle
-        label="REDUCE MOTION"
+        label={t("settingsscreen.reduce_motion")}
         value={settings.reduceMotion || systemReduceMotion}
         locked={systemReduceMotion}
         onPress={() => onToggle('reduceMotion')}
       />
       {systemReduceMotion ? (
-        <Text style={styles.note}>System Reduce Motion is on</Text>
+        <Text style={styles.note}>{t("settingsscreen.system_reduce_motion_is_on")}</Text>
       ) : null}
       {RELEASE_POLICY.purchasesEnabled || RELEASE_POLICY.adsEnabled ? (
         <>
-          <Text style={styles.section}>ADS</Text>
+          <Text style={styles.section}>{t("settingsscreen.ads")}</Text>
           <Text style={styles.blurb}>
             {removeAds
-              ? 'Interstitials removed. Optional Continue ads still available.'
-              : 'Enjoy uninterrupted runs. Optional Continue ads stay available.'}
+              ? t("settingsscreen.interstitials_removed_optional_continue_ads_still_available")
+              : t("settingsscreen.enjoy_uninterrupted_runs_optional_continue_ads_stay_available")}
           </Text>
           {removeAds ? (
-            <Text style={styles.owned}>REMOVE ADS OWNED</Text>
+            <Text style={styles.owned}>{t("settingsscreen.remove_ads_owned")}</Text>
           ) : (
             <Pressable
               style={[styles.purchase, purchaseBusy && styles.purchaseBusy]}
               disabled={purchaseBusy}
               onPress={onRemoveAds}
             >
-              <Text style={styles.purchaseText}>{purchaseBusy ? 'WORKING…' : 'REMOVE ADS'}</Text>
+              <Text style={styles.purchaseText}>{purchaseBusy ? 'WORKING…' : t("settingsscreen.remove_ads")}</Text>
             </Pressable>
           )}
           <Pressable style={styles.restore} disabled={purchaseBusy} onPress={onRestore}>
-            <Text style={styles.restoreText}>RESTORE PURCHASES</Text>
+            <Text style={styles.restoreText}>{t("settingsscreen.restore_purchases")}</Text>
           </Pressable>
           {purchaseMessage ? <Text style={styles.note}>{purchaseMessage}</Text> : null}
         </>
       ) : (
-        <Text style={styles.betaNote}>BETA · NO ADS OR PURCHASES</Text>
+        <Text style={styles.betaNote}>{t("settingsscreen.beta_no_ads_or_purchases")}</Text>
       )}
       <Pressable style={styles.diagnostics} onPress={onShareDiagnostics}>
-        <Text style={styles.restoreText}>SHARE DIAGNOSTICS</Text>
+        <Text style={styles.restoreText}>{t("settingsscreen.share_diagnostics")}</Text>
       </Pressable>
       <Text style={styles.build}>
-        VERSION {Constants.expoConfig?.version ?? 'LOCAL'} · BUILD {Constants.expoConfig?.ios?.buildNumber ?? 'DEV'}
+        {t("settingsscreen.version")}{Constants.expoConfig?.version ?? t("settingsscreen.local")} {t("settingsscreen.build")}{Constants.expoConfig?.ios?.buildNumber ?? t("settingsscreen.dev")}
       </Text>
       <Pressable accessibilityRole="button" style={styles.diagnostics} onPress={onReplayOpening}>
-        <Text style={styles.restoreText}>REPLAY OPENING</Text>
+        <Text style={styles.restoreText}>{t("settingsscreen.replay_opening")}</Text>
       </Pressable>
-      <BackButton onPress={onBack} />
     </Screen>
   );
 }
@@ -113,7 +113,7 @@ function Toggle({
   return (
     <Pressable accessibilityRole="switch" accessibilityLabel={label} accessibilityState={{checked:value,disabled:locked}} style={styles.row} onPress={locked ? undefined : onPress}>
       <Text style={styles.label}>{label}</Text>
-      <Text style={[styles.value, value && styles.on]}>{value ? 'ON' : 'OFF'}</Text>
+      <Text style={[styles.value, value && styles.on]}>{value ? t("debugoverlay.on") : t("debugoverlay.off")}</Text>
     </Pressable>
   );
 }

@@ -1,3 +1,4 @@
+import {t} from '../i18n';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -83,124 +84,124 @@ export function DebugOverlay({
   return (
     <View style={styles.wrap}>
       <View style={styles.box}>
-        <Text style={styles.line}>FPS {snapshot.fps}</Text>
-        <Text style={styles.line}>SEED {snapshot.runSeed}</Text>
+        <Text style={styles.line}>{t("debugoverlay.fps")}{snapshot.fps}</Text>
+        <Text style={styles.line}>{t("debugoverlay.seed")}{snapshot.runSeed}</Text>
         <Text style={styles.line}>
           #{snapshot.shotId} {snapshot.template}
         </Text>
         <Text style={styles.line}>{snapshot.challengeId}</Text>
         <Text style={styles.line}>
-          DIFF {snapshot.difficulty} {snapshot.environment} L{snapshot.loopNumber}
+          {t("debugoverlay.diff")}{snapshot.difficulty} {snapshot.environment} {t("debugoverlay.l")}{snapshot.loopNumber}
         </Text>
         <Text style={styles.line}>{snapshot.phase}</Text>
         <Text style={styles.line}>
-          P {snapshot.projectile.x} {snapshot.projectile.y} {snapshot.projectile.z}
+          {t("debugoverlay.p")}{snapshot.projectile.x} {snapshot.projectile.y} {snapshot.projectile.z}
         </Text>
         <Text style={styles.line}>
-          V {snapshot.velocity.x} {snapshot.velocity.y} {snapshot.velocity.z}
+          {t("debugoverlay.v")}{snapshot.velocity.x} {snapshot.velocity.y} {snapshot.velocity.z}
         </Text>
         {snapshot.obstacleA ? (
           <Text style={styles.line}>
-            A {snapshot.obstacleA.type} z{snapshot.obstacleA.z} {snapshot.obstacleA.extra}
+            {t("debugoverlay.a")}{snapshot.obstacleA.type} {t("debugoverlay.z")}{snapshot.obstacleA.z} {snapshot.obstacleA.extra}
           </Text>
         ) : (
-          <Text style={styles.line}>A -</Text>
+          <Text style={styles.line}>{t("debugoverlay.a_2")}</Text>
         )}
         {snapshot.obstacleB ? (
           <Text style={styles.line}>
-            B {snapshot.obstacleB.type} z{snapshot.obstacleB.z} {snapshot.obstacleB.extra}
+            {t("debugoverlay.b")}{snapshot.obstacleB.type} {t("debugoverlay.z")}{snapshot.obstacleB.z} {snapshot.obstacleB.extra}
           </Text>
         ) : (
-          <Text style={styles.line}>B -</Text>
+          <Text style={styles.line}>{t("debugoverlay.b_2")}</Text>
         )}
         <Text style={styles.line}>
-          T {snapshot.target.x} {snapshot.target.y} {snapshot.target.moving}
+          {t("debugoverlay.t")}{snapshot.target.x} {snapshot.target.y} {snapshot.target.moving}
         </Text>
         <Text style={styles.line}>
-          AIM {snapshot.aimState} hx {snapshot.horizontalExponent} vy{' '}
+          {t("debugoverlay.aim")}{snapshot.aimState} {t("debugoverlay.hx")}{snapshot.horizontalExponent} {t("debugoverlay.vy")}{' '}
           {GAME_TUNING.aim.verticalAimExponent}
         </Text>
         <Text style={styles.line}>
-          Raw {snapshot.rawDragX} {snapshot.rawDragY}
+          {t("debugoverlay.raw")}{snapshot.rawDragX} {snapshot.rawDragY}
         </Text>
         <Text style={styles.line}>
-          N {snapshot.normalizedX} {snapshot.normalizedY}
+          {t("debugoverlay.n")}{snapshot.normalizedX} {snapshot.normalizedY}
         </Text>
         <Text style={styles.line}>
-          CurveX {snapshot.curvedAimX} Y {snapshot.aimY} P {snapshot.power}
+          {t("debugoverlay.curvex")}{snapshot.curvedAimX} {t("debugoverlay.y")}{snapshot.aimY} {t("debugoverlay.p")}{snapshot.power}
         </Text>
         <Text style={styles.line}>
-          MaxD {snapshot.maxDragDistance} entered {snapshot.hasEnteredAim ? 'Y' : 'N'} cancel{' '}
+          {t("debugoverlay.maxd")}{snapshot.maxDragDistance} {t("debugoverlay.entered")}{snapshot.hasEnteredAim ? 'Y' : 'N'} {t("debugoverlay.cancel")}{' '}
           {snapshot.cancelReady ? 'Y' : 'N'}
         </Text>
         <Text style={styles.line}>
-          Last {snapshot.lastResult ?? '-'} CC {snapshot.closeCall ? 'Y' : 'N'} clr{' '}
+          {t("debugoverlay.last")}{snapshot.lastResult ?? '-'} {t("debugoverlay.cc")}{snapshot.closeCall ? 'Y' : 'N'} {t("debugoverlay.clr")}{' '}
           {snapshot.closeCallClearance}
         </Text>
         <Text style={styles.line}>
-          SCORE {snapshot.runScore} BEST {snapshot.personalBest} ♥ {snapshot.lives}
+          {t("debugoverlay.score")}{snapshot.runScore} {t("debugoverlay.best")}{snapshot.personalBest} ♥ {snapshot.lives}
         </Text>
         <Text style={styles.line}>
-          STRK {snapshot.currentStreak} x{snapshot.multiplier} BEST {snapshot.bestStreak}
+          {t("debugoverlay.strk")}{snapshot.currentStreak} {t("debugoverlay.x")}{snapshot.multiplier} {t("debugoverlay.best")}{snapshot.bestStreak}
         </Text>
         <Text style={styles.line}>
-          CLR {snapshot.challengesCleared} CC {snapshot.closeCalls} L{snapshot.loopNumber}
+          {t("debugoverlay.clr_2")}{snapshot.challengesCleared} {t("debugoverlay.cc")}{snapshot.closeCalls} {t("debugoverlay.l")}{snapshot.loopNumber}
         </Text>
-        <Text style={styles.warn}>PRED {snapshot.environment.toUpperCase()}</Text>
+        <Text style={styles.warn}>{t("debugoverlay.pred")}{snapshot.environment.toUpperCase()}</Text>
         <Text style={styles.line}>
-          Vz {snapshot.vz} 7–11 p{snapshot.power}
+          {t("debugoverlay.vz")}{snapshot.vz} {t("debugoverlay.7_11_p")}{snapshot.power}
         </Text>
-        <Text style={styles.line}>A {snapshot.predA}</Text>
-        <Text style={styles.line}>B {snapshot.predB}</Text>
-        <Text style={styles.line}>T {snapshot.predT}</Text>
+        <Text style={styles.line}>{t("debugoverlay.a")}{snapshot.predA}</Text>
+        <Text style={styles.line}>{t("debugoverlay.b")}{snapshot.predB}</Text>
+        <Text style={styles.line}>{t("debugoverlay.t")}{snapshot.predT}</Text>
         <Text style={styles.line}>
-          tA {snapshot.timeA} tB {snapshot.timeB} tT {snapshot.timeT}
-        </Text>
-        <Text style={styles.line}>
-          PathErr {snapshot.pathError} AnlSimY {snapshot.analyticVsSimY}
-        </Text>
-        <Text style={styles.line}>MISS {snapshot.lastMiss}</Text>
-        <Text style={styles.line}>
-          MODE {snapshot.runMode} {snapshot.unlimitedHearts ? 'UNLIM' : '3♥'}
+          {t("debugoverlay.ta")}{snapshot.timeA} {t("debugoverlay.tb")}{snapshot.timeB} {t("debugoverlay.tt")}{snapshot.timeT}
         </Text>
         <Text style={styles.line}>
-          ShotAtt {snapshot.authoredAttempts} 1st {snapshot.firstTryClears}
+          {t("debugoverlay.patherr")}{snapshot.pathError} {t("debugoverlay.anlsimy")}{snapshot.analyticVsSimY}
+        </Text>
+        <Text style={styles.line}>{t("debugoverlay.miss")}{snapshot.lastMiss}</Text>
+        <Text style={styles.line}>
+          {t("debugoverlay.mode")}{snapshot.runMode} {snapshot.unlimitedHearts ? t("debugoverlay.unlim") : '3♥'}
+        </Text>
+        <Text style={styles.line}>
+          {t("debugoverlay.shotatt")}{snapshot.authoredAttempts} {t("debugoverlay.1st")}{snapshot.firstTryClears}
         </Text>
         {snapshot.lastFail !== '-' ? (
-          <Text style={styles.warn}>FAILED {snapshot.lastFail}</Text>
+          <Text style={styles.warn}>{t("debugoverlay.failed")}{snapshot.lastFail}</Text>
         ) : null}
-        {snapshot.spike ? <Text style={styles.warn}>⚠ 4+ ATTEMPTS</Text> : null}
+        {snapshot.spike ? <Text style={styles.warn}>{t("debugoverlay.4_attempts")}</Text> : null}
         <Text style={styles.line}>
-          THEME {snapshot.runTheme} LVL {snapshot.playerLevel}
+          {t("debugoverlay.theme")}{snapshot.runTheme} {t("debugoverlay.lvl")}{snapshot.playerLevel}
         </Text>
         <Text style={styles.line}>
-          XP {snapshot.totalXP} BALL {snapshot.selectedProjectile}
+          {t("debugoverlay.xp")}{snapshot.totalXP} {t("debugoverlay.ball")}{snapshot.selectedProjectile}
         </Text>
         <Text style={styles.line}>
-          ADS {snapshot.adsEnabled ? 'ON' : 'OFF'} TEST {snapshot.useTestAds ? 'Y' : 'N'}
+          {t("debugoverlay.ads")}{snapshot.adsEnabled ? t("debugoverlay.on") : t("debugoverlay.off")} {t("debugoverlay.test")}{snapshot.useTestAds ? 'Y' : 'N'}
         </Text>
         <Text style={styles.line}>
-          RW {snapshot.rewardedReady ? 'RDY' : 'NO'} INT {snapshot.interstitialReady ? 'RDY' : 'NO'}
+          {t("debugoverlay.rw")}{snapshot.rewardedReady ? t("debugoverlay.rdy") : t("debugoverlay.no")} {t("debugoverlay.int")}{snapshot.interstitialReady ? t("debugoverlay.rdy") : t("debugoverlay.no")}
         </Text>
         <Text style={styles.line}>
-          IAP {snapshot.removeAds ? 'NOADS' : '-'} CONT {snapshot.hasUsedContinue ? 'USED' : 'FREE'}
+          {t("debugoverlay.iap")}{snapshot.removeAds ? t("debugoverlay.noads") : '-'} {t("debugoverlay.cont")}{snapshot.hasUsedContinue ? t("debugoverlay.used") : t("debugoverlay.free")}
         </Text>
-        <Text style={styles.line}>AN {snapshot.analyticsDebug ? 'DBG' : 'OFF'}</Text>
+        <Text style={styles.line}>{t("debugoverlay.an")}{snapshot.analyticsDebug ? t("debugoverlay.dbg") : t("debugoverlay.off")}</Text>
       </View>
       {snapshot.phase === 'AIMING' ? <AimGuides snapshot={snapshot} /> : null}
       <View style={styles.buttons}>
         {snapshot.runMode !== 'GENERATED' ? (
           <>
-            <DebugButton label="PREV" onPress={onPrevious} />
-            <DebugButton label="RST" onPress={onReplay} />
-            <DebugButton label="NEXT" onPress={onNext} />
+            <DebugButton label={t("debugoverlay.prev")} onPress={onPrevious} />
+            <DebugButton label={t("debugoverlay.rst")} onPress={onReplay} />
+            <DebugButton label={t("debugoverlay.next")} onPress={onNext} />
             <DebugButton label="+5" onPress={onJumpAhead} />
-            <DebugButton label={snapshot.unlimitedHearts ? '♥ ON' : '♥ OFF'} onPress={onToggleHearts} />
-            <DebugButton label="RUN" onPress={onRestartGauntlet} />
-            <DebugButton label="END RUN" onPress={onForceRunOver} />
-            <DebugButton label="MODE" onPress={onCycleMode} />
+            <DebugButton label={snapshot.unlimitedHearts ? t("debugoverlay.on_2") : t("debugoverlay.off_2")} onPress={onToggleHearts} />
+            <DebugButton label={t("debugoverlay.run")} onPress={onRestartGauntlet} />
+            <DebugButton label={t("debugoverlay.end_run")} onPress={onForceRunOver} />
+            <DebugButton label={t("debugoverlay.mode_2")} onPress={onCycleMode} />
             <DebugButton
-              label={confirmReset ? 'CONFIRM?' : 'RST BEST'}
+              label={confirmReset ? 'CONFIRM?' : t("debugoverlay.rst_best")}
               onPress={() => {
                 if (!confirmReset) {
                   setConfirmReset(true);
@@ -214,18 +215,18 @@ export function DebugOverlay({
           </>
         ) : (
           <>
-            <DebugButton label="NEXT" onPress={onNext} />
-            <DebugButton label="REPLAY" onPress={onReplay} />
-            <DebugButton label="SEED" onPress={onRestartSeed} />
-            <DebugButton label="ENV" onPress={onJumpEnvironment} />
+            <DebugButton label={t("debugoverlay.next")} onPress={onNext} />
+            <DebugButton label={t("debugoverlay.replay")} onPress={onReplay} />
+            <DebugButton label={t("debugoverlay.seed_2")} onPress={onRestartSeed} />
+            <DebugButton label={t("debugoverlay.env")} onPress={onJumpEnvironment} />
             <DebugButton
-              label={snapshot.unlimitedHearts ? '♥ ON' : '♥ OFF'}
+              label={snapshot.unlimitedHearts ? t("debugoverlay.on_2") : t("debugoverlay.off_2")}
               onPress={onToggleHearts}
             />
-            <DebugButton label="END RUN" onPress={onForceRunOver} />
-            <DebugButton label="MODE" onPress={onCycleMode} />
+            <DebugButton label={t("debugoverlay.end_run")} onPress={onForceRunOver} />
+            <DebugButton label={t("debugoverlay.mode_2")} onPress={onCycleMode} />
             <DebugButton
-              label={confirmReset ? 'CONFIRM?' : 'RST BEST'}
+              label={confirmReset ? 'CONFIRM?' : t("debugoverlay.rst_best")}
               onPress={() => {
                 if (!confirmReset) {
                   setConfirmReset(true);
@@ -238,12 +239,12 @@ export function DebugOverlay({
             />
           </>
         )}
-        <DebugButton label="LVL+" onPress={onAddLevel} />
-        <DebugButton label="XP+" onPress={onAddXp} />
-        <DebugButton label="ALL" onPress={onUnlockAll} />
-        <DebugButton label="LOCK" onPress={onLockAll} />
+        <DebugButton label={t("debugoverlay.lvl_2")} onPress={onAddLevel} />
+        <DebugButton label={t("debugoverlay.xp_2")} onPress={onAddXp} />
+        <DebugButton label={t("debugoverlay.all")} onPress={onUnlockAll} />
+        <DebugButton label={t("debugoverlay.lock")} onPress={onLockAll} />
         <DebugButton
-          label={confirmProgress ? 'CONFIRM?' : 'RST PROG'}
+          label={confirmProgress ? 'CONFIRM?' : t("debugoverlay.rst_prog")}
           onPress={() => {
             if (!confirmProgress) {
               setConfirmProgress(true);
@@ -254,20 +255,20 @@ export function DebugOverlay({
             setConfirmProgress(false);
           }}
         />
-        <DebugButton label="RST ONB" onPress={onResetOnboarding} />
-        <DebugButton label={snapshot.analyticsDebug ? 'AN ON' : 'AN OFF'} onPress={onToggleAnalytics} />
-        <DebugButton label={snapshot.adsEnabled ? 'ADS ON' : 'ADS OFF'} onPress={onToggleAds} />
-        <DebugButton label={snapshot.useTestAds ? 'TEST ON' : 'TEST OFF'} onPress={onToggleTestAds} />
-        <DebugButton label="RW RDY" onPress={onForceRewardedReady} />
-        <DebugButton label="RW FAIL" onPress={onForceRewardedFail} />
-        <DebugButton label="INT RDY" onPress={onForceInterstitialReady} />
-        <DebugButton label="INT FAIL" onPress={onForceInterstitialFail} />
-        <DebugButton label="RST ADS" onPress={onResetAdCounters} />
-        <DebugButton label={snapshot.removeAds ? 'IAP ON' : 'IAP OFF'} onPress={onToggleRemoveAds} />
-        <DebugButton label="CONT RST" onPress={onResetContinue} />
-        <DebugButton label="CONT USED" onPress={onSetContinueUsed} />
-        <DebugButton label="CONT OK" onPress={onForceContinueSuccess} />
-        <DebugButton label="CONT NO" onPress={onForceContinueFail} />
+        <DebugButton label={t("debugoverlay.rst_onb")} onPress={onResetOnboarding} />
+        <DebugButton label={snapshot.analyticsDebug ? t("debugoverlay.an_on") : t("debugoverlay.an_off")} onPress={onToggleAnalytics} />
+        <DebugButton label={snapshot.adsEnabled ? t("debugoverlay.ads_on") : t("debugoverlay.ads_off")} onPress={onToggleAds} />
+        <DebugButton label={snapshot.useTestAds ? t("debugoverlay.test_on") : t("debugoverlay.test_off")} onPress={onToggleTestAds} />
+        <DebugButton label={t("debugoverlay.rw_rdy")} onPress={onForceRewardedReady} />
+        <DebugButton label={t("debugoverlay.rw_fail")} onPress={onForceRewardedFail} />
+        <DebugButton label={t("debugoverlay.int_rdy")} onPress={onForceInterstitialReady} />
+        <DebugButton label={t("debugoverlay.int_fail")} onPress={onForceInterstitialFail} />
+        <DebugButton label={t("debugoverlay.rst_ads")} onPress={onResetAdCounters} />
+        <DebugButton label={snapshot.removeAds ? t("debugoverlay.iap_on") : t("debugoverlay.iap_off")} onPress={onToggleRemoveAds} />
+        <DebugButton label={t("debugoverlay.cont_rst")} onPress={onResetContinue} />
+        <DebugButton label={t("debugoverlay.cont_used")} onPress={onSetContinueUsed} />
+        <DebugButton label={t("debugoverlay.cont_ok")} onPress={onForceContinueSuccess} />
+        <DebugButton label={t("debugoverlay.cont_no")} onPress={onForceContinueFail} />
       </View>
     </View>
   );

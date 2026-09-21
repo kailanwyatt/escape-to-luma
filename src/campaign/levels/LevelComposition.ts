@@ -1,3 +1,4 @@
+import {t} from '../../i18n';
 import { iris, pendulum, orbiter, Z_B } from './helpers';
 import type { CampaignLevelDefinition } from '../types';
 import type { ObstacleConfig } from '../../config/ObstacleConfig';
@@ -19,7 +20,7 @@ export function composeCampaignLevel(input: CampaignLevelDefinition): CampaignLe
   // Preserve the bespoke opening/security lessons and the safe reunion.
   if (n <= 15) {
     if (n !== 5) return input;
-    return { ...input, tutorialHint: 'AIM HIGH · WAIT FOR THE ARM', challenge: {
+    return { ...input, tutorialHint: t("levelcomposition.aim_high_wait_for_the_arm"), challenge: {
       ...input.challenge, target: { ...input.challenge.target, x: 0.3, y: 3.3 },
     }};
   }

@@ -1,76 +1,35 @@
+import {t} from '../i18n';
+import {MenuBackBar} from '../design/components/MenuBackBar';
+import {useEffect,useState} from 'react';
+import {Pressable,ScrollView,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {LinearGradient} from 'expo-linear-gradient';
-import {NavIcon} from '../design/components/NavIcon';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-
-import { ECONOMY } from '../config/economy';
-import { RELEASE_POLICY } from '../config/release';
-import { BackButton, Screen, ScreenTitle, color, space } from '../design';
-import type { PersistentGameData } from '../persistence/GameSave';
-
-type Props = {
-  save: PersistentGameData;
-  onBuyBoost: (id: 'guidance' | 'slowField' | 'secondChance') => void;
-  onWatchEnergy: () => void;
-  onBuyUnlimited: (hours: 24 | 168) => void;
-  onBack: () => void;
-};
-
-export function ShopScreen({ save, onBuyBoost, onWatchEnergy, onBuyUnlimited, onBack }: Props) {
-  const campaign = save.campaign;
-
-  return (
-    <Screen scroll={false}>
-      <ScreenTitle eyebrow="THE WORKSHOP" title="Ready for what’s next" meta={`◆ ${campaign.shards} SHARDS · ⚡ ${campaign.currentEnergy}/${ECONOMY.maxEnergy}`} />
-      <ScrollView contentContainerStyle={styles.list}>
-        {RELEASE_POLICY.adsEnabled || RELEASE_POLICY.purchasesEnabled ? (
-          <>
-            <Text style={styles.section}>ENERGY</Text>
-            <Pressable style={styles.row} onPress={onWatchEnergy}>
-              <Text style={styles.label}>WATCH AD · +{ECONOMY.rewardedAdEnergyAmount} ENERGY</Text>
-              <Text style={styles.meta}>OPTIONAL</Text>
-            </Pressable>
-            <Pressable style={styles.row} onPress={() => onBuyUnlimited(24)}>
-              <Text style={styles.label}>UNLIMITED ENERGY · 24H</Text>
-              <Text style={styles.meta}>{ECONOMY.mockUnlimitedEnergy24hLabel}</Text>
-            </Pressable>
-            <Pressable style={styles.row} onPress={() => onBuyUnlimited(168)}>
-              <Text style={styles.label}>UNLIMITED ENERGY · 7D</Text>
-              <Text style={styles.meta}>{ECONOMY.mockUnlimitedEnergy7dLabel}</Text>
-            </Pressable>
-          </>
-        ) : null}
-
-        <LinearGradient colors={['#17384A','#0B1B2B']} style={{padding:22,borderRadius:24,marginTop:8,borderWidth:1,borderColor:'#2B5364'}}>
-          <Text style={{color:color.cyanBright,fontSize:11,letterSpacing:2,fontWeight:'800'}}>PREPARE FOR THE NEXT LEAP</Text>
-          <Text style={{color:color.cream,fontSize:27,fontWeight:'700',marginTop:10}}>A little help.
-A little further.</Text>
-          <Text style={[styles.blurb,{marginTop:12}]}>Spend earned Shards on optional boosts. Choose when to use them before a level.</Text>
-        </LinearGradient>
-        <Text style={styles.section}>FLIGHT ESSENTIALS</Text>
-        {([
-          ['guidance','Guidance','See the route ahead before committing to your shot.','journey'],
-          ['slowField','Slow field','Give yourself more time to read moving obstacles.','stats'],
-          ['secondChance','Second chance','Carry an extra chance into a difficult level.','sparks'],
-        ] as const).map(([id,name,description,icon])=>{
-          const affordable=campaign.shards>=ECONOMY.boostCosts[id];
-          return <View key={id} style={{backgroundColor:'#0C1B29',borderRadius:20,padding:18,marginBottom:12,borderWidth:1,borderColor:'#284152'}}>
-            <View style={{flexDirection:'row',gap:14,alignItems:'center'}}><NavIcon name={icon}/><View style={{flex:1}}><Text style={{color:color.cream,fontSize:18,fontWeight:'800'}}>{name}</Text><Text style={[styles.meta,{marginTop:5}]}>IN YOUR KIT · {campaign.boostInventory[id]}</Text></View></View>
-            <Text style={[styles.blurb,{marginVertical:12}]}>{description}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Buy ${name} for ${ECONOMY.boostCosts[id]} Shards`} accessibilityState={{disabled:!affordable}} disabled={!affordable} onPress={()=>onBuyBoost(id)} style={{padding:13,borderRadius:12,alignItems:'center',backgroundColor:affordable?'#EFC66D':'#1B2B38'}}><Text style={{fontWeight:'800',color:affordable?'#17202A':color.creamFaint}}>{affordable?'GET BOOST':'NEED MORE SHARDS'} · {ECONOMY.boostCosts[id]} ◆</Text></Pressable>
-          </View>;
-        })}
-        <Text style={[styles.blurb,{textAlign:'center',marginTop:12}]}>Earn Shards by completing levels and improving your shots.</Text>
-      </ScrollView>
-      <BackButton onPress={onBack} />
-    </Screen>
-  );
+import {HOME_BRAND} from '../config/branding';
+import {ECONOMY,SHARD_PACKS} from '../config/economy';
+import {hasUnlimitedEnergy,type PersistentGameData} from '../persistence/GameSave';
+import {regenerateEnergy} from '../economy/energy';
+import {CurrencyIcon} from './CurrencyIcon';
+import {ShopArt} from './ShopArt';
+export type ShopBoost='guidance'|'slowField'|'secondChance'|'portalBloom';
+const boosts:readonly [ShopBoost,string,string,number][]=[['guidance',t("shopscreen.guidance"),t("shopscreen.see_the_full_predicted_route_before_launching"),1],['slowField',t("shopscreen.slow_field"),t("shopscreen.obstacles_move_slower_for_this_attempt", {value1: Math.round((1-ECONOMY.boostSlowFieldMultiplier)*100)}),2],['portalBloom',t("shopscreen.portal_bloom"),t("shopscreen.a_larger_destination_obstacles_stay_unchanged", {value1: Math.round((ECONOMY.portalBloomMultiplier-1)*100)}),3],['secondChance',t("shopscreen.second_chance"),t("shopscreen.recover_once_after_a_miss_and_keep_your_equipped_boosts"),4]];
+export function ShopScreen({save,onBuyBoost,onWatchEnergy,onBuyEnergy,onShardPack,onBack,backLabel=t("screenchrome.back")}:{save:PersistentGameData;onBuyBoost:(id:ShopBoost)=>void;onWatchEnergy:()=>Promise<void>;onBuyEnergy:()=>void;onShardPack:(amount:number)=>void;onBack:()=>void;backLabel?:string}){
+ const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[now,setNow]=useState(Date.now());const {width}=useWindowDimensions(),insets=useSafeAreaInsets(),c=save.campaign;
+ useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
+ const dev=typeof __DEV__!=='undefined'&&__DEV__,wide=width>=800,columns=wide?4:width>=360?2:1;
+ const unlimited=hasUnlimitedEnergy(c,now),energy=regenerateEnergy(c.currentEnergy,c.energyUpdatedAt,now,unlimited).energy;
+ const watch=async()=>{setBusy(true);setNotice('');try{await onWatchEnergy();}catch{setNotice(t("shopscreen.the_ad_could_not_complete_please_try_again"));}finally{setBusy(false);}};
+ const button=(label:string,action:()=>void,disabled=false,outline=false)=><Pressable accessibilityRole="button" accessibilityLabel={label.replace(/◆/g,t("shopscreen.shards"))} accessibilityState={{disabled}} disabled={disabled} onPress={action} style={({pressed})=>[s.button,outline&&s.outline,disabled&&{opacity:.4},pressed&&{opacity:.75}]}><LinearGradient colors={outline?['#073244','#031824']:['#FFE16B','#FFC742']} style={s.buttonFill}><View style={{flexDirection:"row",alignItems:"center",justifyContent:"center",gap:5}}>{label.includes("◆")?<CurrencyIcon kind="shard" size={23}/>:null}<Text style={[s.buttonText,outline&&{color:'#d8faff'}]}>{label.replace("◆ ","")}</Text></View></LinearGradient></Pressable>;
+ return <View style={s.root}><MenuBackBar onBack={onBack} label={backLabel}/><ScrollView style={{flex:1}} contentContainerStyle={{paddingTop:16,paddingBottom:insets.bottom+24,paddingHorizontal:Math.max(insets.left,insets.right,16),alignItems:'center'}}><View style={s.page}>
+ <View style={s.brandRow}><View><Text style={s.brand}>{HOME_BRAND.title}</Text><Text style={s.brandSub}>{HOME_BRAND.subtitle}</Text></View><Text style={s.motto}>{t("shopscreen.same_physics")}{'\n'}{t("shopscreen.a_brighter")}{'\n'}{t("shopscreen.tomorrow")}</Text></View>
+ <View style={[s.hero,{minHeight:wide?360:400}]}><ShopArt tile={0} style={{position:'absolute',right:0,top:0,bottom:0,width:wide?'62%':'100%',opacity:wide?1:.6}}/><LinearGradient colors={['#031522','#031522d9','#03152200']} locations={[0,.4,1]} start={{x:0,y:.5}} end={{x:1,y:.5}} style={StyleSheet.absoluteFill}/><View style={[s.heroCopy,{width:wide?'54%':'100%'}]}><Text style={s.eyebrow}>{t("shopscreen.the_workshop")}</Text><Text style={[s.title,{fontSize:wide?46:36}]}>{t("shopscreen.fuel_your")}{'\n'}{t("shopscreen.next_leap")}</Text><Text style={s.lead}>{t("shopscreen.boosts_shards_more_possibilities")}</Text><View style={s.wallet}><View style={{flexDirection:"row",alignItems:"center",flexWrap:"wrap",gap:6}}><CurrencyIcon kind="shard"/><Text style={s.walletValue}>{c.shards.toLocaleString()} {t("statuspanel.shards")}</Text><CurrencyIcon kind="energy"/><Text style={s.walletValue}>{unlimited?'∞':`${energy}/${ECONOMY.maxEnergy}`} {t("statuspanel.energy")}</Text></View><Text style={s.copy}>{t("shopscreen.earn_shards_stock_your_kit_and_choose_boosts_before_launching_cos")}</Text></View></View></View>
+ <View style={s.sectionRow}><Text style={s.section}>{t("shopscreen.flight_kit")}</Text><Text style={s.micro}>{t("shopscreen.temporary_boosts_for_your_next_attempt")}</Text></View>
+ <View style={s.grid}>{boosts.map(([id,name,description,tile])=><View key={id} style={[s.boost,{width:columns===4?'23.8%':columns===2?'48%':'100%'}]}><ShopArt tile={tile} style={{height:wide?155:145,width:'100%'}}/><View style={s.cardCopy}><Text style={s.cardTitle}>{name}</Text><Text style={[s.description,{minHeight:wide?80:88}]}>{description}</Text>{button(`◆ ${ECONOMY.boostCosts[id]}`,()=>{onBuyBoost(id);setNotice(t("shopscreen.added_to_your_kit", {value1: name}));},c.shards<ECONOMY.boostCosts[id])}<Text style={s.owned}>{t("shopscreen.in_your_kit")}{c.boostInventory[id]}</Text></View></View>)}</View>
+ {notice?<Text accessibilityLiveRegion="polite" style={s.notice}>{notice}</Text>:null}
+ <View style={[s.recharge,{minHeight:wide?245:310}]}><ShopArt tile={5} style={{position:'absolute',right:0,top:0,bottom:0,width:wide?'46%':'100%',opacity:wide?1:.35}}/><LinearGradient colors={['#041522','#041522cc','#04152200']} start={{x:0,y:0}} end={{x:1,y:0}} style={StyleSheet.absoluteFill}/><View style={{padding:24,width:wide?'65%':'100%'}}><Text style={s.cardHeading}>{t("shopscreen.recharge_spark")}</Text><Text style={s.copy}>{t("shopscreen.energy_returns_automatically_1_every")}{ECONOMY.energyRegenMinutes} {t("shopscreen.minutes_or_choose_a_refill_now")}</Text><View style={{flexDirection:wide?'row':'column',gap:12,marginTop:8}}><View style={{flex:1}}>{button(busy?t("outofenergyscreen.please_wait"):t("shopscreen.watch_ad_energy", {value1: dev?t("debugoverlay.test"):'', value2: ECONOMY.rewardedAdEnergyAmount}),()=>void watch(),busy||energy>=ECONOMY.maxEnergy||!dev,true)}</View><View style={{flex:1}}>{button(t("shopscreen.full_refill", {value1: ECONOMY.energyRefillCost}),()=>{onBuyEnergy();setNotice(t("shopscreen.energy_refilled_spark_is_ready"));},energy>=ECONOMY.maxEnergy||c.shards<ECONOMY.energyRefillCost)}</View></View></View></View>
+ <View style={s.sectionRow}><Text style={s.section}>{t("shopscreen.optional_shard_packs")}</Text><Text style={s.micro}>{dev?t("shopscreen.test_packs_only_no_real_money_charged"):t("shopscreen.purchases_not_available_yet")}</Text></View>
+ <View style={s.grid}>{SHARD_PACKS.map((pack,i)=><View key={pack.id} style={[s.pack,{width:width>=700?'32%':'100%'}]}><View style={s.packHeading}><Text style={s.cardTitle}>{pack.name}</Text><Text style={s.copy}>{[t("shopscreen.a_small_boost_for_your_journey"),t("shopscreen.for_those_who_explore_further"),t("shopscreen.for_the_long_road_to_luma")][i]}</Text></View><ShopArt tile={6+i} style={{height:width>=700?220:240,width:'100%'}}/><View style={{padding:14,paddingTop:0}}>{button(`◆ ${pack.shards.toLocaleString()}\n${dev?t("shopscreen.preview_test_pack"):t("shopscreen.coming_later")}`,()=>onShardPack(pack.shards),!dev)}</View></View>)}</View>
+ <View style={s.earn}><ShopArt tile={6} style={{width:70,height:85,borderRadius:12}}/><View style={{flex:1}}><Text style={[s.copy,{color:'#72ecf5'}]}>{t("shopscreen.first_clear")}{ECONOMY.shards.levelClear} {t("shopscreen.shards_replays")}{ECONOMY.shards.repeatClear} {t("shopscreen.shards")}</Text><Text style={s.copy}>{t("shopscreen.precision_bonuses_and_world_rewards_add_more_equip_boosts_from_th")}</Text></View></View>
+ <View style={s.footer}><Text style={[s.micro,{flex:1,textAlign:'right'}]}>{t("shopscreen.prepare_today")}{'\n'}{t("shopscreen.a_brighter_tomorrow")}</Text></View>
+ </View></ScrollView></View>;
 }
-
-const styles = StyleSheet.create({
-  list: { paddingBottom: space.lg },
-  section: { marginTop: space.lg, marginBottom: space.xs, color: color.cyanBright, fontSize: 12, fontWeight: '900', letterSpacing: 2 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.stroke },
-  label: { color: color.cream, fontSize: 13, fontWeight: '800', flex: 1, paddingRight: space.xs },
-  meta: { color: color.creamFaint, fontSize: 11, fontWeight: '700' },
-  blurb: { color: color.creamFaint, fontSize: 12, fontWeight: '600', lineHeight: 17, marginBottom: space.xs },
-});
+const s=StyleSheet.create({root:{...StyleSheet.absoluteFill,backgroundColor:'#03121f'},page:{width:'100%',maxWidth:1160},brandRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',padding:12},brand:{fontSize:32,color:'#edfcff',letterSpacing:9,textShadowColor:'#49cfff',textShadowRadius:12,textShadowOffset:{width:0,height:0}},brandSub:{fontSize:10,letterSpacing:4,color:'#58eefa',marginTop:5},motto:{color:'#63ddef',fontSize:8,letterSpacing:2,lineHeight:15,borderLeftWidth:1,borderLeftColor:'#3ebad0',paddingLeft:12},hero:{overflow:'hidden',borderRadius:22,marginTop:15,justifyContent:'center'},heroCopy:{padding:20},eyebrow:{color:'#89c8f8',fontSize:11,letterSpacing:3},title:{color:'#f6fbff',fontWeight:'800',lineHeight:51,marginTop:10},lead:{color:'#abebff',fontSize:16,marginVertical:12},wallet:{borderColor:'#288cac',borderWidth:1,borderRadius:18,padding:16,backgroundColor:'#032235cc',marginTop:8},walletValue:{color:'#63ecfa',fontSize:13,fontWeight:'800'},copy:{color:'#b7d7e8',fontSize:14,lineHeight:22,marginTop:8},sectionRow:{flexDirection:'row',flexWrap:'wrap',alignItems:'center',justifyContent:'space-between',gap:8,marginTop:26,marginBottom:14},section:{color:'#38d9f7',fontSize:17,letterSpacing:2,fontWeight:'700'},micro:{color:'#91b7d6',fontSize:9,letterSpacing:1.4,lineHeight:17},grid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:12},boost:{overflow:'hidden',borderColor:'#20627f',borderWidth:1,borderRadius:20,backgroundColor:'#031a2a'},cardCopy:{padding:13,paddingTop:5,flex:1},cardTitle:{color:'#f3f7ff',fontSize:18,fontWeight:'800'},description:{color:'#badced',fontSize:13,lineHeight:20,marginTop:10,flex:1},button:{borderRadius:13,overflow:'hidden',marginTop:12},outline:{borderColor:'#39cde4',borderWidth:1},buttonFill:{paddingVertical:13,paddingHorizontal:8,alignItems:'center',justifyContent:'center',minHeight:46},buttonText:{fontWeight:'800',fontSize:13,color:'#211b0d',textAlign:'center',lineHeight:20,letterSpacing:.4},owned:{color:'#58eafa',fontSize:10,textAlign:'center',letterSpacing:.7,marginTop:12},recharge:{overflow:'hidden',borderRadius:22,borderColor:'#227899',borderWidth:1,marginTop:26,justifyContent:'center'},cardHeading:{color:'white',fontSize:28,fontWeight:'800'},pack:{overflow:'hidden',borderRadius:22,borderWidth:1,borderColor:'#264f70',backgroundColor:'#051526'},packHeading:{padding:18,minHeight:106},earn:{marginTop:22,borderWidth:1,borderColor:'#275b72',borderRadius:20,padding:16,flexDirection:'row',alignItems:'center',gap:16},footer:{flexDirection:'row',alignItems:'center',gap:20,marginTop:18},notice:{color:'#7ce8ef',textAlign:'center',padding:12}});

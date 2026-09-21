@@ -1,3 +1,4 @@
+import {t as translate} from '../../i18n';
 import type { ObstacleConfig } from '../../config/ObstacleConfig';
 import type { CampaignLevelDefinition } from '../types';
 import {
@@ -95,7 +96,7 @@ export const WORLD2_LEVELS_21_30: CampaignLevelDefinition[] = [
     'rooftop',
     [rotor(0.66, { blades: 3 }), gate(1.55, 0.55, 0.52, { z: Z_B, height: 2.55 })],
     tight,
-    { windX: Math.min(0.34, FAIR.windMax), isWorldFinale: true, storyBeat: 'CITY LIMITS' },
+    { windX: Math.min(0.34, FAIR.windMax), isWorldFinale: true, storyBeat: translate("worldspack.city_limits") },
   ),
 ];
 
@@ -124,7 +125,7 @@ export function buildWorld3(): CampaignLevelDefinition[] {
     levels.push(
       makeLevel('sky', n, `w3-${String(i + 1).padStart(2, '0')}`, 'BASIC_RING', 'rooftop', obstacles, target, {
         windX: wind,
-        storyBeat: i === 0 ? 'THE SKY' : i === 14 ? 'THE STORM' : undefined,
+        storyBeat: i === 0 ? translate("worlds.the_sky") : i === 14 ? translate("storymoments.the_storm") : undefined,
         isWorldFinale: i === 14,
       }),
     );
@@ -159,7 +160,7 @@ export function buildWorld4(): CampaignLevelDefinition[] {
         target,
         {
           gravityScale: Math.max(g, FAIR.gravityMin),
-          storyBeat: i === 0 ? 'UPPER ATMOSPHERE' : i === 14 ? 'ESCAPE VELOCITY' : undefined,
+          storyBeat: i === 0 ? translate("worlds.upper_atmosphere") : i === 14 ? translate("storymoments.escape_velocity") : undefined,
           isWorldFinale: i === 14,
         },
       ),
@@ -193,7 +194,7 @@ export function buildWorld5(): CampaignLevelDefinition[] {
         i < 6 ? soft : i % 2 ? center : offset,
         {
           gravityScale: Math.max(g, FAIR.gravityMin),
-          storyBeat: i === 0 ? 'ORBIT' : i === 14 ? 'ORBITAL GRAVEYARD' : undefined,
+          storyBeat: i === 0 ? 'ORBIT' : i === 14 ? translate("storymoments.orbital_graveyard") : undefined,
           isWorldFinale: i === 14,
         },
       ),
@@ -232,7 +233,7 @@ export function buildWorld6(): CampaignLevelDefinition[] {
         {
           gravityScale: lerp(0.65, 0.5, t),
           gravityWells: wells,
-          storyBeat: i === 0 ? 'THE MOON' : i === 14 ? 'FAR SIDE' : undefined,
+          storyBeat: i === 0 ? translate("worlds.the_moon") : i === 14 ? translate("storymoments.far_side") : undefined,
           isWorldFinale: i === 14,
         },
       ),
@@ -268,7 +269,7 @@ export function buildWorld7(): CampaignLevelDefinition[] {
         soft,
         {
           gravityScale: 0.75,
-          storyBeat: i === 0 ? 'ASTEROID BELT' : i === 14 ? 'COLLISION COURSE' : undefined,
+          storyBeat: i === 0 ? translate("worlds.asteroid_belt") : i === 14 ? translate("storymoments.collision_course") : undefined,
           isWorldFinale: i === 14,
         },
       ),
@@ -301,7 +302,7 @@ export function buildWorld8(): CampaignLevelDefinition[] {
         obstacles,
         i < 5 ? soft : i % 2 ? offset : center,
         {
-          storyBeat: i === 0 ? 'THE NEBULA' : i === 14 ? 'FALSE HOME' : undefined,
+          storyBeat: i === 0 ? translate("worlds.the_nebula") : i === 14 ? translate("storymoments.false_home") : undefined,
           isWorldFinale: i === 14,
         },
       ),
@@ -339,7 +340,7 @@ export function buildWorld9(): CampaignLevelDefinition[] {
         obstacles,
         i < 6 ? soft : i % 2 ? center : offset,
         {
-          storyBeat: i === 0 ? 'THE ANCIENT NETWORK' : i === 14 ? 'THE KEY' : undefined,
+          storyBeat: i === 0 ? translate("worlds.the_ancient_network") : i === 14 ? translate("storymoments.the_key") : undefined,
           isWorldFinale: i === 14,
         },
       ),
@@ -385,23 +386,23 @@ export function buildWorld10(): CampaignLevelDefinition[] {
     // 146–149 ease toward home
     () => ({
       obstacles: [aperture(0.5, 1.6, 0.32, { pulse: 0.65, shift: 0.45 })],
-      extras: { storyBeat: 'HOME SIGNAL STRONG' },
+      extras: { storyBeat: translate("worldspack.home_signal_strong") },
     }),
     () => ({
       obstacles: [phase(0.6, 2.2, 0.55), ring(1.3, 0.42, 0.28, 'horizontal', Z_B)],
-      extras: { storyBeat: 'ALMOST THERE' },
+      extras: { storyBeat: translate("worldspack.almost_there") },
     }),
     () => ({
       obstacles: [orbiter(0.65, 1.15, 0.28)],
-      extras: { gravityScale: 0.78, storyBeat: 'THE THRESHOLD' },
+      extras: { gravityScale: 0.78, storyBeat: translate("worldspack.the_threshold") },
     }),
     () => ({
       obstacles: [iris(0.55, 1.75, 0.6)],
-      extras: { storyBeat: 'ONE MORE GATE' },
+      extras: { storyBeat: translate("worldspack.one_more_gate") },
     }),
     () => ({
       obstacles: [],
-      extras: { isWorldFinale: true, storyBeat: 'HOME' },
+      extras: { isWorldFinale: true, storyBeat: translate("worldspack.home") },
     }),
   ];
 

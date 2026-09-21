@@ -1,3 +1,4 @@
+import {t} from '../i18n';
 import { GAME_TUNING } from '../game/gameTuning';
 import type { ShotResultKind } from '../game/GameState';
 
@@ -45,17 +46,17 @@ export function scoreTarget(
 export function resultLabel(kind: ShotResultKind, points: number, campaign = false): string {
   switch (kind) {
     case 'PERFECT':
-      return `PERFECT +${points}`;
+      return t("results.PERFECT", {points});
     case 'BULLSEYE':
-      return `BULLSEYE +${points}`;
+      return t("results.BULLSEYE", {points});
     case 'GREAT':
-      return `GREAT +${points}`;
+      return t("results.GREAT", {points});
     case 'HIT':
-      return campaign ? `CLEAR +${points}` : `HIT +${points}`;
+      return campaign ? t("results.CLEAR", {points}) : t("results.HIT", {points});
     case 'ROTOR_HIT':
-      return 'BLOCKED';
+      return t("labels.BLOCKED");
     case 'MISS':
-      return 'MISS';
+      return t("labels.MISS");
   }
 }
 

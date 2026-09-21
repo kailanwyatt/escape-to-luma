@@ -1,3 +1,4 @@
+import {t} from '../../i18n';
 import type { PropsWithChildren } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
@@ -26,7 +27,7 @@ export function GlassPanel({ children, style }: PropsWithChildren<{ style?: Styl
   return <View style={[styles.panel, style]}>{children}</View>;
 }
 
-export function BackButton({ onPress, label = 'BACK' }: { onPress: () => void; label?: string }) {
+export function BackButton({ onPress, label = t("screenchrome.back") }: { onPress: () => void; label?: string }) {
   return (
     <Pressable accessibilityRole="button" style={styles.back} onPress={onPress}>
       <Text style={styles.backText}>‹ {label}</Text>

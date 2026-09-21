@@ -1,3 +1,5 @@
+import {t} from '../i18n';
+import {MenuBackBar} from '../design/components/MenuBackBar';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,20 +27,21 @@ export function GraphicsScreen({ onBack }: Props) {
   const counts = countByPriority();
 
   return (
-    <View style={[styles.root, { paddingTop: Math.max(insets.top, 16) + 12, paddingBottom: insets.bottom }]}>
-      <Text style={styles.kicker}>PROTOTYPE → PRODUCTION</Text>
-      <Text style={styles.title}>GRAPHICS</Text>
+    <View style={[styles.root, { paddingTop: 0, paddingBottom: insets.bottom }]}>
+      <MenuBackBar onBack={onBack} label={t("graphicsscreen.back_to_settings")}/>
+      <Text style={styles.kicker}>{t("graphicsscreen.prototype_production")}</Text>
+      <Text style={styles.title}>{t("graphicsscreen.graphics")}</Text>
       <Text style={styles.oneLiner}>{ART_DIRECTION.oneLiner}</Text>
       <View style={styles.counts}>
-        <Text style={[styles.count, { color: PRIORITY_COLOR.P0 }]}>P0 {counts.P0}</Text>
-        <Text style={[styles.count, { color: PRIORITY_COLOR.P1 }]}>P1 {counts.P1}</Text>
-        <Text style={[styles.count, { color: PRIORITY_COLOR.P2 }]}>P2 {counts.P2}</Text>
-        <Text style={styles.countMuted}>{GRAPHICS_NEEDS.length} total</Text>
+        <Text style={[styles.count, { color: PRIORITY_COLOR.P0 }]}>{t("graphicsscreen.p0")}{counts.P0}</Text>
+        <Text style={[styles.count, { color: PRIORITY_COLOR.P1 }]}>{t("graphicsscreen.p1")}{counts.P1}</Text>
+        <Text style={[styles.count, { color: PRIORITY_COLOR.P2 }]}>{t("graphicsscreen.p2")}{counts.P2}</Text>
+        <Text style={styles.countMuted}>{GRAPHICS_NEEDS.length} {t("graphicsscreen.total")}</Text>
       </View>
       <Text style={styles.status}>{ART_DIRECTION.prototypeStatus}</Text>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.sectionTitle}>PALETTE</Text>
+        <Text style={styles.sectionTitle}>{t("graphicsscreen.palette")}</Text>
         <View style={styles.swatchRow}>
           {Object.entries(ART_DIRECTION.palette).map(([name, hex]) => (
             <View key={name} style={styles.swatchBlock}>
@@ -49,7 +52,7 @@ export function GraphicsScreen({ onBack }: Props) {
           ))}
         </View>
 
-        <Text style={styles.sectionTitle}>ENVIRONMENTS</Text>
+        <Text style={styles.sectionTitle}>{t("graphicsscreen.environments")}</Text>
         {ART_DIRECTION.environments.map((env) => (
           <Text key={env} style={styles.envLine}>
             · {env}
@@ -66,12 +69,10 @@ export function GraphicsScreen({ onBack }: Props) {
           </View>
         ))}
 
-        <Text style={styles.footer}>Full brief: docs/GRAPHICS-NEEDS.md</Text>
+        <Text style={styles.footer}>{t("graphicsscreen.full_brief_docs_graphics_needs_md")}</Text>
       </ScrollView>
 
-      <Pressable style={styles.back} onPress={onBack}>
-        <Text style={styles.backText}>BACK</Text>
-      </Pressable>
+
     </View>
   );
 }
@@ -84,11 +85,11 @@ function NeedCard({ item }: { item: GraphicsNeed }) {
         <Text style={[styles.priority, { color: PRIORITY_COLOR[item.priority] }]}>{item.priority}</Text>
       </View>
       <Text style={styles.meta}>
-        <Text style={styles.metaLabel}>Now </Text>
+        <Text style={styles.metaLabel}>{t("graphicsscreen.now")}</Text>
         {item.current}
       </Text>
       <Text style={styles.meta}>
-        <Text style={styles.metaLabel}>Need </Text>
+        <Text style={styles.metaLabel}>{t("graphicsscreen.need")}</Text>
         {item.need}
       </Text>
       <Text style={styles.format}>{item.format}</Text>

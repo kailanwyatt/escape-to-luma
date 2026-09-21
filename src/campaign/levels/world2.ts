@@ -1,3 +1,4 @@
+import {t} from '../../i18n';
 import type { ChallengeConfig } from '../../config/ChallengeConfig';
 import type { ObstacleConfig } from '../../config/ObstacleConfig';
 import { GAME_TUNING } from '../../game/gameTuning';
@@ -53,7 +54,7 @@ export const WORLD2_SAMPLE_LEVELS: CampaignLevelDefinition[] = [
       },
     ],
     soft,
-    { storyBeat: 'THE CITY — FOLLOW THE SIGNAL', windX: 0.1 },
+    { storyBeat: t("world2.the_city_follow_the_signal"), windX: 0.1 },
   ),
   level(
     17,
@@ -73,7 +74,7 @@ export const WORLD2_SAMPLE_LEVELS: CampaignLevelDefinition[] = [
       },
     ],
     center,
-    { windX: 0.14, tutorialHint: 'CYAN: OPEN · AMBER: WARNING · RED: SLAM. Aim for your arrival time.' },
+    { windX: 0.14, tutorialHint: t("world2.cyan_open_amber_warning_red_slam_aim_for_your_arrival_time") },
   ),
   // Offset with gentle wind — still wide opening
   level(
@@ -138,6 +139,6 @@ export const WORLD2_SAMPLE_LEVELS: CampaignLevelDefinition[] = [
       },
     ],
     center,
-    { windX: 0.2, storyBeat: 'WIND RISES' },
+    { windX: 0.2, storyBeat: t("world2.wind_rises") },
   ),
 ];

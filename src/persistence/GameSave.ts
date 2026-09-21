@@ -90,6 +90,7 @@ export type CampaignSave = {
     guidance: number;
     slowField: number;
     secondChance: number;
+    portalBloom: number;
     hyperjump: number;
   };
   unlimitedEnergyExpiresAt: number;
@@ -177,6 +178,7 @@ export const EMPTY_CAMPAIGN: CampaignSave = {
     guidance: 0,
     slowField: 0,
     secondChance: 0,
+    portalBloom: 0,
     hyperjump: 0,
   },
   unlimitedEnergyExpiresAt: 0,
@@ -339,6 +341,7 @@ function normalizeSave(data: Partial<PersistentGameData>): PersistentGameData {
         guidance: integer(campaign.boostInventory?.guidance, 0, 0, 999),
         slowField: integer(campaign.boostInventory?.slowField, 0, 0, 999),
         secondChance: integer(campaign.boostInventory?.secondChance, 0, 0, 999),
+        portalBloom: integer(campaign.boostInventory?.portalBloom, 0, 0, 999),
         hyperjump: integer(campaign.boostInventory?.hyperjump, 0, 0, 999),
       },
       unlimitedEnergyExpiresAt: finiteNumber(

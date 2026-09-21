@@ -1,0 +1,55 @@
+import {t} from '../i18n';
+import {StoryTemplate} from './StoryTemplate';
+import type {RuntimeAssetId} from '../graphics/assetRegistry';
+import { useState } from 'react';
+import {Text} from 'react-native';
+import type {ContainmentVariant} from '../design/components/ContainmentScene';
+
+const STORY = [
+  {
+    eyebrow: t("firstrunstoryscreen.what_is_spark"),
+    title: t("firstrunstoryscreen.a_living_light"),
+    body: t("firstrunstoryscreen.spark_is_a_living_energy_entity_curious_resilient_and_alive_not_a"),
+    variant: 'living' as ContainmentVariant,
+    tag: t("firstrunstoryscreen.s_01_specimen"),
+  },
+  {
+    eyebrow: t("firstrunstoryscreen.specimen_s_01"),
+    title: t("firstrunstoryscreen.found_far_from_home"),
+    body: t("firstrunstoryscreen.a_deep_space_probe_captured_spark_and_brought_it_to_earth_researc"),
+    variant: 'found' as ContainmentVariant,
+    tag: t("firstrunstoryscreen.s_01_containment"),
+  },
+  {
+    eyebrow: t("firstrunstoryscreen.signal_detected"),
+    title: t("firstrunstoryscreen.something_is_calling"),
+    body: t("firstrunstoryscreen.from_inside_containment_spark_hears_a_distant_signal_it_feels_fam"),
+    variant: 'signal' as ContainmentVariant,
+    tag: t("firstrunstoryscreen.signal_unknown"),
+  },
+  {
+    eyebrow: t("firstrunstoryscreen.system_failure"),
+    title: t("firstrunstoryscreen.the_way_is_open"),
+    body: t("firstrunstoryscreen.containment_is_failing_but_every_security_system_stands_between_s"),
+    variant: 'breach' as ContainmentVariant,
+    tag: t("firstrunstoryscreen.breach_alert"),
+  },
+  {
+    eyebrow: t("firstrunstoryscreen.your_mission"),
+    title: t("firstrunstoryscreen.guide_spark_home"),
+    body: t("firstrunstoryscreen.aim_each_throw_predict_every_moving_obstacle_and_help_spark_follo"),
+    variant: 'mission' as ContainmentVariant,
+    tag: t("firstrunstoryscreen.mission_escape"),
+  },
+] as const;
+
+type Props = {
+  onComplete: () => void;
+  reduceMotion?: boolean;
+};
+
+export function FirstRunStoryScreen({onComplete,reduceMotion=false}:Props){
+ const [page,setPage]=useState(0);const story=STORY[page];
+ const images:RuntimeAssetId[]=['story.01','story.02','story.03','story.04','story.05'];
+ return <StoryTemplate id={`welcome.${page}`} image={images[page]} eyebrow={story.eyebrow} title={story.title} body={story.body} instruction={page===4?t("firstrunstoryscreen.drag_to_aim_pull_farther_for_power_then_release_watch_where_obsta"):undefined} action={page===4?t("firstrunstoryscreen.begin_journey"):t("debugoverlay.next")} onContinue={()=>page===4?onComplete():setPage(page+1)} secondaryLabel="SKIP INTRODUCTION" onSecondary={onComplete} reduceMotion={reduceMotion} progress={<Text style={{color:'#70d7eb',textAlign:'center',marginTop:18,letterSpacing:3}}>{page+1} / {STORY.length}</Text>}/>;
+}

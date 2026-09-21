@@ -47,6 +47,7 @@ describe('save integrity', () => {
           slowField: 5_000,
           secondChance: Number.NaN,
           hyperjump: 2,
+          portalBloom: 3,
         },
         stats: undefined as never,
       },

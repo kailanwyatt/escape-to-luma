@@ -1,3 +1,4 @@
+import {t} from '../i18n';
 import type { RuntimeAssetId } from '../graphics/assetRegistry';
 
 export type SkinAcquisition = 'default' | 'shards' | 'world_completion' | 'mastery' | 'premium';
@@ -43,7 +44,7 @@ const DEFAULT_PROFILE: SparkVisualProfile = {
 export const SPARK_CATALOG: SparkDefinition[] = [
   {
     id: 'original',
-    name: 'Original',
+    name: t("sparks.original"),
     acquisition: 'default',
     color: 0x7ef0ff,
     emissive: 0x1aa8b8,
@@ -63,7 +64,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
   },
   {
     id: 'neon',
-    name: 'Neon',
+    name: t("sparks.neon"),
     acquisition: 'world_completion',
     worldId: 'city',
     color: 0xff4ad2,
@@ -84,7 +85,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
   },
   {
     id: 'solar',
-    name: 'Solar',
+    name: t("sparks.solar"),
     acquisition: 'shards',
     shardCost: 1000,
     color: 0xffb020,
@@ -96,7 +97,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
   },
   {
     id: 'frost',
-    name: 'Frost',
+    name: t("sparks.frost"),
     acquisition: 'shards',
     shardCost: 800,
     color: 0xe8f6ff,
@@ -108,7 +109,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
   },
   {
     id: 'storm',
-    name: 'Storm',
+    name: t("sparks.storm"),
     acquisition: 'shards',
     shardCost: 1200,
     color: 0x9eb4ff,
@@ -128,7 +129,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
   },
   {
     id: 'aurora',
-    name: 'Aurora',
+    name: t("sparks.aurora"),
     acquisition: 'world_completion',
     worldId: 'atmosphere',
     color: 0x6dffc8,
@@ -140,7 +141,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
   },
   {
     id: 'plasma',
-    name: 'Plasma',
+    name: t("sparks.plasma"),
     acquisition: 'shards',
     shardCost: 1500,
     color: 0xb07cff,
@@ -152,7 +153,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
   },
   {
     id: 'lunar',
-    name: 'Lunar',
+    name: t("sparks.lunar"),
     acquisition: 'world_completion',
     worldId: 'moon',
     color: 0xd8dde8,
@@ -164,7 +165,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
   },
   {
     id: 'meteor',
-    name: 'Meteor',
+    name: t("sparks.meteor"),
     acquisition: 'world_completion',
     worldId: 'asteroid',
     color: 0xff7a2a,
@@ -176,7 +177,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
   },
   {
     id: 'nebula',
-    name: 'Nebula',
+    name: t("sparks.nebula"),
     acquisition: 'world_completion',
     worldId: 'nebula',
     color: 0xc070ff,
@@ -188,7 +189,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
   },
   {
     id: 'void',
-    name: 'Void',
+    name: t("sparks.void"),
     acquisition: 'shards',
     shardCost: 2500,
     color: 0x2a1848,
@@ -200,7 +201,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
   },
   {
     id: 'reactor',
-    name: 'Reactor',
+    name: t("sparks.reactor"),
     acquisition: 'world_completion',
     worldId: 'containment',
     color: 0x7dff9a,
@@ -221,7 +222,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
   },
   {
     id: 'ancient',
-    name: 'Ancient',
+    name: t("sparks.ancient"),
     acquisition: 'mastery',
     color: 0xffd24a,
     emissive: 0xc48a12,
@@ -232,7 +233,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
   },
   {
     id: 'origin',
-    name: 'Origin',
+    name: t("sparks.origin"),
     acquisition: 'world_completion',
     worldId: 'homeward',
     color: 0xffffff,
@@ -244,7 +245,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
   },
   {
     id: 'prism',
-    name: 'Prism',
+    name: t("sparks.prism"),
     acquisition: 'premium',
     premium: true,
     color: 0xffe0ff,

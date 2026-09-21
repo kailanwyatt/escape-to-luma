@@ -1,3 +1,4 @@
+import {t} from '../i18n';
 export const SHOT_MILESTONES = [10, 25, 50, 75, 100] as const;
 
 export type MilestoneId =
@@ -40,7 +41,7 @@ export const EMPTY_MILESTONES: MilestoneRecords = {
 };
 
 export function shotMilestoneLabel(count: number): string {
-  return `${count} SHOTS CLEARED`;
+  return t("milestones.shots_cleared", {value1: count});
 }
 
 export function detectNewMilestones(

@@ -1,3 +1,4 @@
+import {MenuBackBar} from './MenuBackBar';
 import { type ReactNode } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
@@ -6,17 +7,19 @@ import { color, space } from '../tokens';
 
 type Props = {
   children: ReactNode;
+  onBack?: () => void;
+  backLabel?: string;
   style?: StyleProp<ViewStyle>;
   atmosphere?: boolean;
   scroll?: boolean;
 };
 
-export function Screen({ children, style, atmosphere = true, scroll = true }: Props) {
+export function Screen({ children, style, atmosphere = true, scroll = true, onBack, backLabel }: Props) {
   const insets = useSafeAreaInsets();
   const contentStyle = [
     styles.content,
     {
-      paddingTop: Math.max(insets.top, 12),
+      paddingTop: onBack ? 12 : Math.max(insets.top, 12),
       paddingBottom: Math.max(insets.bottom, 20),
       paddingLeft: Math.max(insets.left, space.screenX),
       paddingRight: Math.max(insets.right, space.screenX),
@@ -25,6 +28,7 @@ export function Screen({ children, style, atmosphere = true, scroll = true }: Pr
   return (
     <View style={[styles.root, style]}>
       {atmosphere ? <LinearGradient pointerEvents="none" colors={['#06121f', '#102a40', '#040c17', '#020811']} locations={[0, 0.4, 0.72, 1]} style={StyleSheet.absoluteFill} /> : null}
+      {onBack ? <MenuBackBar onBack={onBack} label={backLabel}/> : null}
       {scroll ? (
         <ScrollView style={styles.scroll} contentContainerStyle={contentStyle}>
           <View style={styles.column}>{children}</View>

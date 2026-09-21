@@ -20,6 +20,9 @@
     "production": {
       "autoIncrement": true,
       "distribution": "store"
+    },
+    "testflight": {
+      "extends": "production"
     }
   },
   "submit": {

@@ -156,8 +156,8 @@ export function applyLevelFailure(
   ) {
     const replay = prev.cleared;
     if (!replay) {
+      if(campaign.currentEnergy===ECONOMY.maxEnergy)campaign.energyUpdatedAt=Date.now();
       campaign.currentEnergy = Math.max(0, campaign.currentEnergy - 1);
-      campaign.energyUpdatedAt = Date.now();
     }
   }
   return { ...save, campaign };
@@ -180,6 +180,7 @@ export function consumeBoosts(campaign: CampaignSave, boosts: SelectedBoosts): C
     next.boostInventory.secondChance = Math.max(0, next.boostInventory.secondChance - 1);
     next.stats = { ...next.stats, boostsUsed: next.stats.boostsUsed + 1 };
   }
+  if(boosts.portalBloom){next.boostInventory.portalBloom=Math.max(0,next.boostInventory.portalBloom-1);next.stats={...next.stats,boostsUsed:next.stats.boostsUsed+1};}
   return next;
 }
 

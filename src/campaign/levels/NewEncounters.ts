@@ -1,22 +1,23 @@
+import {t} from '../../i18n';
 import type {CampaignLevelDefinition} from '../types';
 import type {FormationConfig,ObstacleConfig} from '../../config/ObstacleConfig';
 
 export const ENCOUNTER_LESSONS:Record<number,{name:string;body:string;hint:string}>={
- 22:{name:'Alternating Doors',body:'Rooftop security switches between two lanes. One door retracts while the other seals.',hint:'Choose a lane, then time Spark’s arrival. Amber warns that the open door is about to close.'},
- 24:{name:'Alternating Doors',body:'The next checkpoint switches faster, and the destination is on the other side.',hint:'Aim right. Watch the complete door cycle before releasing.'},
- 78:{name:'Gravity Slingshot',body:'A dense lunar fragment bends the route toward itself. Spark can use its pull to curve around the rock.',hint:'Aim beside the rock, not into it. The cyan field attracts Spark; watch the curved aim guide.'},
- 83:{name:'Gravity Slingshot',body:'The gravity pocket is stronger on this side of the relay.',hint:'Allow for the pull toward the right. Keep Spark clear of the solid rock at the field’s center.'},
- 92:{name:'Asteroid Conveyor',body:'Streams of rock flow sideways across the next gate. Clear gaps travel with the current.',hint:'Predict where the gap will be when Spark arrives. The solid rocks are dangerous.'},
- 95:{name:'Asteroid Conveyor',body:'The current accelerates and the gate sits away from the center.',hint:'Aim left and lead the moving gap. A straight repeated throw will not follow the destination.'},
- 99:{name:'Asteroid Conveyor',body:'Two currents cross at different depths and travel in opposite directions.',hint:'Check both streams. Spark needs a clear gap at each arrival time.'},
- 96:{name:'Expanding Debris',body:'Fragments spread outward, then converge again around the route.',hint:'Launch through the center while the rocks spread. Their return closes the corridor.'},
- 102:{name:'Expanding Debris',body:'Two debris clusters breathe at different rates.',hint:'Read the near cluster, then the far one. Time the whole flight rather than the first opening.'},
- 108:{name:'Phase Columns',body:'Columns of condensed energy emerge from the nebula, then fade back into it.',hint:'Bright filled columns are solid. Dim outlines are passable. Amber warns that a column is returning.'},
- 113:{name:'Phase Columns',body:'A second row of energy columns follows a different rhythm.',hint:'Find a route through both rows. A quiet column may be solid again before Spark arrives.'},
- 123:{name:'Rotating Maze',body:'An ancient plate turns an off-center opening around its axis.',hint:'Follow the amber aperture. Aim where the opening will be when Spark reaches the plate.'},
- 127:{name:'Rotating Maze',body:'Two ancient plates rotate in opposite directions.',hint:'Wait for a route through both amber openings, then commit to the shot.'},
- 129:{name:'Sequential Tunnel',body:'Three mechanisms form one timed passage through the network.',hint:'Pass all three apertures in one flight. Each opens in sequence; power changes your arrival timing.'},
- 142:{name:'Sequential Tunnel',body:'Luma’s approach repeats the sequence at a quicker rhythm.',hint:'Watch all three gates. Aim through the entire passage and adjust power to match its rhythm.'},
+ 22:{name:t("newencounters.alternating_doors"),body:t("newencounters.rooftop_security_switches_between_two_lanes_one_door_retracts_whi"),hint:t("newencounters.choose_a_lane_then_time_spark_s_arrival_amber_warns_that_the_open")},
+ 24:{name:t("newencounters.alternating_doors"),body:t("newencounters.the_next_checkpoint_switches_faster_and_the_destination_is_on_the"),hint:t("newencounters.aim_right_watch_the_complete_door_cycle_before_releasing")},
+ 78:{name:t("newencounters.gravity_slingshot"),body:t("newencounters.a_dense_lunar_fragment_bends_the_route_toward_itself_spark_can_us"),hint:t("newencounters.aim_beside_the_rock_not_into_it_the_cyan_field_attracts_spark_wat")},
+ 83:{name:t("newencounters.gravity_slingshot"),body:t("newencounters.the_gravity_pocket_is_stronger_on_this_side_of_the_relay"),hint:t("newencounters.allow_for_the_pull_toward_the_right_keep_spark_clear_of_the_solid")},
+ 92:{name:t("newencounters.asteroid_conveyor"),body:t("newencounters.streams_of_rock_flow_sideways_across_the_next_gate_clear_gaps_tra"),hint:t("newencounters.predict_where_the_gap_will_be_when_spark_arrives_the_solid_rocks_")},
+ 95:{name:t("newencounters.asteroid_conveyor"),body:t("newencounters.the_current_accelerates_and_the_gate_sits_away_from_the_center"),hint:t("newencounters.aim_left_and_lead_the_moving_gap_a_straight_repeated_throw_will_n")},
+ 99:{name:t("newencounters.asteroid_conveyor"),body:t("newencounters.two_currents_cross_at_different_depths_and_travel_in_opposite_dir"),hint:t("newencounters.check_both_streams_spark_needs_a_clear_gap_at_each_arrival_time")},
+ 96:{name:t("newencounters.expanding_debris"),body:t("newencounters.fragments_spread_outward_then_converge_again_around_the_route"),hint:t("newencounters.launch_through_the_center_while_the_rocks_spread_their_return_clo")},
+ 102:{name:t("newencounters.expanding_debris"),body:t("newencounters.two_debris_clusters_breathe_at_different_rates"),hint:t("newencounters.read_the_near_cluster_then_the_far_one_time_the_whole_flight_rath")},
+ 108:{name:t("newencounters.phase_columns"),body:t("newencounters.columns_of_condensed_energy_emerge_from_the_nebula_then_fade_back"),hint:t("newencounters.bright_filled_columns_are_solid_dim_outlines_are_passable_amber_w")},
+ 113:{name:t("newencounters.phase_columns"),body:t("newencounters.a_second_row_of_energy_columns_follows_a_different_rhythm"),hint:t("newencounters.find_a_route_through_both_rows_a_quiet_column_may_be_solid_again_")},
+ 123:{name:t("newencounters.rotating_maze"),body:t("newencounters.an_ancient_plate_turns_an_off_center_opening_around_its_axis"),hint:t("newencounters.follow_the_amber_aperture_aim_where_the_opening_will_be_when_spar")},
+ 127:{name:t("newencounters.rotating_maze"),body:t("newencounters.two_ancient_plates_rotate_in_opposite_directions"),hint:t("newencounters.wait_for_a_route_through_both_amber_openings_then_commit_to_the_s")},
+ 129:{name:t("newencounters.sequential_tunnel"),body:t("newencounters.three_mechanisms_form_one_timed_passage_through_the_network"),hint:t("newencounters.pass_all_three_apertures_in_one_flight_each_opens_in_sequence_pow")},
+ 142:{name:t("newencounters.sequential_tunnel"),body:t("newencounters.luma_s_approach_repeats_the_sequence_at_a_quicker_rhythm"),hint:t("newencounters.watch_all_three_gates_aim_through_the_entire_passage_and_adjust_p")},
 };
 
 /** Deliberate playtest courses; preserve level IDs, rewards, world exits and save progress. */
@@ -54,7 +55,7 @@ export function applyNewEncounters(source:CampaignLevelDefinition):CampaignLevel
   target.x=n===123?.6:-.4;
  }else{
   const speed=n===129?2:2.5;
-  obstacles=[4.6,7,9.4].map((z,i)=>({type:'iris',z,centerX:0,centerY:[2.4,2.95,3.25][i],minRadius:.3,maxRadius:n===129?1.35:1.18,speed,phase:-z/9*speed}));
+  obstacles=[4.6,7,9.4].map((z,i)=>({type:'iris',sequenceIndex:i,z,centerX:0,centerY:[2.4,2.95,3.25][i],minRadius:.3,maxRadius:n===129?1.35:1.18,speed,phase:-z/9*speed}));
   level.gravityScale=.8;target.y=3.35;
  }
  level.tutorialHint=lesson.hint;

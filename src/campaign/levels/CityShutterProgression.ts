@@ -1,3 +1,4 @@
+import {t} from '../../i18n';
 import type {CampaignLevelDefinition} from '../types';
 import type {SlidingGateConfig} from '../../config/ObstacleConfig';
 import type {RapidShutterConfig} from '../../obstacles/RapidShutterState';
@@ -24,6 +25,6 @@ export function applyCityShutterProgression(source:CampaignLevelDefinition):Camp
   level.challenge.obstacles=[gate,second];
  }
  level.windX=n===16?0:n===21?-.16:n===22?.23:n===24?-.28:level.windX;
- level.tutorialHint=n===16?'CYAN: OPEN · AMBER: WARNING · RED: SLAM. Time Spark’s arrival.':n===23?'TWO OPENINGS PER CYCLE · WATCH BOTH PULSES':n===28?'A PARTIAL CLOSE IS A FAKEOUT · THE RED SLAM IS REAL':n===29?'ONE PANEL LEADS THE OTHER · WATCH THE WHOLE OPENING':n===26||n===27?'TWO SHUTTERS · TIME BOTH CROSSINGS':vertical?'TOP AND BOTTOM SHUTTERS · AIM FOR THE ARRIVAL WINDOW':'AIM THROUGH THE OPENING AT ARRIVAL · WATCH FOR AMBER';
+ level.tutorialHint=n===16?t("cityshutterprogression.cyan_open_amber_warning_red_slam_time_spark_s_arrival"):n===23?t("cityshutterprogression.two_openings_per_cycle_watch_both_pulses"):n===28?t("cityshutterprogression.a_partial_close_is_a_fakeout_the_red_slam_is_real"):n===29?t("cityshutterprogression.one_panel_leads_the_other_watch_the_whole_opening"):n===26||n===27?t("cityshutterprogression.two_shutters_time_both_crossings"):vertical?t("cityshutterprogression.top_and_bottom_shutters_aim_for_the_arrival_window"):t("cityshutterprogression.aim_through_the_opening_at_arrival_watch_for_amber");
  return level;
 }

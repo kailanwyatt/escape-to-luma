@@ -1,3 +1,4 @@
+import {t} from '../i18n';
 import {journeyProgress} from './journeyProgress';
 import {EMPTY_CAMPAIGN,type PersistentGameData} from '../persistence/GameSave';
 import type {PrecisionRank} from './types';
@@ -14,11 +15,11 @@ export function statsSummary(save:PersistentGameData){
  const runs={count:count(p?.totalRuns),longest:count(p?.longestRun),streak:count(p?.bestStreak),score:count(p?.highestScore),shots:count(p?.totalShotsCleared),closeCalls:count(p?.totalCloseCalls),bullseyes:count(p?.totalBullseyes),perfects:count(p?.totalPerfects)};
  const showRuns=c.campaignCompleted||c.endlessUnlockedDev||Object.values(runs).some(n=>n>0);
  const milestones:{label:string;value:number;icon:string;color:string}[]=[];
- if(worldsCleared)milestones.push({label:'Worlds cleared',value:worldsCleared,icon:'◈',color:'#ffd080'});
- if(shards.earned)milestones.push({label:'Shards earned',value:shards.earned,icon:'◆',color:'#c5a0ff'});
- if(runs.longest)milestones.push({label:'Longest run',value:runs.longest,icon:'↗',color:'#7ef0ff'});
- if(runs.streak)milestones.push({label:'Best streak',value:runs.streak,icon:'◎',color:'#7ef0ff'});
- if(precision.PERFECT&&milestones.length<4)milestones.push({label:'Perfect levels',value:precision.PERFECT,icon:'◉',color:'#c5a0ff'});
- if(journey.cleared&&milestones.length<4)milestones.push({label:'Levels cleared',value:journey.cleared,icon:'✓',color:'#7ef0ff'});
+ if(worldsCleared)milestones.push({label:t("statssummary.worlds_cleared"),value:worldsCleared,icon:'◈',color:'#ffd080'});
+ if(shards.earned)milestones.push({label:t("statssummary.shards_earned"),value:shards.earned,icon:'◆',color:'#c5a0ff'});
+ if(runs.longest)milestones.push({label:t("statssummary.longest_run"),value:runs.longest,icon:'↗',color:'#7ef0ff'});
+ if(runs.streak)milestones.push({label:t("statssummary.best_streak"),value:runs.streak,icon:'◎',color:'#7ef0ff'});
+ if(precision.PERFECT&&milestones.length<4)milestones.push({label:t("statssummary.perfect_levels"),value:precision.PERFECT,icon:'◉',color:'#c5a0ff'});
+ if(journey.cleared&&milestones.length<4)milestones.push({label:t("statssummary.levels_cleared"),value:journey.cleared,icon:'✓',color:'#7ef0ff'});
  return {journey,worldsCleared,percent:Math.round(journey.cleared/journey.total*100),precision,shards,runs,showRuns,milestones,activity:{attempts:count(stats?.totalAttempts),failures:count(stats?.failures),closeCalls:count(stats?.closeCalls)}};
 }

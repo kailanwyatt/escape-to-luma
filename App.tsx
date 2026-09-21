@@ -1,3 +1,6 @@
+import {t} from './src/i18n';
+import {TestCommerceModal,type TestOffer} from './src/ui/TestCommerceModal';
+import {AdService} from './src/services/ads/AdService';
 import './src/graphics/installWorldBackdrops';
 import {setDevLevelsUnlocked} from './src/config/devAccess';
 import { StatusBar } from 'expo-status-bar';
@@ -63,7 +66,7 @@ const INITIAL_HUD: HudSnapshot = {
   resultKind: null,
   resultText: null,
   showOnboarding: true,
-  onboardingText: 'DRAG TO AIM',
+  onboardingText: t("game.drag_to_aim"),
   firstLevelOnboarding: false,
   shotsReached: 0,
   hits: 0,
@@ -92,7 +95,7 @@ const INITIAL_HUD: HudSnapshot = {
   newBest: false,
   records: EMPTY_RECORDS,
   loopNumber: 1,
-  runTheme: 'CLASSIC RUN',
+  runTheme: t("app.classic_run"),
   runXp: 0,
   playerLevel: 1,
   xpIntoLevel: 0,
@@ -146,6 +149,15 @@ export default function App() {
 }
 
 function AppShell() {
+  const [testOffer,setTestOffer]=useState<TestOffer|null>(null);
+  useEffect(()=>{
+    let resolvePending:((v:'completed'|'dismissed')=>void)|null=null;
+    AdService.setTestRewardedPresenter(()=>new Promise(resolve=>{
+      resolvePending=resolve;let settled=false;
+      setTestOffer({kind:'ad',amount:ECONOMY.rewardedAdEnergyAmount,finish:(ok)=>{if(settled)return;settled=true;setTestOffer(null);resolvePending=null;resolve(ok?'completed':'dismissed');}});
+    }));
+    return()=>{AdService.setTestRewardedPresenter(null);resolvePending?.('dismissed');};
+  },[]);
   const gameRef = useRef<Game | null>(null);
   const screenSizeRef = useRef<{width: number; height: number} | null>(null);
   const playingRef = useRef(false);
@@ -161,6 +173,7 @@ function AppShell() {
   const [systemReduceMotion, setSystemReduceMotion] = useState(false);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
+  const [shopReturn,setShopReturn]=useState<AppScreen>('home');
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
 
@@ -405,6 +418,7 @@ function AppShell() {
       {playing ? <ResultFeedback text={hud.resultText} kind={hud.resultKind} /> : null}
       {playing ? (
         <HUD
+          boostCount={save.campaign.boostInventory.guidance + save.campaign.boostInventory.slowField + save.campaign.boostInventory.portalBloom + save.campaign.boostInventory.secondChance}
           reduceMotion={systemReduceMotion || save.settings.reduceMotion}
           hud={hud}
           onBoosts={()=>tap(()=>{
@@ -467,6 +481,9 @@ function AppShell() {
       ) : null}
       {showOutOfEnergyOverlay ? (
         <OutOfEnergyScreen
+          save={save}
+          onWatch={async()=>{await gameRef.current?.watchRewardedEnergy();refreshSave();}}
+          onShop={()=>{refreshSave();setShopReturn(screen);setScreen('shop');}}
           onRetry={() =>
             tap(() => {
               if (screen === 'outOfEnergy') {
@@ -488,6 +505,7 @@ function AppShell() {
           }
         />
       ) : null}
+      <TestCommerceModal offer={testOffer}/>
       <DebugOverlay
         snapshot={debugSnapshot}
         visible={__DEV__ && debugEnabled}
@@ -555,7 +573,7 @@ function AppShell() {
           onShop={() =>
             tap(() => {
               syncEnergyAndSave();
-              setScreen('shop');
+              setShopReturn('home');setScreen('shop');
             })
           }
           onStats={() =>
@@ -592,8 +610,9 @@ function AppShell() {
           onBack={() => tap(() => setScreen('home'))}
         />
       ) : null}
-      {screen === 'levelReady' ? (
-        <LevelReadyScreen
+      {screen === 'levelReady' || (screen==='shop'&&shopReturn==='levelReady') ? (
+        <View style={[StyleSheet.absoluteFill,{display:screen==='levelReady'?'flex':'none'}]}><LevelReadyScreen
+          onShop={()=>{refreshSave();setShopReturn('levelReady');setScreen('shop');}}
           save={save}
           levelNumber={pendingLevel}
           onPlay={(boosts) =>
@@ -608,7 +627,7 @@ function AppShell() {
             })
           }
           onBack={()=>tap(()=>{pausedRef.current=false;setPaused(false);gameRef.current?.resume();setScreen('play');})}
-        />
+        /></View>
       ) : null}
       {screen === 'sparks' ? (
         <SparksScreen
@@ -638,20 +657,11 @@ function AppShell() {
             gameRef.current?.buyBoostWithShards(id);
             refreshSave();
           }}
-          onWatchEnergy={() => {
-            GameHaptics.forUi();
-            gameRef.current?.watchRewardedEnergy();
-            refreshSave();
-          }}
-          onBuyUnlimited={(hours) => {
-            GameHaptics.forUi();
-            AudioManager.play('ui');
-            const ms =
-              hours === 24 ? ECONOMY.unlimitedEnergy24hMs : ECONOMY.unlimitedEnergy7dMs;
-            gameRef.current?.activateUnlimitedEnergy(ms);
-            refreshSave();
-          }}
-          onBack={() => tap(() => setScreen('home'))}
+          onWatchEnergy={async()=>{await gameRef.current?.watchRewardedEnergy();refreshSave();}}
+          onBuyEnergy={()=>{gameRef.current?.buyEnergyRefill();refreshSave();}}
+          onShardPack={(amount)=>{let settled=false;setTestOffer({kind:'pack',amount,finish:(ok)=>{if(settled)return;settled=true;if(ok)gameRef.current?.grantTestShardPack(amount);setTestOffer(null);refreshSave();}});}}
+          backLabel={shopReturn==='levelReady'?t("app.back_to_boosts"):shopReturn==='home'?'BACK':t("app.back_to_game")}
+          onBack={() => tap(() => {refreshSave();setScreen(shopReturn);})}
         />
       ) : null}
       {screen === 'graphics' ? (
@@ -685,9 +695,9 @@ function AppShell() {
               setPurchaseBusy(false);
               refreshSave();
               if (result === 'completed' || result === 'already') {
-                setPurchaseMessage('Interstitials removed.');
+                setPurchaseMessage(t("app.interstitials_removed"));
               } else if (result === 'failed') {
-                setPurchaseMessage('Purchase unavailable.');
+                setPurchaseMessage(t("app.purchase_unavailable"));
               }
             });
           }}
@@ -699,13 +709,13 @@ function AppShell() {
             void gameRef.current?.restorePurchases().then((entitled) => {
               setPurchaseBusy(false);
               refreshSave();
-              setPurchaseMessage(entitled ? 'Purchases restored.' : 'No purchases to restore.');
+              setPurchaseMessage(entitled ? t("app.purchases_restored") : t("app.no_purchases_to_restore"));
             });
           }}
           onShareDiagnostics={() => {
             const currentSave = gameRef.current?.getSave() ?? save;
             void Share.share({
-              title: 'SPARK diagnostics',
+              title: t("app.spark_diagnostics"),
               message: buildDiagnosticReport(currentSave, hud),
             });
           }}
@@ -713,9 +723,9 @@ function AppShell() {
         />
       ) : null}
       {!hud.hydrated ? (
-        <View style={styles.loading} accessibilityRole="progressbar" accessibilityLabel="Loading saved journey">
-          <Text style={styles.loadingBrand}>SPARK</Text>
-          <Text style={styles.loadingText}>RESTORING JOURNEY…</Text>
+        <View style={styles.loading} accessibilityRole="progressbar" accessibilityLabel={t("app.loading_saved_journey")}>
+          <Text style={styles.loadingBrand}>{t("branding.spark")}</Text>
+          <Text style={styles.loadingText}>{t("app.restoring_journey")}</Text>
         </View>
       ) : null}
     </View>

@@ -1,3 +1,6 @@
+import {t, displayLabel} from '../i18n';
+import {useState} from 'react';
+import {GameplayHeader, GameplayBoostButton} from './GameplayControls';
 import {RELEASE_POLICY} from '../config/release';
 import {StoryScreen} from './StoryScreen';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -12,6 +15,7 @@ import { CampaignOpening } from './CampaignOpening';
 
 type Props = {
   reduceMotion?:boolean;
+  boostCount: number;
   hud: HudSnapshot;
   debugEnabled: boolean;
   onToggleDebug: () => void;
@@ -43,6 +47,7 @@ const CAMPAIGN_OVERLAY_PHASES = new Set<HudSnapshot['phase']>([
 
 export function HUD({
   hud,
+  boostCount,
   reduceMotion=false,
   debugEnabled,
   onToggleDebug,
@@ -61,6 +66,7 @@ export function HUD({
   onBoosts,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const [instructionHeight, setInstructionHeight] = useState(0);
   const campaign = hud.sessionMode === 'campaign';
   const showCampaignTop = campaign && !CAMPAIGN_OVERLAY_PHASES.has(hud.phase) && hud.phase !== 'RESULT';
   const crackEscapeSource = getAssetSource('world1.crackEscape');
@@ -69,19 +75,18 @@ export function HUD({
     ? '∞'
     : [0, 1, 2].map((index) => (index < hud.lives ? '♥' : '♡')).join(' ');
 
-  const energyLabel = hud.unlimitedEnergy
-    ? '⚡ ∞'
-    : `⚡ ${hud.energy}/${hud.maxEnergy}`;
+
 
   if (hud.phase === 'CAMPAIGN_STORY' && hud.campaignStory) {
     return <StoryScreen level={hud.campaignLevel} reduceMotion={reduceMotion} story={hud.campaignStory} onContinue={onContinueLevel} onHome={onHome}/>;
   }
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} pointerEvents="box-none">
+      {showCampaignTop ? <GameplayHeader hud={hud} onBack={onPause}/> : null}
       {showCampaignTop ? (
         hud.firstLevelOnboarding ? (
-          <View style={[styles.breachHeaderWrap, { paddingTop: Math.max(insets.top, 14) + 4 }]}>
+          <View style={[styles.breachHeaderWrap, { paddingTop: 8 }]}>
             <LinearGradient
               colors={['rgba(6,18,32,0.94)', 'rgba(8,28,44,0.88)', 'rgba(4,14,26,0.55)']}
               locations={[0, 0.55, 1]}
@@ -90,10 +95,10 @@ export function HUD({
               <View style={styles.breachHeaderTop}>
                 <View style={styles.breachBadge}>
                   <View style={styles.breachBadgeDot} />
-                  <Text style={styles.breachBadgeText}>CONTAINMENT</Text>
+                  <Text style={styles.breachBadgeText}>{t("worlds.containment")}</Text>
                 </View>
-                <Text style={styles.breachMeta}>BREACH · L1</Text>
-                <Pressable accessibilityRole="button" accessibilityLabel="Pause game" onPress={onPause} hitSlop={12}><Text style={styles.breachTimer}>PAUSE</Text></Pressable>
+                <Text style={styles.breachMeta}>{t("hud.breach_l1")}</Text>
+
               </View>
               <View style={styles.breachMissionRow}>
                 {crackEscapeSource ? (
@@ -106,24 +111,14 @@ export function HUD({
                   <View style={[styles.breachThumb, styles.breachThumbFallback]} />
                 )}
                 <View style={styles.breachMissionCopy}>
-                  <Text style={styles.breachEyebrow}>OBJECTIVE</Text>
-                  <Text style={styles.breachTitle}>ESCAPE THROUGH THE CRACK</Text>
-                  <Text style={styles.breachSub}>Aim for the fracture. Break free of the vessel.</Text>
+                  <Text style={styles.breachEyebrow}>{t("hud.objective")}</Text>
+                  <Text style={styles.breachTitle}>{t("hud.escape_through_the_crack")}</Text>
+                  <Text style={styles.breachSub}>{t("hud.aim_for_the_fracture_break_free_of_the_vessel")}</Text>
                 </View>
               </View>
             </LinearGradient>
           </View>
-        ) : (
-          <View style={[styles.top, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
-            <Text style={styles.campaignMeta}>{energyLabel}</Text>
-            <Text style={styles.campaignCenter}>
-              {`L${hud.campaignLevel}${
-                hud.campaignWorldName ? ` · ${hud.campaignWorldName.toUpperCase()}` : ''
-              }${hud.windActive ? ` · ${hud.windDirection === 'left' ? '← WIND' : 'WIND →'}` : ''}`}
-            </Text>
-            <Text style={[styles.campaignMeta, styles.campaignMetaRight]}>◆ {hud.shards}</Text>
-          </View>
-        )
+        ) : null
       ) : !campaign ? (
         <View style={[styles.top, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
           <Text style={styles.hearts}>{hearts}</Text>
@@ -131,7 +126,7 @@ export function HUD({
             <Text style={[styles.shot, debugEnabled && styles.shotOn]}>
               {debugEnabled
                 ? `${hud.environment.toUpperCase()} · ${hud.shotInEnvironment}/${hud.shotsPerEnvironment}`
-                : `${hud.environment.toUpperCase()} · PROTO`}
+                : t("hud.proto", {value1: hud.environment.toUpperCase()})}
             </Text>
           </Pressable>
           <Text style={styles.score}>{formatScore(hud.score)}</Text>
@@ -140,30 +135,23 @@ export function HUD({
 
       {!campaign && (hud.streak >= 2 || hud.multiplier > 1) ? (
         <View style={styles.streakWrap}>
-          {hud.multiplier > 1 ? <Text style={styles.multiplier}>x{hud.multiplier}</Text> : null}
-          {hud.streak >= 2 ? <Text style={styles.streak}>STREAK {hud.streak}</Text> : null}
+          {hud.multiplier > 1 ? <Text style={styles.multiplier}>{t("debugoverlay.x")}{hud.multiplier}</Text> : null}
+          {hud.streak >= 2 ? <Text style={styles.streak}>{t("hud.streak")}{hud.streak}</Text> : null}
         </View>
       ) : null}
-      {hud.banner ? <Text style={styles.banner}>{hud.banner}</Text> : null}
-      {hud.closeCallText ? <Text style={styles.closeCall}>{hud.closeCallText}</Text> : null}
+      {hud.banner ? <Text pointerEvents="none" style={styles.banner}>{hud.banner}</Text> : null}
+      {hud.closeCallText ? <Text pointerEvents="none" style={styles.closeCall}>{hud.closeCallText}</Text> : null}
 
-      {showCampaignTop && !hud.firstLevelOnboarding ? (
-        <View style={styles.playControls}>
-          <Pressable accessibilityRole="button" onPress={onHome} hitSlop={10}>
-            <Text style={styles.controlText}>HOME</Text>
-          </Pressable>
-          {hud.canChooseBoosts&&!paused?<Pressable accessibilityRole="button" onPress={onBoosts} hitSlop={10}><Text style={styles.controlText}>BOOSTS</Text></Pressable>:null}
-          <Pressable accessibilityRole="button" onPress={onRestart} hitSlop={10}>
-            <Text style={styles.controlText}>RESTART</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={onPause} hitSlop={10}>
-            <Text style={styles.controlText}>PAUSE</Text>
-          </Pressable>
-        </View>
+      {showCampaignTop && !hud.firstLevelOnboarding && !paused ? (
+        <GameplayBoostButton count={boostCount} disabled={!hud.canChooseBoosts}
+          onPress={onBoosts}
+          bottom={hud.onboardingText
+            ? Math.max(insets.bottom, 16) + 28 + instructionHeight + 14
+            : Math.max(insets.bottom, 16) + 18}/>
       ) : null}
 
       {hud.cancelReady && !hud.firstLevelOnboarding ? (
-        <Text style={styles.cancel}>CANCEL</Text>
+        <Text pointerEvents="none" style={styles.cancel}>{t("hud.cancel")}</Text>
       ) : null}
 
       {hud.firstLevelOnboarding &&
@@ -175,16 +163,16 @@ export function HUD({
           ]}
           pointerEvents="none"
         >
-          <Text style={styles.firstTutorialEyebrow}>{hud.cancelReady ? 'RELEASE TO CANCEL' : hud.phase === 'AIMING' ? 'RELEASE TO LAUNCH' : 'PULL DOWN TO POWER UP'}</Text>
+          <Text style={styles.firstTutorialEyebrow}>{hud.cancelReady ? t("hud.release_to_cancel") : hud.phase === 'AIMING' ? t("hud.release_to_launch") : t("hud.pull_down_to_power_up")}</Text>
           <Text style={{color: color.creamMuted, fontSize: 12, textAlign: 'center', marginTop: 6}}>
-            {hud.phase === 'AIMING' ? 'Move sideways to aim · return to center to cancel' : 'Drag to aim through the opening in the glass'}
+            {hud.phase === 'AIMING' ? t("hud.move_sideways_to_aim_return_to_center_to_cancel") : t("hud.drag_to_aim_through_the_opening_in_the_glass")}
           </Text>
         </View>
       ) : hud.onboardingText && !CAMPAIGN_OVERLAY_PHASES.has(hud.phase) ? (
-        <View style={[styles.onboarding, { bottom: Math.max(insets.bottom, 16) + 28 }]}>
+        <View onLayout={event => setInstructionHeight(event.nativeEvent.layout.height)} style={[styles.onboarding, { bottom: Math.max(insets.bottom, 16) + 28 }]}>
           <Text style={styles.onboardingTitle}>{hud.onboardingText}</Text>
-          {hud.onboardingText === 'DRAG TO AIM' ? (
-            <Text style={styles.onboardingSub}>RELEASE TO THROW</Text>
+          {hud.onboardingText === t("game.drag_to_aim") ? (
+            <Text style={styles.onboardingSub}>{t("hud.release_to_throw")}</Text>
           ) : null}
         </View>
       ) : null}
@@ -195,59 +183,59 @@ export function HUD({
 
       {hud.phase === 'LEVEL_COMPLETE' ? (
         <View style={styles.overlay}>
-          <Text style={styles.endTitle}>LEVEL CLEAR</Text>
+          <Text style={styles.endTitle}>{t("hud.level_clear")}</Text>
           {hud.lastPrecisionRank ? (
-            <Text style={styles.rank}>{hud.lastPrecisionRank}</Text>
+            <Text style={styles.rank}>{displayLabel(hud.lastPrecisionRank)}</Text>
           ) : null}
           {hud.lastShardsGained > 0 ? (
-            <Text style={styles.shardGain}>+{hud.lastShardsGained} SHARDS</Text>
+            <Text style={styles.shardGain}>+{hud.lastShardsGained} {t("statuspanel.shards")}</Text>
           ) : null}
-          <ContinueJourneyButton label={hud.campaignLevel >= RELEASE_POLICY.campaignMaxLevel ? "REPLAY" : "NEXT"} playIcon={false} style={styles.overlayCta} onPress={onContinueLevel} />
+          <ContinueJourneyButton label={hud.campaignLevel >= RELEASE_POLICY.campaignMaxLevel ? t("debugoverlay.replay") : t("debugoverlay.next")} playIcon={false} style={styles.overlayCta} onPress={onContinueLevel} />
           <Pressable style={styles.homeButton} onPress={onHome}>
-            <Text style={styles.homeText}>HOME</Text>
+            <Text style={styles.homeText}>{t("worldspack.home")}</Text>
           </Pressable>
         </View>
       ) : null}
 
       {hud.phase === 'WORLD_COMPLETE' ? (
         <View style={styles.overlay}>
-          <Text style={styles.endTitle}>WORLD COMPLETE</Text>
+          <Text style={styles.endTitle}>{t("hud.world_complete")}</Text>
           {hud.lastShardsGained > 0 ? (
-            <Text style={styles.shardGain}>+{hud.lastShardsGained} SHARDS</Text>
+            <Text style={styles.shardGain}>+{hud.lastShardsGained} {t("statuspanel.shards")}</Text>
           ) : null}
-          <Text style={styles.continueCopy}>The journey continues.</Text>
-          <ContinueJourneyButton label="CONTINUE" playIcon={false} style={styles.overlayCta} onPress={onContinueLevel} />
+          <Text style={styles.continueCopy}>{t("hud.the_journey_continues")}</Text>
+          <ContinueJourneyButton label={t("storymoments.continue")} playIcon={false} style={styles.overlayCta} onPress={onContinueLevel} />
           <Pressable style={styles.homeButton} onPress={onHome}>
-            <Text style={styles.homeText}>HOME</Text>
+            <Text style={styles.homeText}>{t("worldspack.home")}</Text>
           </Pressable>
         </View>
       ) : null}
 
       {hud.phase === 'SPARK_UNLOCKED' ? (
         <View style={styles.overlay}>
-          <Text style={styles.unlockEyebrow}>NEW SPARK</Text>
-          <Text style={styles.unlockName}>{hud.unlockedSparkName?.toUpperCase() ?? 'SPARK'}</Text>
-          <Text style={styles.continueCopy}>A new energy form joins the journey.</Text>
-          <ContinueJourneyButton label="CONTINUE" playIcon={false} style={styles.overlayCta} onPress={onContinueLevel} />
+          <Text style={styles.unlockEyebrow}>{t("game.new_spark")}</Text>
+          <Text style={styles.unlockName}>{hud.unlockedSparkName?.toUpperCase() ?? t("branding.spark")}</Text>
+          <Text style={styles.continueCopy}>{t("hud.a_new_energy_form_joins_the_journey")}</Text>
+          <ContinueJourneyButton label={t("storymoments.continue")} playIcon={false} style={styles.overlayCta} onPress={onContinueLevel} />
         </View>
       ) : null}
 
       {hud.phase === 'CAMPAIGN_COMPLETE' ? (
         <View style={styles.overlay}>
-          <Text style={styles.endTitle}>HOME REACHED</Text>
-          <Text style={styles.rank}>LUMA</Text>
-          <Text style={styles.continueCopy}>Spark is reunited with his own kind. Explore freely in Endless Voyage; Luma will always be home.</Text>
-          <ContinueJourneyButton label="RETURN HOME" playIcon={false} style={styles.overlayCta} onPress={onHome} />
+          <Text style={styles.endTitle}>{t("hud.home_reached")}</Text>
+          <Text style={styles.rank}>{t("storymoments.luma")}</Text>
+          <Text style={styles.continueCopy}>{t("hud.spark_is_reunited_with_his_own_kind_explore_freely_in_endless_voy")}</Text>
+          <ContinueJourneyButton label={t("hud.return_home")} playIcon={false} style={styles.overlayCta} onPress={onHome} />
         </View>
       ) : null}
 
       {hud.phase === 'LEVEL_FAILED' ? (
         <View style={styles.overlay}>
-          <Text style={styles.endTitle}>LEVEL FAILED</Text>
+          <Text style={styles.endTitle}>{t("hud.level_failed")}</Text>
           {hud.lastFail ? <Text style={styles.continueCopy}>{hud.lastFail}</Text> : null}
-          <ContinueJourneyButton label="RETRY" playIcon={false} style={styles.overlayCta} onPress={onRetryLevel} />
-          {hud.helpOffer?<Pressable accessibilityRole="button" onPress={onUseHelp} style={styles.homeButton}><Text style={styles.helpCopy}>Need a hand? Try a free slow field.</Text></Pressable>:null}
-          <Pressable style={styles.homeButton} onPress={onHome}><Text style={styles.homeText}>HOME</Text></Pressable>
+          <ContinueJourneyButton label={t("apperrorboundary.retry")} playIcon={false} style={styles.overlayCta} onPress={onRetryLevel} />
+          {hud.helpOffer?<Pressable accessibilityRole="button" onPress={onUseHelp} style={styles.homeButton}><Text style={styles.helpCopy}>{t("hud.need_a_hand_try_a_free_slow_field")}</Text></Pressable>:null}
+          <Pressable style={styles.homeButton} onPress={onHome}><Text style={styles.homeText}>{t("worldspack.home")}</Text></Pressable>
 
         </View>
       ) : null}
@@ -255,19 +243,19 @@ export function HUD({
       {hud.phase === 'RUN_START' ? (
         <View style={styles.startOverlay} pointerEvents="none">
           <Text style={styles.startTheme}>{hud.runTheme}</Text>
-          <Text style={styles.startBestLabel}>BEST</Text>
+          <Text style={styles.startBestLabel}>{t("hud.best")}</Text>
           <Text style={styles.startBest}>{formatScore(hud.bestScore)}</Text>
-          <Text style={styles.tapStart}>TAP TO START</Text>
+          <Text style={styles.tapStart}>{t("hud.tap_to_start")}</Text>
         </View>
       ) : null}
 
       {hud.phase === 'CONTINUE_OFFER' ? (
         <View style={styles.overlay}>
-          <Text style={styles.endTitle}>KEEP GOING?</Text>
-          <Text style={styles.continueCopy}>Watch an ad to continue this run.</Text>
+          <Text style={styles.endTitle}>{t("hud.keep_going")}</Text>
+          <Text style={styles.continueCopy}>{t("hud.watch_an_ad_to_continue_this_run")}</Text>
           {hud.adMessage ? <Text style={styles.adMessage}>{hud.adMessage}</Text> : null}
           <ContinueJourneyButton
-            label={hud.adBusy ? 'LOADING' : 'CONTINUE'}
+            label={hud.adBusy ? t("hud.loading") : t("storymoments.continue")}
             playIcon={false}
             style={styles.overlayCta}
             disabled={hud.adBusy}
@@ -278,26 +266,26 @@ export function HUD({
             disabled={hud.adBusy}
             onPress={onDeclineContinue}
           >
-            <Text style={styles.homeText}>END RUN</Text>
+            <Text style={styles.homeText}>{t("debugoverlay.end_run")}</Text>
           </Pressable>
         </View>
       ) : null}
 
       {hud.phase === 'PROTOTYPE_COMPLETE' ? (
         <EndCard
-          title="GAUNTLET COMPLETE"
+          title={t("hud.gauntlet_complete")}
           hud={hud}
           newBest={hud.records.score}
           rows={[
-            ['Score', formatScore(hud.score)],
-            ['Best', formatScore(hud.bestScore)],
-            ['Shots', String(hud.shotsReached)],
-            ['Best Streak', String(hud.bestStreak)],
+            [t("hud.score"), formatScore(hud.score)],
+            [t("hud.best_2"), formatScore(hud.bestScore)],
+            [t("hud.shots"), String(hud.shotsReached)],
+            [t("hud.best_streak"), String(hud.bestStreak)],
           ]}
           secondary={[
-            ['Bullseyes', String(hud.bullseyes)],
-            ['Perfects', String(hud.perfects)],
-            ['Close Calls', String(hud.closeCalls)],
+            [t("hud.bullseyes"), String(hud.bullseyes)],
+            [t("hud.perfects"), String(hud.perfects)],
+            [t("hud.close_calls"), String(hud.closeCalls)],
           ]}
           action="TRY AGAIN"
           onAction={onRestart}
@@ -308,19 +296,19 @@ export function HUD({
 
       {hud.phase === 'RUN_OVER' ? (
         <EndCard
-          title="RUN OVER"
+          title={t("hud.run_over")}
           hud={hud}
           newBest={hud.records.score}
           rows={[
-            ['Score', formatScore(hud.score)],
-            ['Best', formatScore(hud.bestScore)],
-            ['Shots', String(hud.shotsReached)],
-            ['Best Streak', String(hud.bestStreak)],
+            [t("hud.score"), formatScore(hud.score)],
+            [t("hud.best_2"), formatScore(hud.bestScore)],
+            [t("hud.shots"), String(hud.shotsReached)],
+            [t("hud.best_streak"), String(hud.bestStreak)],
           ]}
           secondary={[
-            ['Bullseyes', String(hud.bullseyes)],
-            ['Perfects', String(hud.perfects)],
-            ['Close Calls', String(hud.closeCalls)],
+            [t("hud.bullseyes"), String(hud.bullseyes)],
+            [t("hud.perfects"), String(hud.perfects)],
+            [t("hud.close_calls"), String(hud.closeCalls)],
           ]}
           action="TRY AGAIN"
           onAction={onRestart}
@@ -331,13 +319,13 @@ export function HUD({
 
       {paused ? (
         <View style={styles.overlay}>
-          <Text style={styles.endTitle}>PAUSED</Text>
-          <ContinueJourneyButton label="RESUME" playIcon={false} style={styles.overlayCta} onPress={onResume} />
+          <Text style={styles.endTitle}>{t("hud.paused")}</Text>
+          <ContinueJourneyButton label={t("hud.resume")} playIcon={false} style={styles.overlayCta} onPress={onResume} />
           <Pressable style={styles.homeButton} onPress={onRestart}>
-            <Text style={styles.homeText}>RESTART</Text>
+            <Text style={styles.homeText}>{campaign ? t("hud.restart_level") : t("hud.restart_run")}</Text>
           </Pressable>
           <Pressable style={styles.homeButton} onPress={onHome}>
-            <Text style={styles.homeText}>HOME</Text>
+            <Text style={styles.homeText}>{t("hud.return_home")}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -370,7 +358,7 @@ function EndCard({
   return (
     <View style={styles.overlay}>
       <Text style={styles.endTitle}>{title}</Text>
-      {newBest ? <Text style={styles.newBest}>NEW BEST</Text> : null}
+      {newBest ? <Text style={styles.newBest}>{t("game.new_best")}</Text> : null}
       {rows.map(([label, value]) => (
         <View key={label} style={styles.row}>
           <Text style={styles.rowLabel}>{label}</Text>
@@ -383,31 +371,31 @@ function EndCard({
           <Text style={styles.secondaryValue}>{value}</Text>
         </View>
       ))}
-      <Text style={styles.xpGain}>+{hud.runXp} XP</Text>
-      {hud.levelUp ? <Text style={styles.levelUp}>LEVEL UP</Text> : null}
-      <Text style={styles.levelLabel}>LEVEL {hud.playerLevel}</Text>
+      <Text style={styles.xpGain}>+{hud.runXp} {t("hud.xp")}</Text>
+      {hud.levelUp ? <Text style={styles.levelUp}>{t("hud.level_up")}</Text> : null}
+      <Text style={styles.levelLabel}>{t("hud.level")}{hud.playerLevel}</Text>
       <View style={styles.xpBar}>
         <View style={[styles.xpFill, { width: `${Math.round(ratio * 100)}%` }]} />
       </View>
       <Text style={styles.xpMeta}>
-        {hud.xpForNext <= 0 ? 'MAX' : `${hud.xpIntoLevel} / ${hud.xpForNext}`}
+        {hud.xpForNext <= 0 ? t("hud.max") : `${hud.xpIntoLevel} / ${hud.xpForNext}`}
       </Text>
       {hud.unlockedName ? (
         <View style={styles.unlock}>
-          <Text style={styles.unlockEyebrow}>NEW PROJECTILE</Text>
+          <Text style={styles.unlockEyebrow}>{t("hud.new_projectile")}</Text>
           <Text style={styles.unlockName}>{hud.unlockedName.toUpperCase()}</Text>
-          <Text style={styles.unlockStatus}>UNLOCKED</Text>
+          <Text style={styles.unlockStatus}>{t("hud.unlocked")}</Text>
         </View>
       ) : null}
       <ContinueJourneyButton
-        label={busy ? 'LOADING' : action}
+        label={busy ? t("hud.loading") : action}
         playIcon={false}
         style={styles.overlayCta}
         onPress={onAction}
         disabled={busy}
       />
       <Pressable style={styles.homeButton} onPress={onHome}>
-        <Text style={styles.homeText}>HOME</Text>
+        <Text style={styles.homeText}>{t("worldspack.home")}</Text>
       </Pressable>
     </View>
   );

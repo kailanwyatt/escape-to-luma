@@ -1,3 +1,4 @@
+import {t} from '../i18n';
 import type { ChallengeTemplateId, EnvironmentId } from '../config/ChallengeConfig';
 import { primaryTypeForTemplate } from './VarietyDirector';
 import type { SeededRng } from '../utils/SeededRng';
@@ -5,10 +6,10 @@ import type { SeededRng } from '../utils/SeededRng';
 export type RunThemeId = 'classic' | 'precision' | 'timing' | 'motion';
 
 export const RUN_THEMES: { id: RunThemeId; label: string; weight: number }[] = [
-  { id: 'classic', label: 'CLASSIC RUN', weight: 5 },
-  { id: 'precision', label: 'PRECISION RUN', weight: 1 },
-  { id: 'timing', label: 'TIMING RUN', weight: 1 },
-  { id: 'motion', label: 'MOTION RUN', weight: 1 },
+  { id: 'classic', label: t("app.classic_run"), weight: 5 },
+  { id: 'precision', label: t("runtheme.precision_run"), weight: 1 },
+  { id: 'timing', label: t("runtheme.timing_run"), weight: 1 },
+  { id: 'motion', label: t("runtheme.motion_run"), weight: 1 },
 ];
 
 export function pickRunTheme(rng: SeededRng): RunThemeId {
@@ -24,7 +25,7 @@ export function pickRunTheme(rng: SeededRng): RunThemeId {
 }
 
 export function themeLabel(id: RunThemeId): string {
-  return RUN_THEMES.find((theme) => theme.id === id)?.label ?? 'CLASSIC RUN';
+  return RUN_THEMES.find((theme) => theme.id === id)?.label ?? t("app.classic_run");
 }
 
 export function templateWeight(
@@ -40,7 +41,7 @@ export function templateWeight(
     weight *= family === 'slidingGate' || family === 'movingRing' ? 2.4 : 0.65;
   } else if (theme === 'precision') {
     weight *=
-      template.includes('OFFSET') || template.includes('IRIS') || template === 'MOVING_TARGET'
+      template.includes(t("runtheme.offset")) || template.includes(t("runtheme.iris")) || template === 'MOVING_TARGET'
         ? 1.8
         : 1;
   }

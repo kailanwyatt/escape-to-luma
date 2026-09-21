@@ -1,3 +1,4 @@
+import {t, displayLabel} from '../i18n';
 import {useRef,useState} from 'react';
 import {Image,Pressable,ScrollView,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -30,6 +31,9 @@ export function JourneyScreen({save,devUnlockAll=false,onSelectLevel,onBack}:Pro
  const data=journeyProgress(save.campaign,devUnlockAll),insets=useSafeAreaInsets(),{width}=useWindowDimensions();
  const [selected,setSelected]=useState<string|null>(null),[notice,setNotice]=useState('');
  const scroll=useRef<ScrollView>(null),positioned=useRef(false);
+ const rowPositions=useRef<Record<string,number>>({});
+ const lastWorld=WORLDS.find(w=>save.campaign.lastPlayedLevel>=w.firstLevel&&save.campaign.lastPlayedLevel<=w.lastLevel)?.id??data.worlds[data.currentIndex-1]?.world.id;
+ const scrollToLast=()=>{const y=rowPositions.current[lastWorld??''];if(positioned.current||y===undefined)return;positioned.current=true;scroll.current?.scrollTo({y:Math.max(0,y-12),animated:false});};
  const active=data.worlds.find(w=>w.world.id===selected),small=width<370;
  const homeFound=save.campaign.campaignCompleted,allClear=data.cleared===data.total;
  const back=()=>{if(selected){setSelected(null);positioned.current=false;}else onBack();};
@@ -37,30 +41,30 @@ export function JourneyScreen({save,devUnlockAll=false,onSelectLevel,onBack}:Pro
  <LinearGradient colors={['#020b14','#092237','#020b14']} style={StyleSheet.absoluteFill}/>
  <View style={[s.safe,{paddingTop:Math.max(insets.top,10),paddingBottom:Math.max(insets.bottom,12),paddingLeft:Math.max(insets.left,12),paddingRight:Math.max(insets.right,12)}]}>
  <View style={s.column}>
- <View style={s.top}><Pressable accessibilityRole="button" accessibilityLabel={selected?'Back to worlds':'Back to home'} onPress={back} style={s.back}><Text style={s.backText}>‹ BACK</Text></Pressable><View style={s.brand}><Text style={s.wordmark}>{HOME_BRAND.title}</Text><Text style={s.brandSub}>{HOME_BRAND.subtitle}</Text></View><View style={{width:64}}/></View>
- <View style={s.heading}><Text accessibilityRole="header" style={[s.title,small&&{fontSize:23}]}>{active?active.world.name:allClear?'JOURNEY COMPLETE':<>YOUR <Text style={{color:cyan}}>JOURNEY</Text></>}</Text>
- <Text style={s.meta}>{active?`LEVELS ${active.world.firstLevel}–${active.world.lastLevel} · ${active.cleared} / 15 COMPLETE`:`${data.cleared} / ${data.total} COMPLETE · DESTINATION: ${data.destination}`}</Text>
- <Text style={s.caption}>{active?active.world.subtitle:homeFound?'HOME FOUND · REPLAY AND MASTER THE JOURNEY':'10 WORLDS · FOLLOW THE SIGNAL HOME'}</Text>
+ <View style={s.top}><Pressable accessibilityRole="button" accessibilityLabel={selected?t("journeyscreen.back_to_worlds"):t("journeyscreen.back_to_home")} onPress={back} style={s.back}><Text style={s.backText}>{t("journeyscreen.back")}</Text></Pressable><View style={s.brand}><Text style={s.wordmark}>{HOME_BRAND.title}</Text><Text style={s.brandSub}>{HOME_BRAND.subtitle}</Text></View><View style={{width:64}}/></View>
+ <View style={s.heading}><Text accessibilityRole="header" style={[s.title,small&&{fontSize:23}]}>{active?active.world.name:allClear?t("journeyscreen.journey_complete"):<>{t("journeyscreen.your")}<Text style={{color:cyan}}>{t("journeyscreen.journey")}</Text></>}</Text>
+ <Text style={s.meta}>{active?t("journeyscreen.levels_15_complete", {value1: active.world.firstLevel, value2: active.world.lastLevel, value3: active.cleared}):t("journeyscreen.complete_destination", {value1: data.cleared, value2: data.total, value3: displayLabel(data.destination)})}</Text>
+ <Text style={s.caption}>{active?active.world.subtitle:homeFound?t("journeyscreen.home_found_replay_and_master_the_journey"):t("journeyscreen.10_worlds_follow_the_signal_home")}</Text>
  {!active?<View accessibilityRole="progressbar" accessibilityValue={{min:0,max:data.total,now:data.cleared}} style={s.progress}><View style={[s.progressFill,{width:`${data.cleared/data.total*100}%`}]}/></View>:null}
  </View>
- {devUnlockAll?<Text style={s.dev}>DEV ACCESS · ALL LEVELS AVAILABLE</Text>:null}
+ {devUnlockAll?<Text style={s.dev}>{t("journeyscreen.dev_access_all_levels_available")}</Text>:null}
  {active?<ScrollView key={selected} contentContainerStyle={s.levelContent}>
- <View style={s.levelHero}><Preview id={active.world.id} revealed={data.destination==='LUMA'}/><LinearGradient colors={['transparent','#04121de6']} style={StyleSheet.absoluteFill}/><Text style={s.heroCopy}>{active.perfect} PERFECT · {active.cleared} CLEARED</Text></View>
- <View style={s.grid}>{active.levels.map(l=><Pressable key={l.number} disabled={!l.available} accessibilityRole="button" accessibilityState={{disabled:!l.available}} accessibilityLabel={`Level ${l.number}, ${l.progress?.cleared?l.progress.bestRank:l.available?'available':'locked'}`} onPress={()=>onSelectLevel(l.number)} style={({pressed})=>[s.level,!l.available&&s.disabled,pressed&&s.pressed,l.number===save.campaign.highestUnlockedLevel&&s.currentLevel]}><Text style={s.levelNumber}>{l.number}</Text>{l.available?<Text style={s.rank}>{l.progress?.cleared?l.progress.bestRank:'PLAY'}</Text>:<Lock/>}</Pressable>)}</View>
- <Text style={s.levelHint}>Replay cleared levels to improve your precision.</Text></ScrollView>:
- <ScrollView key="worlds" ref={scroll} style={{flex:1}} contentContainerStyle={s.list} onContentSizeChange={()=>{if(!positioned.current){positioned.current=true;scroll.current?.scrollTo({y:Math.max(0,(data.currentIndex-1)*156),animated:false});}}}>
+ <View style={s.levelHero}><Preview id={active.world.id} revealed={data.destination==='LUMA'}/><LinearGradient colors={['transparent','#04121de6']} style={StyleSheet.absoluteFill}/><Text style={s.heroCopy}>{active.perfect} {t("journeyscreen.perfect")}{active.cleared} {t("journeyscreen.cleared")}</Text></View>
+ <View style={s.grid}>{active.levels.map(l=><Pressable key={l.number} disabled={!l.available} accessibilityRole="button" accessibilityState={{disabled:!l.available}} accessibilityLabel={t("homescreen.level", {value1: l.number, value2: l.progress?.cleared?displayLabel(l.progress.bestRank):l.available?'available':'locked'})} onPress={()=>onSelectLevel(l.number)} style={({pressed})=>[s.level,!l.available&&s.disabled,pressed&&s.pressed,l.number===save.campaign.highestUnlockedLevel&&s.currentLevel]}><Text style={s.levelNumber}>{l.number}</Text>{l.available?<Text style={s.rank}>{l.progress?.cleared?displayLabel(l.progress.bestRank):t("homescreen.play")}</Text>:<Lock/>}</Pressable>)}</View>
+ <Text style={s.levelHint}>{t("journeyscreen.replay_cleared_levels_to_improve_your_precision")}</Text></ScrollView>:
+ <ScrollView key="worlds" ref={scroll} style={{flex:1}} contentContainerStyle={s.list} onContentSizeChange={scrollToLast} onLayout={()=>requestAnimationFrame(scrollToLast)}>
  {data.worlds.map((entry,i)=>{const {world,state}=entry,locked=!entry.unlocked,current=state==='current',bright=state==='completed'||current;
- return <View key={world.id} style={s.row}>
+ return <View key={world.id} style={s.row} onLayout={e=>{rowPositions.current[world.id]=e.nativeEvent.layout.y;if(world.id===lastWorld)requestAnimationFrame(scrollToLast);}}>
  <View style={s.rail}><View style={[s.line,{backgroundColor:bright?'#48cfe2':'#254255'},i===0&&{top:'50%'},i===9&&{bottom:'50%'}]}/><View style={[s.connector,{backgroundColor:bright?'#48cfe2':'#254255'}]}/><Node state={state}/></View>
- <Pressable accessibilityRole="button" accessibilityLabel={`${world.name}, ${state}, ${entry.cleared} of 15 complete${locked?`, complete ${WORLDS[i-1]?.name??'previous world'} to unlock`:''}`} accessibilityHint={locked?'Shows unlock requirement':'Opens level selection'} onPress={()=>{if(locked){setNotice(`Complete ${WORLDS[i-1]?.name??'the previous world'} to unlock ${world.name}.`);return;}setNotice('');setSelected(world.id);}} style={({pressed})=>[s.card,current&&s.currentCard,pressed&&s.pressed]}>
+ <Pressable accessibilityRole="button" accessibilityLabel={t("journeyscreen.of_15_complete", {value1: world.name, value2: state, value3: entry.cleared, value4: locked?t("journeyscreen.complete_to_unlock_2", {value1: WORLDS[i-1]?.name??t("journeyscreen.previous_world")}):''})} accessibilityHint={locked?t("journeyscreen.shows_unlock_requirement"):t("journeyscreen.opens_level_selection")} onPress={()=>{if(locked){setNotice(t("journeyscreen.complete_to_unlock", {value1: WORLDS[i-1]?.name??t("journeyscreen.the_previous_world"), value2: world.name}));return;}setNotice('');setSelected(world.id);}} style={({pressed})=>[s.card,current&&s.currentCard,pressed&&s.pressed]}>
  <View style={[StyleSheet.absoluteFill,locked&&{opacity:.48}]}><Preview id={world.id} revealed={data.destination==='LUMA'}/></View>
  <LinearGradient colors={['#04111bf5','#04111bd9','#04111b18']} locations={[0,.44,1]} start={{x:0,y:0}} end={{x:1,y:0}} style={StyleSheet.absoluteFill}/>
- <View style={s.copy}><Text style={s.eyebrow}>WORLD {world.index} <Text style={{color:current?cyan:muted}}>{current?' · CURRENT':state==='completed'?' · COMPLETE':''}</Text></Text><Text style={[s.name,small&&{fontSize:15}]}>{world.name}</Text><Text numberOfLines={2} style={s.subtitle}>{world.id==='homeward'&&data.destination==='UNKNOWN'?'The light ahead':world.subtitle}</Text><Text style={s.count}>{entry.cleared} / 15 <Text style={s.mastery}>{entry.perfect>0?` · ${entry.perfect} PERFECT`:locked?' · LOCKED':''}</Text></Text></View>
+ <View style={s.copy}><Text style={s.eyebrow}>{t("statuspanel.world")}{world.index} <Text style={{color:current?cyan:muted}}>{current?t("journeyscreen.current"):state==='completed'?t("journeyscreen.complete"):''}</Text></Text><Text style={[s.name,small&&{fontSize:15}]}>{world.name}</Text><Text numberOfLines={2} style={s.subtitle}>{world.id==='homeward'&&data.destination==='UNKNOWN'?t("journeyscreen.the_light_ahead"):world.subtitle}</Text><Text style={s.count}>{entry.cleared} / 15 <Text style={s.mastery}>{entry.perfect>0?t("journeyscreen.perfect_2", {value1: entry.perfect}):locked?t("journeyscreen.locked"):''}</Text></Text></View>
  <View style={s.chevron}>{locked?<Lock/>:<Text style={s.arrow}>›</Text>}</View>
  </Pressable></View>;})}
- <Text style={s.footer}>SAME PHYSICS. A UNIVERSE OF POSSIBILITIES.</Text>
+ <Text style={s.footer}>{t("journeyscreen.same_physics_a_universe_of_possibilities")}</Text>
  </ScrollView>}
- {notice?<Pressable accessibilityRole="button" accessibilityLabel={`${notice} Dismiss`} onPress={()=>setNotice('')} style={s.notice}><Text accessibilityLiveRegion="polite" style={s.noticeText}>{notice} ×</Text></Pressable>:null}
+ {notice?<Pressable accessibilityRole="button" accessibilityLabel={t("journeyscreen.dismiss", {value1: notice})} onPress={()=>setNotice('')} style={s.notice}><Text accessibilityLiveRegion="polite" style={s.noticeText}>{notice} ×</Text></Pressable>:null}
  </View></View></View>;
 }
 const s=StyleSheet.create({

@@ -3,7 +3,9 @@
 export const ECONOMY = {
   maxEnergy: 15,
   energyRegenMinutes: 10,
-  rewardedAdEnergyAmount: 1,
+  rewardedAdEnergyAmount: 5,
+  energyRefillCost: 60,
+  portalBloomMultiplier: 1.25,
 
   score: {
     CLEAR: 100,
@@ -14,7 +16,8 @@ export const ECONOMY = {
   },
 
   shards: {
-    levelClear: 5,
+    levelClear: 10,
+    repeatClear: 2,
     greatBonus: 2,
     bullseyeBonus: 4,
     perfectBonus: 8,
@@ -23,9 +26,10 @@ export const ECONOMY = {
   },
 
   boostCosts: {
-    guidance: 100,
-    slowField: 150,
-    secondChance: 200,
+    guidance: 35,
+    slowField: 50,
+    secondChance: 65,
+    portalBloom: 45,
   },
 
   boostSlowFieldMultiplier: 0.6,
@@ -56,4 +60,6 @@ export const ECONOMY = {
   unlimitedEnergy7dMs: 7 * 24 * 60 * 60 * 1000,
 } as const;
 
-export type BoostId = 'guidance' | 'slowField' | 'secondChance' | 'hyperjump';
+export type BoostId = 'guidance' | 'slowField' | 'secondChance' | 'hyperjump' | 'portalBloom';
+
+export const SHARD_PACKS = [{id:'pocket',name:'Pocket of light',shards:250},{id:'journey',name:'Journey supply',shards:700},{id:'voyage',name:'Voyage reserve',shards:1600}] as const;

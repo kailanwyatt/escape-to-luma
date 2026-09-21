@@ -1,3 +1,5 @@
+import {sequenceHousing} from './EncounterArt';
+import {disposeThreeObject} from '../utils/disposeThree';
 import * as THREE from 'three';
 
 import type { EnvironmentId } from '../config/ChallengeConfig';
@@ -24,6 +26,7 @@ export class IrisObstacle {
   z = GAME_TUNING.rotor.z;
   active = false;
   openingRadius = 1.4;
+  private sequenceArt:THREE.Group|null=null;
   private config: IrisConfig | null = null;
   private visual: THREE.Group | null = null;
   private environment: EnvironmentId = 'workshop';
@@ -36,6 +39,8 @@ export class IrisObstacle {
   }
 
   applyConfig(config: IrisConfig, environment: EnvironmentId): void {
+    if(this.sequenceArt){this.group.remove(this.sequenceArt);disposeThreeObject(this.sequenceArt);this.sequenceArt=null;}
+    if(config.sequenceIndex!==undefined){this.sequenceArt=sequenceHousing(config.sequenceIndex);this.group.add(this.sequenceArt);}
     this.config = config;
     this.active = true;
     this.group.visible = true;

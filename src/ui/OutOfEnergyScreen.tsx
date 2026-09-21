@@ -1,40 +1,21 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button } from '../design';
-
-type Props = {
-  onRetry: () => void;
-  onLater: () => void;
-};
-
-export function OutOfEnergyScreen({
-  onRetry,
-  onLater,
-}: Props) {
-  const insets = useSafeAreaInsets();
-  return (
-    <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <Text style={styles.title}>FREE RETRIES ACTIVE</Text>
-      <Text style={styles.next}>NO ENERGY OR PURCHASE REQUIRED</Text>
-      <View style={styles.cta}><Button label="RETRY" onPress={onRetry} /></View>
-      <Pressable style={styles.later} onPress={onLater}>
-        <Text style={styles.laterText}>HOME</Text>
-      </Pressable>
-    </View>
-  );
+import {t} from '../i18n';
+import {useEffect,useState} from 'react';
+import {Text,View,Pressable,ScrollView} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {ContinueJourneyButton} from '../design';
+import {ECONOMY} from '../config/economy';
+import {regenerateEnergy,msUntilNextEnergy,formatCountdown} from '../economy/energy';
+import type {PersistentGameData} from '../persistence/GameSave';
+export function OutOfEnergyScreen({save,onRetry,onLater,onShop,onWatch}:{save:PersistentGameData;onRetry:()=>void;onLater:()=>void;onShop:()=>void;onWatch:()=>Promise<void>}){
+ const insets=useSafeAreaInsets(),[now,setNow]=useState(Date.now()),[busy,setBusy]=useState(false);
+ useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
+ const c=save.campaign,e=regenerateEnergy(c.currentEnergy,c.energyUpdatedAt,now),dev=typeof __DEV__!=='undefined'&&__DEV__;
+ return <View style={{position:'absolute',inset:0,backgroundColor:'#041421'}}><ScrollView contentContainerStyle={{flexGrow:1,justifyContent:'center',alignItems:'center',padding:26,paddingTop:insets.top+26,paddingBottom:insets.bottom+26}}><View style={{width:'100%',maxWidth:520,gap:20}}>
+ <Text style={{fontSize:68,color:'#5de5fa',textAlign:'center'}}>ϟ</Text><Text style={{color:'white',fontSize:30,fontWeight:'800',textAlign:'center'}}>{e.energy>0?t("outofenergyscreen.spark_is_ready_again"):t("outofenergyscreen.spark_needs_a_recharge")}</Text><Text style={{color:'#bed5e1',lineHeight:25,textAlign:'center'}}>{e.energy>0?t("outofenergyscreen.energy_available_continue_your_journey", {value1: e.energy}):t("outofenergyscreen.your_progress_is_safe_energy_returns_automatically_or_you_can_cho")}</Text>
+ <Text style={{color:'#67deef',textAlign:'center'}}>{t("outofenergyscreen.next_energy_in")}{formatCountdown(msUntilNextEnergy(e.energy,e.energyUpdatedAt,now))} · {e.energy}/{ECONOMY.maxEnergy}</Text>
+ {e.energy>0?<ContinueJourneyButton label={t("storymoments.continue_journey")} onPress={onRetry}/>:null}
+ <ContinueJourneyButton disabled={busy||!dev||e.energy>=15} label={busy?t("outofenergyscreen.please_wait"):t("outofenergyscreen.watch_ad_5_energy", {value1: dev?t("debugoverlay.test"):''})} playIcon={false} onPress={()=>{setBusy(true);void onWatch().finally(()=>setBusy(false));}}/>
+ <Pressable accessibilityRole="button" onPress={onShop} style={{padding:20,borderRadius:18,borderWidth:1,borderColor:'#4092ad'}}><Text style={{color:'#8de8f6',textAlign:'center',fontWeight:'800'}}>{t("outofenergyscreen.shop_energy_shards")}</Text></Pressable>
+ <Text style={{color:'#8aa8bb',textAlign:'center',fontSize:12}}>{dev?t("outofenergyscreen.development_test_ad_no_live_advertising_or_real_payments"):t("outofenergyscreen.ads_are_not_available_yet_wait_for_energy_or_visit_the_shop")}</Text>
+ <Pressable accessibilityRole="button" onPress={onLater} style={{padding:16}}><Text style={{color:'#a4cad9',textAlign:'center'}}>{t("hud.return_home")}</Text></Pressable></View></ScrollView></View>;
 }
-
-const styles = StyleSheet.create({
-  root: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(10,8,7,0.94)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-  },
-  title: { color: '#ffd24a', fontSize: 22, fontWeight: '900', letterSpacing: 1, textAlign: 'center' },
-  next: { marginTop: 28, color: 'rgba(244,239,230,0.55)', fontSize: 12, fontWeight: '800', letterSpacing: 2 },
-  cta: { marginTop: 32, alignSelf: 'stretch' },
-  later: { marginTop: 24, paddingVertical: 10 },
-  laterText: { color: 'rgba(244,239,230,0.55)', fontSize: 13, fontWeight: '800', letterSpacing: 2 },
-});
