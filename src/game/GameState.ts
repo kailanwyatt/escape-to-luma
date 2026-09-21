@@ -85,6 +85,13 @@ export type HudSnapshot = {
   loopNumber: number;
   runTheme: string;
   runXp: number;
+  voyageShards?: number;
+  campaignLevelsCompleted?: number;
+  campaignWorldsCompleted?: number;
+  currentWorldClears?: number;
+  firstCampaignCompletion?: boolean;
+  completionSparkId?: string | null;
+  equippedSparkId?: string;
   playerLevel: number;
   xpIntoLevel: number;
   xpForNext: number;

@@ -4,7 +4,7 @@ Local cleanup completed; no EAS build, prebuild, export, upload or submission wa
 
 ## Build manually
 
-From `/Users/kurt/Documents/mobile-apps/ball-game-cs`:
+From `/Users/kurt/Documents/mobile-apps/escape-to-luma`:
 
 ```sh
 npx eas-cli build --platform ios --profile testflight
@@ -30,9 +30,10 @@ archived as text under `docs/archive/unused-ui/` (excluded from builds).
 
 - Typecheck and local Expo config/dependency checks are available without building.
 - Actual native compilation, signing and device performance require your first build.
-- Six previously reproduced failures remain in campaign-balance, campaign-composition
-  and ricochet tests; they are not caused by cleanup. This is a first device-test build,
-  not a claim that full release QA passes.
+- The six earlier regression failures have been addressed: updated authored-course
+  expectations and a timing-aware corridor check using real shutter states.
+- Follow `TESTFLIGHT-ROUND-1.md` for device acceptance. Local checks do not establish
+  native stability or performance.
 - TestFlight disables developer unlocks, fake rewarded ads, fake purchases and tracking.
   Energy regenerates on its timer; shard refills remain available. Live paid packs/ads
   are not connected and should not be expected to work in this beta.

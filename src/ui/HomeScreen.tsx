@@ -89,7 +89,7 @@ export function HomeScreen({reduceMotion=false,save, currentLevel, onContinue, o
           <Pressable accessibilityRole="button" accessibilityLabel={c.campaignCompleted&&level===currentLevel?t("homescreen.endless_voyage"):t("homescreen.play_level", {value1: level})} onPress={play} style={({pressed})=>[s.play,pressed&&s.pressed]}>
             <LinearGradient colors={['#FFE05B','#FFC83D','#F5A623']} style={s.playInner}>
               <Text style={s.playLabel}>▶ {c.campaignCompleted&&level===currentLevel?t("homescreen.voyage"):t("homescreen.play")}</Text>
-              <Text numberOfLines={1} adjustsFontSizeToFit style={s.playWorld}>{world.name}</Text><Text style={s.playLevel}>{t("hud.level")}{level}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={s.playWorld}>{c.campaignCompleted&&level===currentLevel?t("voyage.title"):world.name}</Text><Text style={s.playLevel}>{c.campaignCompleted&&level===currentLevel?t("voyage.home_hint"):`${t("hud.level")}${level}`}</Text>
             </LinearGradient>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={t("homescreen.next_available_level")} disabled={level>=maxLevel} onPress={()=>setSelected(level+1)} style={[s.arrow,level>=maxLevel&&s.disabled]}><Text style={s.arrowText}>›</Text></Pressable>

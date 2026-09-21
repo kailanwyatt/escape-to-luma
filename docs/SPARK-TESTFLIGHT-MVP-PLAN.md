@@ -1,7 +1,7 @@
 # Spark — Escape to Luma: Codex implementation plan
 
 Date: 2026-09-20  
-Repository: `/Users/kurt/Documents/mobile-apps/ball-game-cs`  
+Repository: `/Users/kurt/Documents/mobile-apps/escape-to-luma`  
 Status: audit complete; implementation backlog, not a release certification.
 
 ## 1. Recommendation

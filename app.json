@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "SPARK",
-    "slug": "ball-game-cs",
+    "slug": "escape-to-luma",
     "version": "0.1.0",
     "scheme": "spark",
     "orientation": "portrait",
@@ -28,7 +28,8 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.MODIFY_AUDIO_SETTINGS"
-      ]
+      ],
+      "package": "com.kurt.sparkescapetoluma"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -67,6 +68,11 @@
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "06bd8d18-81fe-4e5a-bcfe-c7f46d834c98"
+      }
+    }
   }
 }

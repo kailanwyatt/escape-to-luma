@@ -7,7 +7,7 @@ import {containmentMetal} from '../graphics/ContainmentMaterials';
 export const JOURNEY_LOOKS = {
  sky:{background:0x527e9c,ambient:0xd9e9ee,key:0xffedce},
  moon:{background:0x030711,ambient:0x94a5b8,key:0xe9ecf3},
- asteroid:{background:0x080b16,ambient:0x85859e,key:0xffc790},
+ asteroid:{background:0x0d1728,ambient:0xb6c9df,key:0xffdfb8},
  nebula:{background:0x130c27,ambient:0x9c83c4,key:0xd9c7ff},
  network:{background:0x030f18,ambient:0x829cac,key:0xffdc8c},
  homeward:{background:0x062023,ambient:0xa0cec5,key:0xd7fff0},
@@ -65,7 +65,7 @@ export function createJourneyWorldScene(world:JourneyWorld):THREE.Group {
 
  if(world!=='sky'){
   const vertices=[];for(let i=0;i<260;i++)vertices.push(Math.sin(i*12.37)*40,Math.cos(i*5.17)*22+10,42+i%20);
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));root.add(new THREE.Points(g,new THREE.PointsMaterial({color:look.ambient,size:.035,fog:false})));
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));root.add(new THREE.Points(g,new THREE.PointsMaterial({color:look.ambient,size:world==='asteroid'?.055:.035,fog:false})));
  }
  for(const [material,matrices] of batches){const o=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),material,matrices.length);matrices.forEach((m,i)=>o.setMatrixAt(i,m));root.add(o);}
  for(const m of [metal,rock,dark,gold,light,crystal]){

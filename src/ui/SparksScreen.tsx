@@ -15,7 +15,7 @@ type Props={save:PersistentGameData;onEquip:(id:string)=>void;onBuy:(id:string)=
 const filters=['ALL','OWNED','LOCKED','SPECIAL'] as const;
 const hex=(n:number)=>`#${n.toString(16).padStart(6,'0')}`;
 /** Lightweight living-light preview; uses the actual cosmetic colors and no orbit rings. */
-function SparkPortrait({spark,size}:{spark:SparkDefinition;size:number}){
+export function SparkPortrait({spark,size}:{spark:SparkDefinition;size:number}){
  const tint=hex(spark.color),halo=hex(spark.trailColor);
  return <View accessible={false} style={{width:size,height:size,alignItems:'center',justifyContent:'center'}}>
  {[.95,.78,.61].map((scale,i)=><View key={scale} style={{position:'absolute',width:size*scale,height:size*scale,borderRadius:size,backgroundColor:halo,opacity:.025+i*.025,shadowColor:halo,shadowRadius:size*.1,shadowOpacity:.6,shadowOffset:{width:0,height:0}}}/>)}

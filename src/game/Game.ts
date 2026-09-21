@@ -1,3 +1,4 @@
+import {voyageReward} from '../progression/voyage';
 import {t} from '../i18n';
 import {ReflectorField} from '../reflectors/ReflectorField';
 import {stepRicochet,RICOCHET_STEP} from '../reflectors/Reflection';
@@ -29,7 +30,7 @@ import {
   canStartLevel,
   syncCampaignEnergy,
 } from '../campaign/CampaignPlay';
-import { getCampaignLevel, WORLD1_LEVELS } from '../campaign/levels';
+import { getCampaignLevel, getPlayableCampaignLevels, WORLD1_LEVELS } from '../campaign/levels';
 import type { CampaignLevelDefinition, PrecisionRank, SelectedBoosts } from '../campaign/types';
 import { worldForLevel } from '../campaign/worlds';
 import { sparkById, sparkVisualProfile } from '../customization/sparks';
@@ -203,6 +204,8 @@ export class Game {
   private slowFieldActive = false;
   private hydrated = false;
   private pendingCampaignComplete = false;
+  private voyageShards = 0;
+  private runProgressCommitted = true;
   private unlockedSparkName: string | null = null;
 
   constructor(gl: ExpoWebGLRenderingContext) {
@@ -446,6 +449,9 @@ export class Game {
   }
 
   restart(seed?: number, options?: { awaitStart?: boolean }): void {
+    this.finishEndlessVoyage();
+    this.runProgressCommitted = false;
+    this.voyageShards = 0;
     this.run.reset();
     this.director.restart(seed);
     if (this.director.isAuthored) {
@@ -660,8 +666,12 @@ export class Game {
     this.startEndlessVoyage();
   }
 
-  startEndlessVoyage(): void {
+  startEndlessVoyage(options?: {awaitStart?: boolean}): void {
+    this.finishEndlessVoyage();
+    this.runProgressCommitted = true;
     this.sessionMode = 'endless';
+    this.director.mode = 'GENERATED';
+    this.run.unlimitedHearts = false;
     this.campaignDef = null;
     this.campaignWindX = 0;
     this.windField.setWind(0);
@@ -677,7 +687,26 @@ export class Game {
     this.helpOffer = false;
     this.pendingCampaignFail = false;
     this.syncTrajectoryDebugFull();
-    this.restart(undefined, { awaitStart: true });
+    this.restart(undefined, { awaitStart: options?.awaitStart ?? true });
+  }
+
+  /** Finish the existing reunion acknowledgement, then enter a playable Voyage once. */
+  exploreFromFinale(): void {
+    if (this.sessionMode !== 'campaign') return;
+    const reunion = this.state.phase === 'CAMPAIGN_STORY' && this.campaignStory?.visual === 'reunion';
+    if (!reunion && this.state.phase !== 'CAMPAIGN_COMPLETE') return;
+    if (reunion) this.continueAfterLevel();
+    this.campaignStory = null;
+    this.pendingCampaignComplete = false;
+    this.pendingWorldComplete = false;
+    this.unlockedSparkName = null;
+    this.startEndlessVoyage({awaitStart: false});
+  }
+
+  /** Bank earned XP and records when leaving; repeated Home/Restart cannot pay twice. */
+  finishEndlessVoyage(): void {
+    if (this.sessionMode !== 'endless' || this.runProgressCommitted || this.throwsThisRun === 0) return;
+    this.commitProgress();
   }
 
   canChooseCampaignBoosts():boolean {
@@ -839,6 +868,7 @@ export class Game {
       return;
     }
     if (this.state.phase === 'CAMPAIGN_COMPLETE') {
+      this.startEndlessVoyage();
       return;
     }
     if (this.campaignDef.levelNumber >= RELEASE_POLICY.campaignMaxLevel) {
@@ -928,6 +958,7 @@ export class Game {
     this.save.campaign = structuredCloneSave(emptySave()).campaign;
     this.syncCampaignEnergyOnSave();
     void saveGameSave(this.save);
+    this.runProgressCommitted = true;
     this.sessionMode = 'endless';
     this.campaignDef = null;
     this.emitHud();
@@ -1370,6 +1401,13 @@ export class Game {
       loopNumber: this.director.loopNumber,
       runTheme: themeLabel(this.director.theme),
       runXp: this.run.runXp,
+      voyageShards: this.voyageShards,
+      firstCampaignCompletion: this.pendingCampaignComplete,
+      equippedSparkId: campaign.equippedSparkId,
+      completionSparkId: world?.completionSparkId && campaign.ownedSparkIds.includes(world.completionSparkId) ? world.completionSparkId : null,
+      campaignLevelsCompleted: campaign.stats.levelsCompleted,
+      campaignWorldsCompleted: campaign.stats.worldsCompleted,
+      currentWorldClears: world ? getPlayableCampaignLevels().filter(level => level.worldId === world.id && campaign.completedLevels[level.id]?.cleared).length : 0,
       playerLevel: playerLevelFromXp(this.projectedXp()),
       xpIntoLevel: xpIntoLevel(this.projectedXp()),
       xpForNext: xpToNextLevel(this.projectedXp()),
@@ -1911,6 +1949,13 @@ export class Game {
       void saveGameSave(this.save);
     }
     const outcome = this.run.applyResult(kind, points);
+    if (this.sessionMode === 'endless' && kind !== 'MISS' && kind !== 'ROTOR_HIT') {
+      const reward = voyageReward(this.run.challengesCleared);
+      this.voyageShards += reward;
+      this.save.campaign.shards += reward;
+      this.save.campaign.stats.shardsEarned += reward;
+      void saveGameSave(this.save);
+    }
     this.lastResult = kind;
     this.lastResultPoints = outcome.awarded;
     if (this.director.isAuthored) {
@@ -1936,6 +1981,10 @@ export class Game {
     }
     this.maybeAnnounceNewBest();
     this.maybeAnnounceProgress();
+    if (this.sessionMode === 'endless' && kind !== 'MISS' && kind !== 'ROTOR_HIT' && voyageReward(this.run.challengesCleared) > 2) {
+      this.banner = t('voyage.milestone', {count: this.run.challengesCleared});
+      this.bannerTimer = 1.6;
+    }
     if (this.sessionMode === 'campaign') {
       if (kind === 'ROTOR_HIT' || kind === 'MISS') {
         this.pendingCampaignFail = true;
@@ -2163,6 +2212,8 @@ export class Game {
   }
 
   private commitProgress(): void {
+    if (this.runProgressCommitted) return;
+    this.runProgressCommitted = true;
     this.commitBests();
     const previousLevel = this.save.playerProgress.playerLevel;
     const next = structuredCloneSave(this.save);
@@ -2237,7 +2288,7 @@ export class Game {
   }
 
   private projectedXp(): number {
-    return this.save.playerProgress.totalXP + this.run.runXp;
+    return this.save.playerProgress.totalXP + (this.runProgressCommitted ? 0 : this.run.runXp);
   }
 
   private syncProgressUnlocks(): void {

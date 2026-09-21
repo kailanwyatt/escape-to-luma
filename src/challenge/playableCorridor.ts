@@ -1,3 +1,4 @@
+import {gateStateAtTime} from '../obstacles/RapidShutterState';
 import {traceRicochet} from '../reflectors/RicochetTrace';
 import {AimSystem} from '../projectile/AimSystem';
 import {evaluateFormation} from '../obstacles/FormationState';
@@ -76,31 +77,24 @@ function shotClearsCourse(
   obstacles: ObstacleConfig[],
   target: ChallengeConfig['target'],
 ): boolean {
-  for (const obstacle of obstacles) {
-    const at = simulateToPlane(start, velocity, obstacle.z, forces);
-    if (!at) {
-      return false;
-    }
-    if (!clearsObstacle(obstacle, at.x, at.y, ball, at.time)) {
-      return false;
-    }
-  }
 
   const targetZ = target.z ?? GAME_TUNING.target.z;
   const at = simulateToPlane(start, velocity, targetZ, forces);
   if (!at) {
     return false;
   }
-  const targetX =
-    target.movement?.type === 'horizontal'
-      ? sampleMovement(target.movement, target.x, at.time)
-      : target.x;
-  const targetY =
-    target.movement?.type === 'vertical'
-      ? sampleMovement(target.movement, target.y, at.time)
-      : target.y;
-  const distance = Math.hypot(at.x - targetX, at.y - targetY);
-  return distance <= target.radius - MIN_TARGET_MARGIN;
+  const distance = Math.hypot(at.x - target.x, at.y - target.y);
+  if (distance > target.radius + (target.movement?.amplitude ?? 0) - MIN_TARGET_MARGIN) return false;
+  const crossings = obstacles.map(obstacle => ({obstacle, at: simulateToPlane(start, velocity, obstacle.z, forces)}));
+  // Timing courses must be tested after waiting too, not only at launch time zero.
+  // Use one shared clock offset for the entire route so paired gates stay synchronized.
+  for (let delay = 0; delay <= 12; delay += .2) {
+    if (!crossings.every(({obstacle, at}) => at && clearsObstacle(obstacle, at.x, at.y, ball, at.time + delay))) continue;
+    const tx = target.movement?.type === 'horizontal' ? sampleMovement(target.movement, target.x, at.time + delay) : target.x;
+    const ty = target.movement?.type === 'vertical' ? sampleMovement(target.movement, target.y, at.time + delay) : target.y;
+    if (Math.hypot(at.x-tx,at.y-ty) <= target.radius-MIN_TARGET_MARGIN) return true;
+  }
+  return false;
 }
 
 function simulateToPlane(
@@ -140,17 +134,9 @@ function clearsObstacle(
   if(obstacle.type==='formation')return !evaluateFormation(obstacle,arrivalTime,x,y,ball).hit;
   const type = obstacleTypeOf(obstacle);
   if (type === 'slidingGate' && obstacle.type === 'slidingGate') {
-    const openingX =
-      obstacle.baseX +
-      Math.sin(arrivalTime * obstacle.speed + (obstacle.phase ?? 0)) * obstacle.amplitude;
+    const gate = gateStateAtTime(obstacle, arrivalTime);
     const result = (obstacle.appearance === 'containmentGlass' ? evaluateBreachCollision : evaluateGateCollision)(
-      x,
-      y,
-      ball,
-      openingX,
-      obstacle.baseY ?? GAME_TUNING.gate.baseY,
-      obstacle.openingWidth,
-      obstacle.openingHeight,
+      x, y, ball, gate.x, gate.y, gate.width, gate.height,
     );
     return !result.hit && result.clearance >= 0.05;
   }

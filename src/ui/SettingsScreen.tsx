@@ -7,6 +7,7 @@ import { Screen, ScreenTitle, color, space } from '../design';
 import type { GameSettings } from '../persistence/GameSave';
 
 type Props = {
+  onPreviewLuma?:()=>void;
   devUnlockAll?:boolean;
   onToggleDevUnlock?:()=>void;
   settings: GameSettings;
@@ -23,7 +24,7 @@ type Props = {
 };
 
 export function SettingsScreen({
-  devUnlockAll=false,onToggleDevUnlock,
+  devUnlockAll=false,onToggleDevUnlock,onPreviewLuma,
   settings,
   systemReduceMotion,
   removeAds,
@@ -40,6 +41,7 @@ export function SettingsScreen({
     <Screen onBack={onBack} backLabel={t("journeyscreen.back_to_home")}>
       <ScreenTitle title={t("settingsscreen.settings")} />
       {__DEV__ && onToggleDevUnlock ? <View><Text style={styles.section}>{t("settingsscreen.development")}</Text><Toggle label={t("settingsscreen.unlock_all_levels")} value={devUnlockAll} onPress={onToggleDevUnlock}/><Text style={styles.note}>{t("settingsscreen.session_only_unlocking_grants_no_rewards_played_levels_still_save")}</Text></View> : null}
+      {__DEV__ && onPreviewLuma?<Pressable accessibilityRole="button" onPress={onPreviewLuma} style={styles.diagnostics}><Text style={styles.restoreText}>{t('luma.preview')}</Text></Pressable>:null}
       <Toggle
         label={t("settingsscreen.sound_effects")}
         value={settings.soundEnabled}

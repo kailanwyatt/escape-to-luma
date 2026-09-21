@@ -19,6 +19,7 @@ import { DEFAULT_SPARK_ID } from '../customization/sparks';
 import { DEFAULT_TRAIL_ID } from '../customization/trails';
 
 export const SAVE_VERSION = 5;
+// Keep the original storage namespace so renaming the app preserves existing progress.
 const STORAGE_KEY = 'ball-game-cs.save.v1';
 const BACKUP_KEY = 'ball-game-cs.save.v1.backup';
 const LEGACY_BESTS_KEY = 'ball-game-cs.personal-bests.v1';

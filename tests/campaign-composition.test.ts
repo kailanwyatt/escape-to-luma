@@ -29,7 +29,8 @@ describe('authored campaign compositions',()=>{
     const source=getCampaignLevel(37)!;const before=JSON.stringify(source);
     composeCampaignLevel(source);expect(JSON.stringify(source)).toBe(before);
     expect(getCampaignLevel(150)!.challenge.obstacles).toHaveLength(0);
-    for(const n of [146,147,148,149])expect(getCampaignLevel(n)!.challenge.obstacles).toHaveLength(2);
+    for(const n of [147,149])expect(getCampaignLevel(n)!.challenge.obstacles).toHaveLength(2);
+    for(const n of [146,148]){const gates=getCampaignLevel(n)!.challenge.obstacles;expect(gates).toHaveLength(3);expect(gates.every(o=>o.type==='iris')).toBe(true);}
   });
   it('introduces Sky paths alone before paired timing encounters',()=>{
     const first=[31,32,33].map(n=>getCampaignLevel(n)!.challenge.obstacles);

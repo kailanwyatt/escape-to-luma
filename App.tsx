@@ -1,3 +1,4 @@
+import {FinaleScreen} from './src/ui/FinaleScreen';
 import {t} from './src/i18n';
 import {TestCommerceModal,type TestOffer} from './src/ui/TestCommerceModal';
 import {AdService} from './src/services/ads/AdService';
@@ -149,6 +150,7 @@ export default function App() {
 }
 
 function AppShell() {
+  const [previewLuma,setPreviewLuma]=useState(false);
   const [testOffer,setTestOffer]=useState<TestOffer|null>(null);
   useEffect(()=>{
     let resolvePending:((v:'completed'|'dismissed')=>void)|null=null;
@@ -381,6 +383,7 @@ function AppShell() {
 
   const onHome = useCallback(() => {
     tap(() => {
+      gameRef.current?.finishEndlessVoyage();
       pausedRef.current = false;
       setPaused(false);
       refreshSave();
@@ -446,6 +449,14 @@ function AppShell() {
           onContinueLevel={() => {
             GameHaptics.forUi();
             gameRef.current?.continueAfterLevel();
+          }}
+          onExploreFinale={() => {
+            gameRef.current?.exploreFromFinale();
+            pausedRef.current = false;
+            setPaused(false);
+            gameRef.current?.resume();
+            refreshSave();
+            setScreen('play');
           }}
           onRetryLevel={() => {
             GameHaptics.forUi();
@@ -672,6 +683,7 @@ function AppShell() {
       ) : null}
       {screen === 'settings' ? (
         <SettingsScreen
+          onPreviewLuma={__DEV__?()=>setPreviewLuma(true):undefined}
           devUnlockAll={devUnlockAll}
           onToggleDevUnlock={()=>{const next=!devUnlockAll;setDevLevelsUnlocked(next);setDevUnlockAll(next);}}
           onReplayOpening={() => {
@@ -728,6 +740,13 @@ function AppShell() {
           <Text style={styles.loadingText}>{t("app.restoring_journey")}</Text>
         </View>
       ) : null}
+    {__DEV__ && previewLuma ? <FinaleScreen equippedSparkId={save.campaign.equippedSparkId}
+      reduceMotion={save.settings.reduceMotion || systemReduceMotion} onClosePreview={() => setPreviewLuma(false)}
+      onExplore={() => {
+        setPreviewLuma(false); pausedRef.current = false; setPaused(false);
+        gameRef.current?.resume(); setScreen('play');
+        gameRef.current?.startEndlessVoyage({awaitStart:false});
+      }}/> : null}
     </View>
   );
 }

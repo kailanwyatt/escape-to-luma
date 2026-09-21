@@ -77,6 +77,8 @@ describe('campaign progression', () => {
 
     const replay = applyLevelSuccess(first.save, definition, 'CLEAR', 0);
     expect(replay.worldComplete).toBe(false);
+    expect(replay.unlockedSparkId).toBeNull();
+    expect(replay.save.campaign.ownedSparkIds.filter(id => id === WORLDS[0].completionSparkId)).toHaveLength(1);
     expect(replay.save.campaign.stats.worldsCompleted).toBe(1);
     expect(replay.save.campaign.shards).toBe(shardsAfterFirst + ECONOMY.shards.repeatClear);
   });
@@ -104,9 +106,13 @@ describe('campaign progression', () => {
     const finale = getCampaignLevel(150)!;
     const first = applyLevelSuccess(emptySave(), finale, 'CLEAR', 0);
     expect(first.campaignComplete).toBe(true);
+    expect(first.shardsGained).toBe(ECONOMY.shards.worldCompletion + ECONOMY.shards.levelClear);
+    expect(first.unlockedSparkId).toBe(WORLDS[9].completionSparkId);
     const replay = applyLevelSuccess(first.save, finale, 'CLEAR', 0);
     expect(replay.campaignComplete).toBe(false);
     expect(replay.worldComplete).toBe(false);
+    expect(replay.unlockedSparkId).toBeNull();
+    expect(replay.save.campaign.ownedSparkIds.filter(id => id === WORLDS[9].completionSparkId)).toHaveLength(1);
     expect(replay.shardsGained).toBe(ECONOMY.shards.repeatClear);
     expect(replay.save.campaign.campaignCompleted).toBe(true);
     for (const number of [1, 44, 68, 91, 149]) {

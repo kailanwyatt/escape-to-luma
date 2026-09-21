@@ -32,7 +32,11 @@ export class EnvironmentManager {
       for(const skin of Object.values(this.skins))skin.visible=false;
       this.journeyKit.visible=true;
       const look=JOURNEY_LOOKS[worldId];this.scene.background=new THREE.Color(look.background);this.scene.fog=new THREE.Fog(look.background,worldId==='sky'?28:38,78);
-      this.ambient.color.setHex(look.ambient);this.ambient.intensity=.8;this.key.color.setHex(look.key);
+      this.ambient.color.setHex(look.ambient);this.ambient.intensity=worldId==='asteroid'?1.2:.8;this.key.color.setHex(look.key);
+      // Broad front fill reveals rock relief without flattening it into emissive art.
+      this.fill.color.setHex(worldId==='asteroid'?0x9bcaff:0xffb060);
+      this.fill.intensity=worldId==='asteroid'?.65:.18;
+      this.fill.position.set(worldId==='asteroid'?5:4.2,3.4,worldId==='asteroid'?-6:5);
     }
 
     this.ambientLife.setWorld(worldId ?? this.current, this.journeyKit ?? this.skins[this.current]);
@@ -49,7 +53,7 @@ export class EnvironmentManager {
 
   setOpeningLighting(stage: number, progress: number): void {
     const signal = stage === 3 && !this.reduceMotion ? Math.sin(progress * Math.PI) : 0;
-    this.key.intensity = .95 + signal * .22;
+    this.key.intensity = (this.journeyWorld === 'asteroid' ? 1.3 : .95) + signal * .22;
     const alarm = stage === 4 ? progress : this.alarm;
     for (const lamp of this.warningLamps) {
       lamp.color.setHex(alarm > .35 ? 0xff865e : 0xffd280);
@@ -62,6 +66,7 @@ export class EnvironmentManager {
   private readonly skins: Record<EnvironmentId, THREE.Group>;
   private readonly ambient: THREE.AmbientLight;
   private readonly key: THREE.DirectionalLight;
+  private readonly fill: THREE.DirectionalLight;
   private lampTime = 0;
   private warningLamps: THREE.MeshPhongMaterial[] = [];
   private reduceMotion = false;
@@ -71,11 +76,11 @@ export class EnvironmentManager {
     this.ambient = new THREE.AmbientLight(0x8aa8c0, 0.55);
     this.key = new THREE.DirectionalLight(0xc8e8ff, 0.95);
     this.key.position.set(-3.5, 10, -4);
-    const fill = new THREE.DirectionalLight(0xffb060, 0.18);
-    fill.position.set(4.2, 3.4, 5);
+    this.fill = new THREE.DirectionalLight(0xffb060, 0.18);
+    this.fill.position.set(4.2, 3.4, 5);
     scene.add(this.ambient);
     scene.add(this.key);
-    scene.add(fill);
+    scene.add(this.fill);
 
     this.skins = {
       workshop: createWorkshop(this.warningLamps),
@@ -117,6 +122,9 @@ export class EnvironmentManager {
     this.ambient.intensity = look.ambientIntensity;
     this.key.color.setHex(look.key);
     this.key.intensity = .95;
+    this.fill.color.setHex(0xffb060);
+    this.fill.intensity = .18;
+    this.fill.position.set(4.2, 3.4, 5);
     this.portal.visible = !immediate;
   }
 

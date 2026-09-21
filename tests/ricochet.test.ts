@@ -13,7 +13,7 @@ import type {ReflectorConfig} from '../src/reflectors/ReflectorConfig';
 const launch=(n=48)=>{const aim=new AimSystem();aim.begin(195,600);aim.move(195+390*(courses as Record<string,{witness:{dragX:number}}>)[n].witness.dragX,600);return {x:0,y:.6,z:0,...aim.end()};};
 describe('ricochet integration',()=>{
  it('matches live fixed steps and prediction for stationary, moving and two-bounce courses at 30/60/120 fps',()=>{
-  for(const n of [48,50,52,55,78])for(const fps of [30,60,120]){
+  for(const n of [48,50,52,55,87])for(const fps of [30,60,120]){
    const config=getCampaignLevel(n)!.challenge.ricochet!;
    const expected=traceRicochet(launch(n),config,12,0);
    expect(expected.arrival,`L${n}`).not.toBeNull();expect(expected.bounces).toHaveLength(config.requiredBounces);
@@ -58,7 +58,7 @@ describe('ricochet integration',()=>{
   expect(early.bounces).toHaveLength(0);expect(early.target.verdict).toBe('MISS');obstacle.dispose();
  });
  it('shows the complete route with Guidance and shortens normal assistance after the first bounce',()=>{
-  const def=getCampaignLevel(78)!;const target=new Target();target.applyConfig(def.challenge.target);const initial=launch();
+  const def=getCampaignLevel(87)!;const target=new Target();target.applyConfig(def.challenge.target);const initial=launch(87);
   const prediction=predictShot(initial,initial,[],target,0,1,{},0,def.challenge.ricochet);
   const guide=new TrajectoryPredictor();guide.showRicochet(prediction,false);
   const line=guide.group.children.find(o=>o.type==='Line') as import('three').Line;
@@ -69,6 +69,7 @@ describe('ricochet integration',()=>{
   const story=storyForLevel(46,['arrival.level-46'])!;expect(story.id).toBe('mechanic.iris.v2');expect(story.instruction).toContain('expands');
   expect(storyForLevel(47,['arrival.level-46','mechanic.iris.v2'])).toBeNull();
   expect(storyForLevel(48,[])?.instruction).toContain('cyan');
-  expect(storyForLevel(78,[])?.instruction).toContain('both');
+  expect(storyForLevel(87,[])?.instruction).toContain('both');
+  expect(storyForLevel(78,[])?.instruction).toContain('attracts');
  });
 });

@@ -1,3 +1,6 @@
+import {FinaleScreen} from './FinaleScreen';
+import {CompletionScreen} from './CompletionScreen';
+import {nextVoyageMilestone} from '../progression/voyage';
 import {t, displayLabel} from '../i18n';
 import {useState} from 'react';
 import {GameplayHeader, GameplayBoostButton} from './GameplayControls';
@@ -24,6 +27,7 @@ type Props = {
   onContinue: () => void;
   onDeclineContinue: () => void;
   onContinueLevel: () => void;
+  onExploreFinale: () => void;
   onRetryLevel: () => void;
   onUseHelp: () => void;
   onDeclineHelp: () => void;
@@ -56,6 +60,7 @@ export function HUD({
   onContinue,
   onDeclineContinue,
   onContinueLevel,
+  onExploreFinale,
   onRetryLevel,
   onUseHelp,
   onDeclineHelp,
@@ -77,8 +82,15 @@ export function HUD({
 
 
 
+  if ((hud.phase === 'CAMPAIGN_STORY' && hud.campaignStory?.visual === 'reunion') || hud.phase === 'CAMPAIGN_COMPLETE') {
+    return <FinaleScreen equippedSparkId={hud.equippedSparkId ?? 'original'} reduceMotion={reduceMotion} onExplore={onExploreFinale}/>;
+  }
   if (hud.phase === 'CAMPAIGN_STORY' && hud.campaignStory) {
     return <StoryScreen level={hud.campaignLevel} reduceMotion={reduceMotion} story={hud.campaignStory} onContinue={onContinueLevel} onHome={onHome}/>;
+  }
+
+  if (['WORLD_COMPLETE','SPARK_UNLOCKED'].includes(hud.phase)) {
+    return <CompletionScreen hud={hud} onContinue={onContinueLevel} onHome={onHome} reduceMotion={reduceMotion}/>;
   }
 
   return (
@@ -121,14 +133,12 @@ export function HUD({
         ) : null
       ) : !campaign ? (
         <View style={[styles.top, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
-          <Text style={styles.hearts}>{hearts}</Text>
-          <Pressable onPress={onToggleDebug} hitSlop={12}>
-            <Text style={[styles.shot, debugEnabled && styles.shotOn]}>
-              {debugEnabled
-                ? `${hud.environment.toUpperCase()} · ${hud.shotInEnvironment}/${hud.shotsPerEnvironment}`
-                : t("hud.proto", {value1: hud.environment.toUpperCase()})}
-            </Text>
-          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('gameplaycontrols.pause_game')} onPress={onPause} hitSlop={12}><Text style={styles.hearts}>‹</Text></Pressable>
+          <View style={{flex:1,alignItems:'center'}}>
+            <Text style={styles.shot}>{t('voyage.title')}</Text>
+            <Text style={{color:'#92c6da',fontSize:11,marginTop:5}}>{t('voyage.progress',{cleared:hud.shotsReached,goal:nextVoyageMilestone(hud.shotsReached)})}</Text>
+            <Text style={{color:'#69e6ee',fontSize:12,marginTop:4}}>{hearts}</Text>
+          </View>
           <Text style={styles.score}>{formatScore(hud.score)}</Text>
         </View>
       ) : null}
@@ -197,38 +207,6 @@ export function HUD({
         </View>
       ) : null}
 
-      {hud.phase === 'WORLD_COMPLETE' ? (
-        <View style={styles.overlay}>
-          <Text style={styles.endTitle}>{t("hud.world_complete")}</Text>
-          {hud.lastShardsGained > 0 ? (
-            <Text style={styles.shardGain}>+{hud.lastShardsGained} {t("statuspanel.shards")}</Text>
-          ) : null}
-          <Text style={styles.continueCopy}>{t("hud.the_journey_continues")}</Text>
-          <ContinueJourneyButton label={t("storymoments.continue")} playIcon={false} style={styles.overlayCta} onPress={onContinueLevel} />
-          <Pressable style={styles.homeButton} onPress={onHome}>
-            <Text style={styles.homeText}>{t("worldspack.home")}</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      {hud.phase === 'SPARK_UNLOCKED' ? (
-        <View style={styles.overlay}>
-          <Text style={styles.unlockEyebrow}>{t("game.new_spark")}</Text>
-          <Text style={styles.unlockName}>{hud.unlockedSparkName?.toUpperCase() ?? t("branding.spark")}</Text>
-          <Text style={styles.continueCopy}>{t("hud.a_new_energy_form_joins_the_journey")}</Text>
-          <ContinueJourneyButton label={t("storymoments.continue")} playIcon={false} style={styles.overlayCta} onPress={onContinueLevel} />
-        </View>
-      ) : null}
-
-      {hud.phase === 'CAMPAIGN_COMPLETE' ? (
-        <View style={styles.overlay}>
-          <Text style={styles.endTitle}>{t("hud.home_reached")}</Text>
-          <Text style={styles.rank}>{t("storymoments.luma")}</Text>
-          <Text style={styles.continueCopy}>{t("hud.spark_is_reunited_with_his_own_kind_explore_freely_in_endless_voy")}</Text>
-          <ContinueJourneyButton label={t("hud.return_home")} playIcon={false} style={styles.overlayCta} onPress={onHome} />
-        </View>
-      ) : null}
-
       {hud.phase === 'LEVEL_FAILED' ? (
         <View style={styles.overlay}>
           <Text style={styles.endTitle}>{t("hud.level_failed")}</Text>
@@ -242,7 +220,9 @@ export function HUD({
 
       {hud.phase === 'RUN_START' ? (
         <View style={styles.startOverlay} pointerEvents="none">
-          <Text style={styles.startTheme}>{hud.runTheme}</Text>
+          <Text style={styles.startTheme}>{t('voyage.title')}</Text>
+          <Text style={styles.continueCopy}>{t('voyage.rules')}</Text>
+          <Text style={styles.rank}>{hud.runTheme}</Text>
           <Text style={styles.startBestLabel}>{t("hud.best")}</Text>
           <Text style={styles.startBest}>{formatScore(hud.bestScore)}</Text>
           <Text style={styles.tapStart}>{t("hud.tap_to_start")}</Text>
@@ -287,7 +267,7 @@ export function HUD({
             [t("hud.perfects"), String(hud.perfects)],
             [t("hud.close_calls"), String(hud.closeCalls)],
           ]}
-          action="TRY AGAIN"
+          action={t("voyage.again")}
           onAction={onRestart}
           onHome={onHome}
           busy={hud.adBusy}
@@ -296,7 +276,7 @@ export function HUD({
 
       {hud.phase === 'RUN_OVER' ? (
         <EndCard
-          title={t("hud.run_over")}
+          title={t("voyage.complete")}
           hud={hud}
           newBest={hud.records.score}
           rows={[
@@ -310,7 +290,7 @@ export function HUD({
             [t("hud.perfects"), String(hud.perfects)],
             [t("hud.close_calls"), String(hud.closeCalls)],
           ]}
-          action="TRY AGAIN"
+          action={t("voyage.again")}
           onAction={onRestart}
           onHome={onHome}
           busy={hud.adBusy}
@@ -371,6 +351,7 @@ function EndCard({
           <Text style={styles.secondaryValue}>{value}</Text>
         </View>
       ))}
+      <Text style={styles.shardGain}>{t('voyage.banked',{count:hud.voyageShards??0})}</Text>
       <Text style={styles.xpGain}>+{hud.runXp} {t("hud.xp")}</Text>
       {hud.levelUp ? <Text style={styles.levelUp}>{t("hud.level_up")}</Text> : null}
       <Text style={styles.levelLabel}>{t("hud.level")}{hud.playerLevel}</Text>

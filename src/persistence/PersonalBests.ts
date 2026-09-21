@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Keep the original storage namespace so renaming the app preserves existing progress.
 const STORAGE_KEY = 'ball-game-cs.personal-bests.v1';
 
 export type PersonalBests = {

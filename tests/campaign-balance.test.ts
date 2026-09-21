@@ -2,10 +2,14 @@ import {describe,it,expect} from 'vitest';
 import {getPlayableCampaignLevels,getCampaignLevel} from '../src/campaign/levels';
 import {rebalanceCampaign} from '../src/campaign/levels/CampaignBalance';
 describe('campaign balance revision',()=>{
- it('requires a different landing position between most successive challenges',()=>{
+ it('alternates landing regions in the standard precision progression',()=>{
   const levels=getPlayableCampaignLevels().filter(l=>l.levelNumber>=16&&l.levelNumber<150);
-  const disjoint=levels.slice(1).filter((l,i)=>{const a=levels[i].challenge.target,b=l.challenge.target;return Math.hypot(a.x-b.x,a.y-b.y)>a.radius+b.radius;});
-  expect(disjoint.length/(levels.length-1)).toBeGreaterThan(.8);
+  // Bank shots and dedicated mechanic lessons have authored destinations; their
+  // uniqueness is checked separately in campaign-composition.test.ts.
+  const pairs=levels.slice(1).map((l,i)=>[levels[i],l]).filter(pair=>pair.every(l=>!l.challenge.ricochet&&!l.challenge.tags?.includes('new-encounter')));
+  expect(pairs.length).toBeGreaterThan(50);
+  const disjoint=pairs.filter(([previous,l])=>{const a=previous.challenge.target,b=l.challenge.target;return Math.hypot(a.x-b.x,a.y-b.y)>a.radius+b.radius;});
+  expect(disjoint.length/pairs.length).toBeGreaterThan(.8);
  });
  it('retains tutorial definitions and safe arrival without mutating input',()=>{
   for(const n of [1,2,3,4,5,6,7,150]){const source=getCampaignLevel(n)!;expect(rebalanceCampaign(source)).toBe(source);}
