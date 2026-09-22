@@ -61,7 +61,7 @@ export function SettingsScreen({
       {systemReduceMotion ? (
         <Text style={styles.note}>{t("settingsscreen.system_reduce_motion_is_on")}</Text>
       ) : null}
-      {RELEASE_POLICY.purchasesEnabled || RELEASE_POLICY.adsEnabled ? (
+      {RELEASE_POLICY.adsEnabled ? (
         <>
           <Text style={styles.section}>{t("settingsscreen.ads")}</Text>
           <Text style={styles.blurb}>

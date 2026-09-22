@@ -81,6 +81,7 @@ export type CampaignSave = {
   hasSeenOpening: boolean;
   seenStoryIds?: string[];
   shards: number;
+  processedPurchaseIds: string[];
   currentEnergy: number;
   energyUpdatedAt: number;
   ownedSparkIds: string[];
@@ -169,6 +170,7 @@ export const EMPTY_CAMPAIGN: CampaignSave = {
   hasSeenOpening: false,
   seenStoryIds: [],
   shards: 0,
+  processedPurchaseIds: [],
   currentEnergy: ECONOMY.maxEnergy,
   energyUpdatedAt: Date.now(),
   ownedSparkIds: [DEFAULT_SPARK_ID],
@@ -326,6 +328,7 @@ function normalizeSave(data: Partial<PersistentGameData>): PersistentGameData {
       hasSeenOpening: Boolean(campaign.hasSeenOpening),
       seenStoryIds: stringArray(campaign.seenStoryIds, []).slice(0, 200),
       shards: integer(campaign.shards, 0, 0, 100_000_000),
+      processedPurchaseIds: stringArray(campaign.processedPurchaseIds, []).slice(-200),
       currentEnergy: integer(campaign.currentEnergy, ECONOMY.maxEnergy, 0, ECONOMY.maxEnergy),
       energyUpdatedAt: finiteNumber(campaign.energyUpdatedAt, Date.now(), 0, Number.MAX_SAFE_INTEGER),
       ownedSparkIds: stringArray(campaign.ownedSparkIds, [DEFAULT_SPARK_ID]),

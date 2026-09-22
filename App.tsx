@@ -670,7 +670,7 @@ function AppShell() {
           }}
           onWatchEnergy={async()=>{await gameRef.current?.watchRewardedEnergy();refreshSave();}}
           onBuyEnergy={()=>{gameRef.current?.buyEnergyRefill();refreshSave();}}
-          onShardPack={(amount)=>{let settled=false;setTestOffer({kind:'pack',amount,finish:(ok)=>{if(settled)return;settled=true;if(ok)gameRef.current?.grantTestShardPack(amount);setTestOffer(null);refreshSave();}});}}
+          onShardPack={async(id)=>{const result=await gameRef.current?.purchaseShardPack(id)??'unavailable';refreshSave();return result;}}
           backLabel={shopReturn==='levelReady'?t("app.back_to_boosts"):shopReturn==='home'?'BACK':t("app.back_to_game")}
           onBack={() => tap(() => {refreshSave();setScreen(shopReturn);})}
         />

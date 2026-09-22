@@ -21,7 +21,7 @@ import { Analytics, ANALYTICS_EVENTS } from '../services/analytics/Analytics';
 import { AdService } from '../services/ads/AdService';
 import { PurchaseService } from '../services/purchases/PurchaseService';
 import { getCommercialConfig } from '../config/commercial';
-import { ECONOMY } from '../config/economy';
+import { ECONOMY, SHARD_PACKS, type ShardPackId } from '../config/economy';
 import { RELEASE_POLICY } from '../config/release';
 import {
   applyLevelFailure,
@@ -253,6 +253,7 @@ export class Game {
     this.bests = this.save.personalBests;
     this.startingLevel = this.save.playerProgress.playerLevel;
     PurchaseService.hydrate(this.save.commercial.removeAds);
+    void PurchaseService.initialize();
     this.applySettings();
     this.syncCampaignEnergyOnSave();
     this.applySparkLook();
@@ -1232,9 +1233,20 @@ export class Game {
     if(this.save.campaign.currentEnergy>=ECONOMY.maxEnergy||this.save.campaign.shards<ECONOMY.energyRefillCost)return false;
     this.save.campaign.shards-=ECONOMY.energyRefillCost;this.save.campaign.currentEnergy=ECONOMY.maxEnergy;this.save.campaign.energyUpdatedAt=Date.now();void saveGameSave(this.save);this.emitHud();return true;
   }
-  grantTestShardPack(amount:number):boolean {
-    if(typeof __DEV__==='undefined'||!__DEV__||![250,700,1600].includes(amount))return false;
-    this.save.campaign.shards+=amount;void saveGameSave(this.save);this.emitHud();return true;
+  async purchaseShardPack(packId: ShardPackId): Promise<'completed' | 'cancelled' | 'failed' | 'unavailable' | 'already'> {
+    const result = await PurchaseService.purchaseShardPack(packId);
+    if (result.status !== 'completed') return result.status;
+    if (this.save.campaign.processedPurchaseIds.includes(result.transactionId)) return 'already';
+    const pack = SHARD_PACKS.find((candidate) => candidate.id === packId);
+    if (!pack) return 'failed';
+    this.save.campaign.shards += pack.shards;
+    this.save.campaign.processedPurchaseIds = [
+      ...this.save.campaign.processedPurchaseIds,
+      result.transactionId,
+    ].slice(-200);
+    await saveGameSave(this.save);
+    this.emitHud();
+    return 'completed';
   }
   private resetCampaignAttempt(): void {
     if (!this.campaignDef) {

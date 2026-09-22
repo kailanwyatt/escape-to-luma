@@ -9,7 +9,7 @@ export const RELEASE_POLICY = {
   campaignMaxLevel: 150,
   freeRetries: false,
   adsEnabled: false,
-  purchasesEnabled: false,
+  purchasesEnabled: true,
   analyticsEnabled: false,
   trackingPromptEnabled: false,
   showDeveloperGraphicsScreen: typeof __DEV__ !== 'undefined' && __DEV__,

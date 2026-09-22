@@ -62,4 +62,28 @@ export const ECONOMY = {
 
 export type BoostId = 'guidance' | 'slowField' | 'secondChance' | 'hyperjump' | 'portalBloom';
 
-export const SHARD_PACKS = [{id:'pocket',name:'Pocket of light',shards:250},{id:'journey',name:'Journey supply',shards:700},{id:'voyage',name:'Voyage reserve',shards:1600}] as const;
+export const SHARD_PACKS = [
+  {
+    id: 'pocket',
+    name: 'Pocket of light',
+    shards: 250,
+    productId: 'com.kurt.sparkescapetoluma.shards250',
+    fallbackPrice: '$0.99',
+  },
+  {
+    id: 'journey',
+    name: 'Journey supply',
+    shards: 700,
+    productId: 'com.kurt.sparkescapetoluma.shards700',
+    fallbackPrice: '$2.99',
+  },
+  {
+    id: 'voyage',
+    name: 'Voyage reserve',
+    shards: 1600,
+    productId: 'com.kurt.sparkescapetoluma.shards1600',
+    fallbackPrice: '$5.99',
+  },
+] as const;
+
+export type ShardPackId = (typeof SHARD_PACKS)[number]['id'];

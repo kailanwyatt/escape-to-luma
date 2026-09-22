@@ -7,19 +7,28 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "appl_THsWGhvquciNPhrYFyQzCDwBbNE"
+      },
       "ios": {
         "simulator": false
       }
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "appl_THsWGhvquciNPhrYFyQzCDwBbNE"
+      },
       "ios": {
         "simulator": false
       }
     },
     "production": {
       "autoIncrement": true,
-      "distribution": "store"
+      "distribution": "store",
+      "env": {
+        "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "appl_THsWGhvquciNPhrYFyQzCDwBbNE"
+      }
     },
     "testflight": {
       "extends": "production"

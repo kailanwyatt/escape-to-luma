@@ -10,7 +10,7 @@
     "backgroundColor": "#050B15",
     "ios": {
       "bundleIdentifier": "com.kurt.sparkescapetoluma",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": true,
       "requireFullScreen": true,
       "config": {
