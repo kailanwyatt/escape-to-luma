@@ -28,22 +28,43 @@ import { LibraryObstacle } from '../src/obstacles/LibraryObstacle';
 import * as THREE from 'three';
 
 describe('new obstacle library families', () => {
-  it('piston field is deterministic across time samples', () => {
+  it('piston field rams thrust up from the floor into the flight band', () => {
     const config = {
       type: 'pistonField' as const,
       z: 5,
       laneCount: 4,
       spacing: 1.2,
-      maxExtension: 1.5,
-      minExtension: 0.2,
+      floorY: 0.12,
+      clearY: 2.15,
+      pistonHeight: 0.48,
+      maxExtension: 3.35,
+      minExtension: 0.12,
       speed: 1,
     };
     const a = pistonFieldStateAtTime(config, 1.25);
     const b = pistonFieldStateAtTime(config, 1.25);
     expect(a).toEqual(b);
     expect(a).toHaveLength(4);
-    const hit = evaluatePistonFieldCollision(config, 0, 0, 3, 0.2);
-    expect(typeof hit.hit).toBe('boolean');
+    for (const lane of a) {
+      expect(lane.floorY).toBeCloseTo(0.12, 5);
+      expect(lane.y).toBeCloseTo(lane.floorY + lane.height / 2, 5);
+      expect(lane.top).toBeCloseTo(lane.floorY + lane.height, 5);
+    }
+    // Fully extended tip crosses mid-corridor; retracted tip stays under clearY.
+    let blockedAtFlight = false;
+    let openAtFlight = false;
+    for (let t = 0; t < 8; t += 0.05) {
+      const lanes = pistonFieldStateAtTime(config, t);
+      const mid = lanes[Math.floor(lanes.length / 2)];
+      if (mid.open) {
+        expect(mid.top).toBeLessThanOrEqual(config.clearY);
+        if (!evaluatePistonFieldCollision(config, t, mid.x, 3, 0.2).hit) openAtFlight = true;
+      } else if (evaluatePistonFieldCollision(config, t, mid.x, 3, 0.2).hit) {
+        blockedAtFlight = true;
+      }
+    }
+    expect(blockedAtFlight).toBe(true);
+    expect(openAtFlight).toBe(true);
   });
 
   it('clock hands rotate with shared hub state', () => {

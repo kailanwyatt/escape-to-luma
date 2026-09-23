@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { getCampaignLevel } from '../src/campaign/levels';
 import { LIBRARY_LESSONS } from '../src/campaign/levels/LibraryEncounters';
+import { worldForLevel } from '../src/campaign/worlds';
 import { validateChallenge } from '../src/challenge/ChallengeValidator';
 import { estimateDifficulty } from '../src/challenge/difficulty';
 import { evaluateClockHandsCollision } from '../src/obstacles/ClockHandsState';
@@ -30,18 +31,38 @@ import {
   evaluateSolarSailCollision,
   evaluateTeleportPortalCollision,
   evaluateTheNullCollision,
+  teleportPortalPoseAtTime,
 } from '../src/obstacles/StoryLibraryState';
 import type { ObstacleConfig } from '../src/config/ObstacleConfig';
 
 const BALL = 0.22;
 
-function centerClearSometime(obstacle: ObstacleConfig): boolean {
-  for (let t = 0; t < 8; t += 0.05) {
-    const sample = sampleCenter(obstacle, t);
-    if (sample && !sample.hit) return true;
-  }
-  return false;
-}
+/** docs/CURSOR-OBSTACLE-STORY-PLACEMENT.md destinations. */
+const expected: Record<number, { type: string; world: string }> = {
+  6: { type: 'pistonField', world: 'containment' },
+  9: { type: 'elevatorBlocks', world: 'lockdown' },
+  10: { type: 'reactiveGate', world: 'lockdown' },
+  13: { type: 'splitShutter', world: 'lockdown' },
+  14: { type: 'clockHands', world: 'lockdown' },
+  17: { type: 'conveyorGate', world: 'city' },
+  32: { type: 'scissorGate', world: 'ascent' },
+  33: { type: 'solarSail', world: 'ascent' },
+  40: { type: 'pulseRing', world: 'storm' },
+  47: { type: 'rollingAperture', world: 'upper_atmosphere' },
+  70: { type: 'sequentialTunnel', world: 'orbital_graveyard' },
+  71: { type: 'movingSafeZone', world: 'orbital_graveyard' },
+  77: { type: 'orbitingMoons', world: 'moon' },
+  78: { type: 'magnetopause', world: 'moon' },
+  85: { type: 'lagrangeNull', world: 'far_side' },
+  86: { type: 'corkscrewTunnel', world: 'far_side' },
+  92: { type: 'cometCrossing', world: 'asteroid_belt' },
+  93: { type: 'accretionShredder', world: 'asteroid_belt' },
+  100: { type: 'speedField', world: 'drift' },
+  101: { type: 'pulsarBeam', world: 'drift' },
+  112: { type: 'theNull', world: 'the_null' },
+  117: { type: 'teleportPortal', world: 'false_home' },
+  118: { type: 'entryExitPortal', world: 'false_home' },
+};
 
 function sampleCenter(obstacle: ObstacleConfig, t: number) {
   const x = 0;
@@ -98,43 +119,27 @@ function sampleCenter(obstacle: ObstacleConfig, t: number) {
   }
 }
 
-describe('library isolation encounters', () => {
-  const expected: Record<number, string> = {
-    13: 'pistonField',
-    14: 'splitShutter',
-    17: 'orbitingMoons',
-    18: 'sequentialTunnel',
-    19: 'elevatorBlocks',
-    20: 'reactiveGate',
-    21: 'corkscrewTunnel',
-    23: 'movingSafeZone',
-    25: 'cometCrossing',
-    26: 'scissorGate',
-    27: 'accretionShredder',
-    28: 'speedField',
-    29: 'pulsarBeam',
-    31: 'solarSail',
-    32: 'magnetopause',
-    33: 'lagrangeNull',
-    34: 'conveyorGate',
-    35: 'clockHands',
-    36: 'pulseRing',
-    37: 'rollingAperture',
-    38: 'teleportPortal',
-    39: 'entryExitPortal',
-    40: 'theNull',
-  };
+function centerClearSometime(obstacle: ObstacleConfig): boolean {
+  for (let t = 0; t < 8; t += 0.05) {
+    const sample = sampleCenter(obstacle, t);
+    if (sample && !sample.hit) return true;
+  }
+  return false;
+}
 
-  it('remaps teaching slots to every library family', () => {
+describe('library isolation encounters (recapture placement)', () => {
+  it('remaps each family to its story destination world and level', () => {
     expect(Object.keys(LIBRARY_LESSONS).map(Number).sort((a, b) => a - b)).toEqual(
       Object.keys(expected).map(Number).sort((a, b) => a - b),
     );
-    for (const [levelNumber, type] of Object.entries(expected)) {
+    for (const [levelNumber, meta] of Object.entries(expected)) {
       const n = Number(levelNumber);
       const level = getCampaignLevel(n)!;
       expect(LIBRARY_LESSONS[n]).toBeTruthy();
+      expect(worldForLevel(n)?.id).toBe(meta.world);
+      expect(level.worldId).toBe(meta.world);
       expect(level.challenge.obstacles).toHaveLength(1);
-      expect(level.challenge.obstacles[0].type).toBe(type);
+      expect(level.challenge.obstacles[0].type).toBe(meta.type);
       expect(level.tutorialHint).toBeTruthy();
       expect(
         validateChallenge(
@@ -143,6 +148,13 @@ describe('library isolation encounters', () => {
           { windX: level.windX, gravityScale: level.gravityScale, wells: level.gravityWells },
         ),
       ).toBeNull();
+      if (n === 85) {
+        expect(level.gravityWells?.length).toBeGreaterThan(0);
+        expect(level.tutorialHint).toMatch(/cancel/i);
+      }
+      if (n === 118) {
+        expect(level.challenge.target.x).toBeCloseTo(0.85, 5);
+      }
     }
   });
 
@@ -153,13 +165,19 @@ describe('library isolation encounters', () => {
     }
   });
 
-  it('keeps the pulse-ring hub clear for the whole cycle', () => {
-    const obstacle = getCampaignLevel(36)!.challenge.obstacles[0];
-    expect(obstacle.type).toBe('pulseRing');
-    for (let t = 0; t < 4; t += 0.1) {
-      expect(evaluatePulseRingCollision(obstacle as Extract<ObstacleConfig, { type: 'pulseRing' }>, t, 0, 3, BALL).hit).toBe(
-        false,
-      );
-    }
+  it('collides teleport portals on the current anchor while warning telegraphs the next', () => {
+    const obstacle = getCampaignLevel(117)!.challenge.obstacles[0];
+    expect(obstacle.type).toBe('teleportPortal');
+    if (obstacle.type !== 'teleportPortal') return;
+    const hold = teleportPortalPoseAtTime(obstacle, 0.2);
+    expect(hold.warning).toBe(false);
+    expect(hold.x).toBe(0);
+    expect(evaluateTeleportPortalCollision(obstacle, 0.2, 0, 3, BALL).hit).toBe(false);
+    const warn = teleportPortalPoseAtTime(obstacle, 1.2);
+    expect(warn.warning).toBe(true);
+    expect(warn.x).toBe(hold.x);
+    expect(warn.nextX).not.toBe(warn.x);
+    expect(evaluateTeleportPortalCollision(obstacle, 1.2, warn.x, warn.y, BALL).hit).toBe(false);
+    expect(evaluateTeleportPortalCollision(obstacle, 1.2, warn.nextX, warn.nextY, BALL).hit).toBe(true);
   });
 });

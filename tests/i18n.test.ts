@@ -6,7 +6,8 @@ import {resultLabel} from '../src/target/TargetScoring';
 describe('English translations',()=>{
  it('preserves dynamic values, including zero and dollar signs',()=>{
   expect(t('results.PERFECT',{points:0})).toBe('PERFECT +0');
-  expect(t('gameplaycontrols.level_of',{value1:2,value2:15,value3:'$& Lab'})).toBe('Level 2 of 15, $& Lab');
+  expect(t('gameplaycontrols.level_of',{value1:13,value2:5,value3:7,value4:'$& Lockdown'})).toBe('Level 13, 5 of 7 in $& Lockdown');
+  expect(t('gameplaycontrols.l',{value1:13,value2:5,value3:7,value4:'LOCKDOWN'})).toBe('L13 · 5/7 · LOCKDOWN');
  });
  it('keeps missing placeholders visible rather than silently dropping copy',()=>{
   expect(t('results.PERFECT')).toBe('PERFECT +{points}');

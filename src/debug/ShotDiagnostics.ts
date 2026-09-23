@@ -1,14 +1,14 @@
-import type {RicochetConfig} from '../reflectors/ReflectorConfig';
-import type {Bounce} from '../reflectors/Reflection';
-import {traceRicochet} from '../reflectors/RicochetTrace';
 import { GAME_TUNING } from '../game/gameTuning';
-import type { ShotResultKind } from '../game/GameState';
 import type { ObstacleHitPart } from '../obstacles/ObstacleCollision';
 import type { ObstacleSlot } from '../obstacles/ObstacleSlot';
 import { scoreTarget } from '../target/TargetScoring';
 import { distanceToTarget } from '../target/TargetCollision';
 import type { Target } from '../target/Target';
-import { integrateMotion, type PhysicsForces } from '../projectile/physics';
+import { applyPortalWarps, integrateMotion, type PhysicsForces } from '../projectile/physics';
+import type {RicochetConfig} from '../reflectors/ReflectorConfig';
+import type {Bounce} from '../reflectors/Reflection';
+import {traceRicochet} from '../reflectors/RicochetTrace';
+import type { ShotResultKind } from '../game/GameState';
 
 export type Vec3 = { x: number; y: number; z: number };
 export type Velocity = { vx: number; vy: number; vz: number };
@@ -80,10 +80,12 @@ export function simulateToZ(
   planeZ: number,
   dt = 1 / 60,
   forces: PhysicsForces = {},
-): { x: number; y: number; z: number; time: number } | null {
+): { x: number; y: number; z: number; time: number; vx: number; vy: number; vz: number } | null {
   if (velocity.vz <= 0.001 || start.z >= planeZ) {
     return null;
   }
+  // Strip portal warps so plane samples stay at the entry crossing for collision.
+  const { portalWarps: _portalWarps, ...flightForces } = forces;
   const state = { ...start, ...velocity };
   let prevX = state.x;
   let prevY = state.y;
@@ -93,7 +95,7 @@ export function simulateToZ(
     prevX = state.x;
     prevY = state.y;
     prevZ = state.z;
-    integrateMotion(state, dt, forces);
+    integrateMotion(state, dt, flightForces);
     time += dt;
   }
   const span = state.z - prevZ;
@@ -103,6 +105,9 @@ export function simulateToZ(
     y: prevY + (state.y - prevY) * u,
     z: planeZ,
     time: time - dt + u * dt,
+    vx: state.vx,
+    vy: state.vy,
+    vz: state.vz,
   };
 }
 
@@ -119,21 +124,40 @@ export function predictShot(
 ): ShotPrediction {
   if (ricochet) return predictRicochetShot(start,velocity,obstacles,target,simTime,obstacleTimeScale,forces,targetTime,ricochet);
   const projectileRadius = GAME_TUNING.projectile.radius;
-  const rotors = obstacles.map((_, index) => {
-    const id: 'A' | 'B' | 'C' = index === 0 ? 'A' : index === 1 ? 'B' : 'C';
-    const obstacle = obstacles[index];
-    if (!obstacle?.active) {
-      return emptyRotor(id);
-    }
+  const ordered = obstacles
+    .map((obstacle, index) => ({ obstacle, index }))
+    .filter((item) => item.obstacle.active)
+    .sort((a, b) => a.obstacle.z - b.obstacle.z || a.index - b.index);
+
+  const rotors: RotorArrivalPrediction[] = [
+    emptyRotor('A'),
+    emptyRotor('B'),
+    emptyRotor('C'),
+  ];
+
+  let cursor: Vec3 = { x: start.x, y: start.y, z: start.z };
+  let cursorVelocity: Velocity = { ...velocity };
+  let elapsed = 0;
+  for (const item of ordered) {
+    const id: 'A' | 'B' | 'C' = item.index === 0 ? 'A' : item.index === 1 ? 'B' : 'C';
+    const obstacle = item.obstacle;
     const analyticT = (obstacle.z - start.z) / Math.max(0.001, velocity.vz);
     const analytic = analyticPosition(start, velocity, analyticT);
-    const simulated = simulateToZ(start, velocity, obstacle.z, 1 / 120, forces);
-    const time = simulated?.time ?? analyticT;
+    const simulated = simulateToZ(cursor, cursorVelocity, obstacle.z, 1 / 120, forces);
+    const segmentTime =
+      simulated?.time ?? Math.max(0, (obstacle.z - cursor.z) / Math.max(0.001, cursorVelocity.vz));
+    const time = elapsed + segmentTime;
     const predicted = obstacle.predictState(time * obstacleTimeScale, simTime);
-    const at = simulated ?? analytic;
+    const at = simulated ?? {
+      x: cursor.x,
+      y: cursor.y,
+      z: obstacle.z,
+      time: segmentTime,
+      ...cursorVelocity,
+    };
     const collision = obstacle.evaluateAt(at.x, at.y, projectileRadius, predicted);
     const debug = obstacle.getDebugInfo();
-    return {
+    rotors[item.index] = {
       id,
       active: true,
       time,
@@ -156,14 +180,31 @@ export function predictShot(
       verdict: collision.hit ? 'HIT' : 'CLEAR',
       hitPart: collision.hit,
       clearance: collision.clearance,
-    } satisfies RotorArrivalPrediction;
-  });
+    };
+    elapsed = time;
+    cursorVelocity = { vx: at.vx, vy: at.vy, vz: at.vz };
+    if (collision.hit) {
+      cursor = { x: at.x, y: at.y, z: obstacle.z };
+      break;
+    }
+    // Match runtime: warp only after a clear Entry/Exit crossing.
+    if (obstacle.type === 'entryExitPortal') {
+      const warp = obstacle.warpTarget();
+      cursor = warp
+        ? { x: warp.x, y: warp.y, z: obstacle.z }
+        : { x: at.x, y: at.y, z: obstacle.z };
+    } else {
+      cursor = { x: at.x, y: at.y, z: obstacle.z };
+    }
+  }
 
   const analyticT = (target.z - start.z) / Math.max(0.001, velocity.vz);
   const analytic = analyticPosition(start, velocity, analyticT);
-  const simulated = simulateToZ(start, velocity, target.z, 1 / 120, forces);
-  const time = simulated?.time ?? analyticT;
-  const at = simulated ?? analytic;
+  const simulated = simulateToZ(cursor, cursorVelocity, target.z, 1 / 120, forces);
+  const segmentTime =
+    simulated?.time ?? Math.max(0, (target.z - cursor.z) / Math.max(0.001, cursorVelocity.vz));
+  const time = elapsed + segmentTime;
+  const at = simulated ?? { x: cursor.x, y: cursor.y, z: target.z, time: segmentTime, ...cursorVelocity };
   const futureTarget = target.predictPosition(targetTime + time);
   const distance = distanceToTarget(at.x, at.y, futureTarget.x, futureTarget.y);
   const scored = scoreTarget(distance, target.radius);
@@ -173,7 +214,9 @@ export function predictShot(
   const pathState = { ...start, ...velocity };
   const pathDt = analyticT / samples;
   for (let i = 1; i <= samples; i += 1) {
+    const prevZ = pathState.z;
     integrateMotion(pathState, pathDt, forces);
+    applyPortalWarps(prevZ, pathState, forces.portalWarps);
     path.push({ x: pathState.x, y: pathState.y, z: pathState.z });
   }
 

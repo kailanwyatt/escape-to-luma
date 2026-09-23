@@ -1,5 +1,7 @@
 # Spark — Escape to Luma: New Design Updates
 
+- [Cursor: obstacle placement and recapture story](CURSOR-OBSTACLE-STORY-PLACEMENT.md) — latest approved narrative direction, all 23 proposed isolation destinations, drone/alien visual roles, and mechanics caveats. Story copy is updated; level moves and graphics remain pending.
+
 These focused target-design specs take precedence over older conflicting campaign, obstacle and economy documentation. They do **not** mean the current 10-world / 150-level implementation has already changed; `CAMPAIGN-ARCHITECTURE.md`, `WORLD-PROGRESSION.md`, `ECONOMY.md`, `MONETIZATION.md`, `SAVE-SCHEMA.md`, `SPARKS-UI.md`, and source types remain the current-state reference until Cursor implements a tested migration.
 
 - [Refactored Worlds](REFACTORED-WORLDS.md) — 20 short chapters, narrative spine, pacing and migration guardrails.

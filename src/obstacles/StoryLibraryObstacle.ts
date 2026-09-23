@@ -3,6 +3,7 @@
  */
 
 import * as THREE from 'three';
+import { LibraryWorldArt } from './LibraryWorldArt';
 
 import type { EnvironmentId } from '../config/ChallengeConfig';
 import type {
@@ -45,6 +46,7 @@ import {
   pulsarBeamOn,
   sequentialTunnelAtTime,
   solarSailAngle,
+  solarSailOpen,
   teleportPortalPoseAtTime,
   theNullSafeAtTime,
 } from './StoryLibraryState';
@@ -97,6 +99,7 @@ export class StoryLibraryObstacle {
   active = false;
   private config: StoryLibraryConfig | null = null;
   private meshes: THREE.Mesh[] = [];
+  private worldArt: LibraryWorldArt | null = null;
   private elapsed = 0;
   private evalTime = 0;
 
@@ -276,183 +279,16 @@ export class StoryLibraryObstacle {
   private rebuild(): void {
     this.clear();
     if (!this.config) return;
-    const mat = new THREE.MeshBasicMaterial({
-      color: this.config.type === 'lagrangeNull' || this.config.type === 'theNull' ? 0x1a1028 : 0x8ab4c8,
-      transparent: true,
-      opacity: this.config.type === 'lagrangeNull' ? 0.22 : 0.85,
-      depthWrite: false,
-    });
-    let count = 1;
-    if (this.config.type === 'orbitingMoons') count = this.config.moonCount;
-    else if (this.config.type === 'sequentialTunnel') count = this.config.apertureCount;
-    else if (this.config.type === 'accretionShredder') count = this.config.debrisCount;
-    else if (this.config.type === 'entryExitPortal' || this.config.type === 'theNull') count = 2;
-    else if (this.config.type === 'magnetopause' || this.config.type === 'movingSafeZone') count = 8;
-    for (let i = 0; i < count; i += 1) {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.08), mat.clone());
-      this.meshes.push(mesh);
-      this.group.add(mesh);
-    }
+    this.worldArt = new LibraryWorldArt(this.config);
+    this.group.add(this.worldArt.group);
   }
 
   private clear(): void {
-    for (const mesh of this.meshes) {
-      this.group.remove(mesh);
-      mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
-    }
-    this.meshes = [];
+    this.worldArt?.dispose();
+    this.worldArt = null;
   }
 
   private layout(time: number): void {
-    if (!this.config) return;
-    switch (this.config.type) {
-      case 'orbitingMoons': {
-        orbitingMoonsAtTime(this.config, time).forEach((moon, i) => {
-          const mesh = this.meshes[i];
-          if (!mesh) return;
-          mesh.position.set(moon.x, moon.y, 0);
-          mesh.scale.set(moon.radius * 2, moon.radius * 2, 1);
-        });
-        break;
-      }
-      case 'sequentialTunnel': {
-        sequentialTunnelAtTime(this.config, time).forEach((ap, i) => {
-          const mesh = this.meshes[i];
-          if (!mesh) return;
-          mesh.position.set(ap.x, ap.y, 0);
-          mesh.scale.set(ap.radius * 2, ap.radius * 2, 1);
-          (mesh.material as THREE.MeshBasicMaterial).opacity = ap.open ? 0.25 : 0.85;
-          (mesh.material as THREE.MeshBasicMaterial).color.setHex(ap.open ? 0x7cffb2 : 0x8ab4c8);
-        });
-        break;
-      }
-      case 'movingSafeZone': {
-        const hole = movingSafeZoneHoleAtTime(this.config, time);
-        const n = this.meshes.length;
-        for (let i = 0; i < n; i += 1) {
-          const mesh = this.meshes[i];
-          if (!mesh || !this.config || this.config.type !== 'movingSafeZone') return;
-          const ang = (i / n) * Math.PI * 2;
-          const r = this.config.fieldRadius;
-          mesh.position.set(
-            this.config.centerX + Math.cos(ang) * r,
-            this.config.centerY + Math.sin(ang) * r,
-            0,
-          );
-          mesh.scale.set(0.25, ((Math.PI * 2) / n) * r * 0.9, 1);
-          mesh.rotation.z = ang;
-          (mesh.material as THREE.MeshBasicMaterial).opacity = 0.35;
-        }
-        // Reuse mesh 0 as hole marker if present.
-        const marker = this.meshes[0];
-        if (marker) {
-          marker.position.set(hole.x, hole.y, 0.02);
-          marker.scale.set(hole.radius * 2, hole.radius * 2, 1);
-          (marker.material as THREE.MeshBasicMaterial).opacity = 0.5;
-          (marker.material as THREE.MeshBasicMaterial).color.setHex(0x7cffb2);
-        }
-        break;
-      }
-      case 'accretionShredder': {
-        accretionDebrisAtTime(this.config, time).forEach((d, i) => {
-          const mesh = this.meshes[i];
-          if (!mesh) return;
-          mesh.position.set(d.x, d.y, 0);
-          mesh.scale.set(d.radius * 2, d.radius * 2, 1);
-        });
-        break;
-      }
-      case 'pulsarBeam': {
-        const mesh = this.meshes[0];
-        if (!mesh || this.config.type !== 'pulsarBeam') return;
-        const on = pulsarBeamOn(this.config, time);
-        mesh.position.set(this.config.centerX, this.config.centerY, 0);
-        if (this.config.orientation === 'vertical') {
-          mesh.scale.set(this.config.halfWidth * 2, 4.5, 1);
-        } else {
-          mesh.scale.set(4.5, this.config.halfWidth * 2, 1);
-        }
-        (mesh.material as THREE.MeshBasicMaterial).opacity = on ? 0.75 : 0.12;
-        (mesh.material as THREE.MeshBasicMaterial).color.setHex(on ? 0xff6b6b : 0x8ab4c8);
-        break;
-      }
-      case 'solarSail': {
-        const mesh = this.meshes[0];
-        if (!mesh || this.config.type !== 'solarSail') return;
-        const ang = solarSailAngle(this.config, time);
-        mesh.position.set(this.config.centerX, this.config.centerY, 0);
-        mesh.rotation.z = ang;
-        mesh.scale.set(this.config.halfWidth * 2, this.config.halfHeight * 2, 1);
-        (mesh.material as THREE.MeshBasicMaterial).opacity = Math.abs(ang) >= this.config.openAngle ? 0.25 : 0.85;
-        break;
-      }
-      case 'magnetopause': {
-        const n = this.meshes.length;
-        for (let i = 0; i < n; i += 1) {
-          const mesh = this.meshes[i];
-          if (!mesh || !this.config || this.config.type !== 'magnetopause') return;
-          const band = (this.config.innerRadius + this.config.outerRadius) / 2;
-          const gap = this.config.gapWidth;
-          const start = time * this.config.speed + (this.config.phase ?? 0) + gap / 2;
-          const span = Math.PI * 2 - gap;
-          const ang = start + (i / Math.max(1, n - 1)) * span;
-          mesh.position.set(
-            this.config.centerX + Math.cos(ang) * band,
-            this.config.centerY + Math.sin(ang) * band,
-            0,
-          );
-          mesh.rotation.z = ang;
-          mesh.scale.set(this.config.outerRadius - this.config.innerRadius, 0.35, 1);
-        }
-        break;
-      }
-      case 'lagrangeNull': {
-        const mesh = this.meshes[0];
-        if (!mesh || this.config.type !== 'lagrangeNull') return;
-        mesh.position.set(this.config.centerX, this.config.centerY, 0);
-        mesh.scale.set(this.config.radius * 2, this.config.radius * 2, 1);
-        break;
-      }
-      case 'teleportPortal': {
-        const pose = teleportPortalPoseAtTime(this.config, time);
-        const mesh = this.meshes[0];
-        if (!mesh) return;
-        mesh.position.set(pose.x, pose.y, 0);
-        mesh.scale.set(pose.radius * 2, pose.radius * 2, 1);
-        (mesh.material as THREE.MeshBasicMaterial).color.setHex(pose.warning ? 0xffb14a : 0x7cffb2);
-        break;
-      }
-      case 'entryExitPortal': {
-        const entry = this.meshes[0];
-        const exit = this.meshes[1];
-        if (entry && this.config.type === 'entryExitPortal') {
-          entry.position.set(this.config.entryX, this.config.entryY, 0);
-          entry.scale.set(this.config.radius * 2, this.config.radius * 2, 1);
-          (entry.material as THREE.MeshBasicMaterial).color.setHex(0x7cffb2);
-        }
-        if (exit && this.config.type === 'entryExitPortal') {
-          exit.position.set(this.config.exitX, this.config.exitY, 0);
-          exit.scale.set(this.config.radius * 1.6, this.config.radius * 1.6, 1);
-          (exit.material as THREE.MeshBasicMaterial).color.setHex(0x6bc4ff);
-          (exit.material as THREE.MeshBasicMaterial).opacity = 0.45;
-        }
-        break;
-      }
-      case 'theNull': {
-        const safe = theNullSafeAtTime(this.config, time);
-        const mesh = this.meshes[0];
-        if (!mesh || this.config.type !== 'theNull') return;
-        mesh.position.set(this.config.centerX, this.config.centerY, 0);
-        mesh.scale.set(this.config.fieldRadius * 2, this.config.fieldRadius * 2, 1);
-        (mesh.material as THREE.MeshBasicMaterial).opacity = 0.4;
-        const hole = this.meshes[1] ?? mesh;
-        hole.position.set(safe.x, safe.y, 0.02);
-        hole.scale.set(safe.radius * 2, safe.radius * 2, 1);
-        (hole.material as THREE.MeshBasicMaterial).color.setHex(0xd8fbff);
-        (hole.material as THREE.MeshBasicMaterial).opacity = 0.55;
-        break;
-      }
-    }
+    this.worldArt?.update(time);
   }
 }

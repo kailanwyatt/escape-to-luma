@@ -37,42 +37,35 @@ runtime and prediction; no hidden acceleration outside the marked volume.
 
 ## 2. Author first levels with new families
 
-**Status:** `done` (isolation remaps — all families)
+**Status:** `done` (recapture placement — see CURSOR-OBSTACLE-STORY-PLACEMENT.md)
 
-Introduce each family **in isolation** before combining. Prefer the existing
-`applyNewEncounters`-style remap (preserve level IDs / saves) over rewriting
-authored packs.
+| Family | Level | World |
+|--------|------:|-------|
+| Piston Field | 6 | Containment |
+| Elevator Blocks | 9 | Lockdown |
+| Reactive Gate | 10 | Lockdown |
+| Split Shutter | 13 | Lockdown |
+| Clock Hands | 14 | Lockdown |
+| Patrol Drones (conveyorGate) | 17 | City |
+| Capture Pincers (scissorGate) | 32 | Ascent |
+| Solar Sail | 33 | Ascent |
+| Pulse Ring | 40 | Storm |
+| Rolling Aperture | 47 | Upper Atmosphere |
+| Sequential Tunnel | 70 | Orbital Graveyard |
+| Moving Safe Zone | 71 | Orbital Graveyard |
+| Orbiting Lights (orbitingMoons) | 77 | Moon |
+| Magnetopause | 78 | Moon |
+| Lagrange Null | 85 | Far Side |
+| Corkscrew Tunnel | 86 | Far Side |
+| Comet Crossing | 92 | Asteroid Belt |
+| Accretion Shredder | 93 | Asteroid Belt |
+| Speed Field | 100 | Drift |
+| Pulsar Beam | 101 | Drift |
+| The Null | 112 | The Null |
+| Teleporting Portal | 117 | False Home |
+| Entry / Exit Portal | 118 | False Home |
 
-| Family | Level slot | Status |
-|--------|------------|--------|
-| Piston Field | L13 | `done` |
-| Split Shutter | L14 | `done` |
-| Orbiting Moons | L17 | `done` |
-| Sequential Tunnel | L18 | `done` |
-| Elevator Blocks | L19 | `done` |
-| Reactive Gate | L20 | `done` |
-| Corkscrew Tunnel | L21 | `done` |
-| Moving Safe Zone | L23 | `done` |
-| Comet Crossing | L25 | `done` |
-| Scissor Gate | L26 | `done` |
-| Accretion Shredder | L27 | `done` |
-| Speed Field | L28 | `done` |
-| Pulsar Beam | L29 | `done` |
-| Solar Sail | L31 | `done` |
-| Magnetopause | L32 | `done` |
-| Lagrange Null | L33 | `done` |
-| Conveyor Gate | L34 | `done` |
-| Clock Hands | L35 | `done` |
-| Pulse Ring | L36 | `done` |
-| Rolling Aperture | L37 | `done` |
-| Teleporting Portal | L38 | `done` |
-| Entry / Exit Portal | L39 | `done` |
-| The Null | L40 | `done` |
-
-Implemented in `LibraryEncounters.ts` + `StoryLibraryState` / `StoryLibraryObstacle`.
-
-**Acceptance:** Each remap has a tutorial hint, clears with Original, corridor
-validation passes, and OBSTACLE_TEST / campaign audit stay green.
+Teleport collision now uses the current anchor until swap; amber ghost telegraphs the next. Solar Sail collision matches the rotated panel (OBB) and clears at `openAngle`. Lagrange Null cancels wind/wells in flight + prediction (L85 isolation well demo). Entry/Exit warps chain through predictShot / corridor / preview. Luma L147–L149 are ceremonial single soft irises (L150 empty finale).
 
 ---
 
@@ -143,7 +136,7 @@ launch / target rule changes.
 5. ~~Complete §5 Overcharge HUD / zero-energy CTA.~~
 6. ~~Flip live WORLDS to 20 chapters + save unlock expansion.~~
 
-**Next:** Playtest each isolation remap (L13–L40), then Codex polish.
+**Next:** Playtest isolation remaps + ceremonial Luma; Codex polish.
 
 ---
 
@@ -166,3 +159,4 @@ launch / target rule changes.
 | 2026-09-23 | §1 Speed Field flight/prediction parity + tests. §2 isolation remaps on L13/19/35/36/49/98 via `LibraryEncounters.ts`. |
 | 2026-09-23 | §3 six more families (L14/20/34/37/50/71). §4 runtime passives. §5 Overcharge HUD/CTA. §6 save v6 dual-layout scaffolding. |
 | 2026-09-23 | Remaining story families (moons→Null) + all isolation remaps L13–L40. Live WORLDS flipped to 20 chapters. |
+| 2026-09-23 | Solar Sail OBB/`openAngle`, Lagrange force cancel + L85 well demo, Entry/Exit warp parity, Luma ceremonial L147–149. |

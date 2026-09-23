@@ -1,6 +1,6 @@
 import type { Projectile } from './Projectile';
 import { integrateMotion, type GravityWell, type PhysicsForces } from './physics';
-import type { SpeedFieldConfig } from '../config/ObstacleConfig';
+import type { LagrangeNullConfig, SpeedFieldConfig } from '../config/ObstacleConfig';
 
 export class ProjectileSystem {
   windX = 0;
@@ -8,6 +8,7 @@ export class ProjectileSystem {
   wells: GravityWell[] = [];
   speedFields: SpeedFieldConfig[] = [];
   speedFieldTime = 0;
+  lagrangeNulls: LagrangeNullConfig[] = [];
 
   forces(): PhysicsForces {
     return {
@@ -16,6 +17,7 @@ export class ProjectileSystem {
       wells: this.wells,
       speedFields: this.speedFields,
       speedFieldTime: this.speedFieldTime,
+      lagrangeNulls: this.lagrangeNulls,
     };
   }
 
@@ -29,6 +31,7 @@ export class ProjectileSystem {
       vy: projectile.velocity.y,
       vz: projectile.velocity.z,
     };
+    // Runtime Entry/Exit warp stays collision-gated in Game (not portalWarps here).
     integrateMotion(state, dt, this.forces());
     projectile.position.set(state.x, state.y, state.z);
     projectile.velocity.set(state.vx, state.vy, state.vz);

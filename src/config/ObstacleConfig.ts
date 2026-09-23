@@ -199,6 +199,17 @@ export interface FormationConfig {
 export interface PistonFieldConfig {
   type: 'pistonField';
   z: number;
+  /**
+   * Bottom of each ram (world Y). Defaults to a near-floor pad so pistons read as
+   * chamber pumps thrusting up into the flight corridor.
+   */
+  floorY?: number;
+  /**
+   * Top of a retracted ram must stay at or below this Y to count as an open lane.
+   * Defaults below the playable flight band.
+   */
+  clearY?: number;
+  /** @deprecated Prefer floorY + clearY. Ignored for body placement when floorY is used. */
   centerY?: number;
   laneCount: number;
   spacing: number;
@@ -207,6 +218,7 @@ export interface PistonFieldConfig {
   speed: number;
   phase?: number;
   halfWidth?: number;
+  /** Fixed housing height sitting on the floor before extension. */
   pistonHeight?: number;
 }
 

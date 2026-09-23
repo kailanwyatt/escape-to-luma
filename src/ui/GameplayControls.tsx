@@ -16,20 +16,23 @@ export function GameplayHeader({hud,onBack,onTitlePress}:{hud:HudSnapshot;onBack
   const local=world ? hud.campaignLevel-world.firstLevel+1 : hud.campaignLevel;
   const total=world ? world.lastLevel-world.firstLevel+1 : 0;
   const energy=hud.unlimitedEnergy?'∞':`${hud.energy}/${hud.maxEnergy}`;
-  const title=t("gameplaycontrols.l", {value1: local, value2: hud.campaignWorldName?.toUpperCase() ?? ''});
+  const worldName=hud.campaignWorldName?.toUpperCase() ?? '';
+  const title=total>0
+    ? t("gameplaycontrols.l", {value1: hud.campaignLevel, value2: local, value3: total, value4: worldName})
+    : t("gameplaycontrols.l", {value1: hud.campaignLevel, value2: hud.campaignLevel, value3: hud.campaignLevel, value4: worldName});
   return <View pointerEvents="box-none" style={[s.header,{paddingTop:insets.top+8,paddingLeft:insets.left+12,paddingRight:insets.right+12}]}>
     <Pressable accessibilityRole="button" accessibilityLabel={t("gameplaycontrols.pause_game")} onPress={onBack} style={({pressed})=>[s.back,pressed&&s.pressed]}>
       <View pointerEvents="none" style={s.backArrow}/>
     </Pressable>
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={t("gameplaycontrols.level_of", {value1: local, value2: total, value3: hud.campaignWorldName})}
+      accessibilityLabel={t("gameplaycontrols.level_of", {value1: hud.campaignLevel, value2: local, value3: total || hud.campaignLevel, value4: hud.campaignWorldName})}
       accessibilityHint={t("gameplaycontrols.open_journey")}
       disabled={!onTitlePress}
       onPress={onTitlePress}
       style={({pressed})=>[s.level,pressed&&onTitlePress&&s.pressed]}
     >
-      <Text style={[s.levelTitle,compact&&s.smallTitle]}>{title}</Text>
+      <Text style={[s.levelTitle,compact&&s.smallTitle]} numberOfLines={1}>{title}</Text>
       {total>0?<View style={s.track}>
         {Array.from({length:total},(_,i)=><View key={i} style={[s.dot,i===local-1&&s.currentDot]}/>)}
       </View>:null}

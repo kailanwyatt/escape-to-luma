@@ -2,7 +2,7 @@ import type {ShotPrediction} from '../debug/ShotDiagnostics';
 import * as THREE from 'three';
 
 import { GAME_TUNING } from '../game/gameTuning';
-import { integrateMotion, type PhysicsForces } from './physics';
+import { applyPortalWarps, integrateMotion, type PhysicsForces } from './physics';
 
 export class TrajectoryPredictor {
   readonly dots: THREE.Mesh[] = [];
@@ -103,7 +103,9 @@ export class TrajectoryPredictor {
     const dt = tEnd / steps;
     let dotIndex = 0;
     for (let step = 1; step <= steps; step += 1) {
+      const prevZ = state.z;
       integrateMotion(state, dt, options);
+      applyPortalWarps(prevZ, state, options?.portalWarps);
       if (step % stepStride === 0 && dotIndex < count) {
         this.dots[dotIndex].position.set(state.x, state.y, state.z);
         dotIndex += 1;

@@ -190,7 +190,9 @@ export const OBSTACLE_TEST_SHOTS: ChallengeConfig[] = [
   VALIDATION_15_SHOTS[6],
   shot(5, 'T05', 'BASIC_ROTOR', [{ z: Z_A, bladeCount: 2, rotationSpeed: 0.48, direction: 1 }], center),
   shot(6, 'LIB_PISTON', 'BASIC_ROTOR', [{
-    type: 'pistonField', z: Z_A, laneCount: 4, spacing: 1.35, maxExtension: 1.6, minExtension: 0.15, speed: 1.1,
+    type: 'pistonField', z: Z_A, laneCount: 4, spacing: 1.35,
+    floorY: 0.12, clearY: 2.15, pistonHeight: 0.48,
+    maxExtension: 3.35, minExtension: 0.12, speed: 1.1,
   }], center),
   shot(7, 'LIB_CLOCK', 'BASIC_ROTOR', [{
     type: 'clockHands', z: Z_A, hubX: 0, hubY: 3, length: 2.2, thickness: 0.12, handCount: 2, speed: 0.55,

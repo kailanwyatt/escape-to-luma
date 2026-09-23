@@ -706,6 +706,7 @@ export class Game {
     this.projectileSystem.wells = [];
     this.projectileSystem.speedFields = [];
     this.projectileSystem.speedFieldTime = 0;
+    this.projectileSystem.lagrangeNulls = [];
     this.reflectors.setReflectors([]);
     this.gravityWellField.setWells([]);
     this.selectedBoosts = {};
@@ -823,6 +824,7 @@ export class Game {
     this.projectileSystem.gravityScale = this.campaignGravityScale;
     this.projectileSystem.wells = def.gravityWells ?? [];
     this.syncSpeedFields(def.challenge.obstacles);
+    this.syncLagrangeNulls(def.challenge.obstacles);
     this.gravityWellField.setWells(def.gravityWells ?? [], {
       showForceVectors: this.sparkPassive.showForceVectors,
     });
@@ -2565,6 +2567,7 @@ export class Game {
       }
     }
     this.syncSpeedFields(encounter.obstacles);
+    this.syncLagrangeNulls(encounter.obstacles);
     this.debugVisuals.recordTargetCrossing(null);
     this.target.applyConfig(config.target);
     this.applyBloom();
@@ -2632,7 +2635,17 @@ export class Game {
 
   private predictionForces() {
     this.projectileSystem.speedFieldTime = this.obstacleTime;
-    return this.projectileSystem.forces();
+    const portalWarps = this.obstacles
+      .filter((slot) => slot.active && slot.type === 'entryExitPortal')
+      .map((slot) => {
+        const warp = slot.warpTarget();
+        return warp ? { z: slot.z, x: warp.x, y: warp.y } : null;
+      })
+      .filter((warp): warp is { z: number; x: number; y: number } => warp != null);
+    return {
+      ...this.projectileSystem.forces(),
+      portalWarps,
+    };
   }
 
   private syncSpeedFields(obstacles: ChallengeConfig['obstacles']): void {
@@ -2641,6 +2654,13 @@ export class Game {
         obstacle.type === 'speedField',
     );
     this.projectileSystem.speedFieldTime = this.obstacleTime;
+  }
+
+  private syncLagrangeNulls(obstacles: ChallengeConfig['obstacles']): void {
+    this.projectileSystem.lagrangeNulls = obstacles.filter(
+      (obstacle): obstacle is Extract<ChallengeConfig['obstacles'][number], { type: 'lagrangeNull' }> =>
+        obstacle.type === 'lagrangeNull',
+    );
   }
 
   private emitHud(): void {

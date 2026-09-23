@@ -54,6 +54,7 @@ import {
   evaluateTeleportPortalCollision,
   evaluateTheNullCollision,
 } from '../obstacles/StoryLibraryState';
+import { entryExitWarpTarget } from '../obstacles/StoryLibraryState';
 import { integrateMotion, type PhysicsForces } from '../projectile/physics';
 
 const MIN_HUB_CLEARANCE = 0.08;
@@ -104,24 +105,88 @@ function shotClearsCourse(
   obstacles: ObstacleConfig[],
   target: ChallengeConfig['target'],
 ): boolean {
-
   const targetZ = target.z ?? GAME_TUNING.target.z;
-  const at = simulateToPlane(start, velocity, targetZ, forces);
-  if (!at) {
+  const hasWarp = obstacles.some((obstacle) => obstacle.type === 'entryExitPortal');
+  const ordered = [...obstacles].sort((a, b) => a.z - b.z);
+  const flightForces = corridorFlightForces(forces, ordered);
+
+  if (!hasWarp) {
+    const at = simulateToPlane(start, velocity, targetZ, flightForces);
+    if (!at) return false;
+    const distance = Math.hypot(at.x - target.x, at.y - target.y);
+    if (distance > target.radius + (target.movement?.amplitude ?? 0) - MIN_TARGET_MARGIN) return false;
+    const crossings = ordered.map((obstacle) => ({
+      obstacle,
+      at: simulateToPlane(start, velocity, obstacle.z, flightForces),
+    }));
+    for (let delay = 0; delay <= 12; delay += 0.2) {
+      if (!crossings.every(({ obstacle, at }) => at && clearsObstacle(obstacle, at.x, at.y, ball, at.time + delay))) {
+        continue;
+      }
+      const tx =
+        target.movement?.type === 'horizontal'
+          ? sampleMovement(target.movement, target.x, at.time + delay)
+          : target.x;
+      const ty =
+        target.movement?.type === 'vertical'
+          ? sampleMovement(target.movement, target.y, at.time + delay)
+          : target.y;
+      if (Math.hypot(at.x - tx, at.y - ty) <= target.radius - MIN_TARGET_MARGIN) return true;
+    }
     return false;
   }
-  const distance = Math.hypot(at.x - target.x, at.y - target.y);
-  if (distance > target.radius + (target.movement?.amplitude ?? 0) - MIN_TARGET_MARGIN) return false;
-  const crossings = obstacles.map(obstacle => ({obstacle, at: simulateToPlane(start, velocity, obstacle.z, forces)}));
-  // Timing courses must be tested after waiting too, not only at launch time zero.
-  // Use one shared clock offset for the entire route so paired gates stay synchronized.
-  for (let delay = 0; delay <= 12; delay += .2) {
-    if (!crossings.every(({obstacle, at}) => at && clearsObstacle(obstacle, at.x, at.y, ball, at.time + delay))) continue;
-    const tx = target.movement?.type === 'horizontal' ? sampleMovement(target.movement, target.x, at.time + delay) : target.x;
-    const ty = target.movement?.type === 'vertical' ? sampleMovement(target.movement, target.y, at.time + delay) : target.y;
-    if (Math.hypot(at.x-tx,at.y-ty) <= target.radius-MIN_TARGET_MARGIN) return true;
+
+  // Entry/Exit: simulate segments and warp XY after a clear entry crossing.
+  for (let delay = 0; delay <= 12; delay += 0.2) {
+    let cursor = { ...start };
+    let cursorVelocity = { ...velocity };
+    let elapsed = 0;
+    let blocked = false;
+    for (const obstacle of ordered) {
+      const at = simulateToPlane(cursor, cursorVelocity, obstacle.z, flightForces);
+      if (!at || !clearsObstacle(obstacle, at.x, at.y, ball, at.time + delay)) {
+        blocked = true;
+        break;
+      }
+      elapsed += at.time;
+      cursorVelocity = { vx: at.vx, vy: at.vy, vz: at.vz };
+      if (obstacle.type === 'entryExitPortal') {
+        const warp = entryExitWarpTarget(obstacle);
+        cursor = { x: warp.x, y: warp.y, z: obstacle.z };
+      } else {
+        cursor = { x: at.x, y: at.y, z: obstacle.z };
+      }
+    }
+    if (blocked) continue;
+    const at = simulateToPlane(cursor, cursorVelocity, targetZ, flightForces);
+    if (!at) continue;
+    const arrivalTime = elapsed + at.time + delay;
+    const tx =
+      target.movement?.type === 'horizontal'
+        ? sampleMovement(target.movement, target.x, arrivalTime)
+        : target.x;
+    const ty =
+      target.movement?.type === 'vertical'
+        ? sampleMovement(target.movement, target.y, arrivalTime)
+        : target.y;
+    if (Math.hypot(at.x - tx, at.y - ty) <= target.radius - MIN_TARGET_MARGIN) return true;
   }
   return false;
+}
+
+function corridorFlightForces(
+  forces: PhysicsForces,
+  obstacles: ObstacleConfig[],
+): PhysicsForces {
+  const lagrangeNulls = obstacles.filter(
+    (obstacle): obstacle is Extract<ObstacleConfig, { type: 'lagrangeNull' }> =>
+      obstacle.type === 'lagrangeNull',
+  );
+  return {
+    ...forces,
+    lagrangeNulls: forces.lagrangeNulls ?? lagrangeNulls,
+    portalWarps: undefined,
+  };
 }
 
 function simulateToPlane(
@@ -129,7 +194,7 @@ function simulateToPlane(
   velocity: { vx: number; vy: number; vz: number },
   planeZ: number,
   forces: PhysicsForces,
-): { x: number; y: number; time: number } | null {
+): { x: number; y: number; time: number; vx: number; vy: number; vz: number } | null {
   if (velocity.vz <= 0.001 || start.z >= planeZ) {
     return null;
   }
@@ -148,6 +213,9 @@ function simulateToPlane(
     x: previous.x + (state.x - previous.x) * u,
     y: previous.y + (state.y - previous.y) * u,
     time: time - dt + u * dt,
+    vx: state.vx,
+    vy: state.vy,
+    vz: state.vz,
   };
 }
 

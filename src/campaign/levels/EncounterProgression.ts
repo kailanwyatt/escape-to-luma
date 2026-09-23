@@ -26,7 +26,6 @@ const COURSES:Record<number,{base:number;pace:number;side:number;targetX:number;
  139:{base:127,pace:1.18,side:1,targetX:-.65,hint:t("encounterprogression.two_turning_apertures_commit_when_the_route_aligns")},
  143:{base:127,pace:1.12,side:-1,targetX:.6,hint:t("encounterprogression.rotating_plate_and_phase_columns_read_both_rhythms"),combine:true},
  146:{base:142,pace:1.06,side:1,targetX:.3,hint:t("encounterprogression.three_gates_adjust_power_for_the_quicker_sequence")},
- 148:{base:142,pace:1.12,side:1,targetX:-.3,hint:t("encounterprogression.final_tunnel_practice_keep_all_three_openings_in_view")},
 };
 export function applyEncounterProgression(source:CampaignLevelDefinition):CampaignLevelDefinition {
  const recipe=COURSES[source.levelNumber];

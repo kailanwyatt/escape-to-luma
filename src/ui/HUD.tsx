@@ -302,16 +302,197 @@ export function HUD({
       {paused ? (
         <View style={styles.overlay}>
           <Text style={styles.endTitle}>{t("hud.paused")}</Text>
-          <ContinueJourneyButton label={t("hud.resume")} playIcon={false} style={styles.overlayCta} onPress={onResume} />
-          <Pressable style={styles.homeButton} onPress={onRestart}>
-            <Text style={styles.homeText}>{campaign ? t("hud.restart_level") : t("hud.restart_run")}</Text>
-          </Pressable>
-          <Pressable style={styles.homeButton} onPress={onHome}>
-            <Text style={styles.homeText}>{t("hud.return_home")}</Text>
-          </Pressable>
+          <ContinueJourneyButton label={t("hud.resume")} playIcon style={styles.overlayCta} onPress={onResume} />
+          <View style={styles.pauseActions}>
+            {campaign && onOpenJourney ? (
+              <PauseActionButton icon="journey" label={t("hud.back_to_journey")} onPress={onOpenJourney} />
+            ) : (
+              <PauseActionButton icon="restart" label={t("hud.restart_run")} onPress={onRestart} />
+            )}
+            {campaign ? (
+              <PauseActionButton
+                icon="boosts"
+                label={t("hud.use_boosts")}
+                disabled={!hud.canChooseBoosts}
+                onPress={onBoosts}
+              />
+            ) : null}
+            <PauseActionButton icon="home" label={t("hud.return_home")} onPress={onHome} />
+          </View>
         </View>
       ) : null}
     </View>
+  );
+}
+
+type PauseIcon = 'journey' | 'boosts' | 'home' | 'restart';
+
+function PauseGlyph({ name }: { name: PauseIcon }) {
+  const stroke = color.cyanBright;
+  if (name === 'journey') {
+    return (
+      <View accessible={false} style={styles.pauseGlyph}>
+        {[3, 11, 19].map((x, i) => (
+          <View
+            key={x}
+            style={{
+              position: 'absolute',
+              left: x,
+              top: 4 + (i % 2) * 3,
+              width: 8,
+              height: 16,
+              borderWidth: 1.5,
+              borderColor: stroke,
+              borderRadius: 2,
+              transform: [{ skewY: i % 2 ? '18deg' : '-18deg' }],
+            }}
+          />
+        ))}
+      </View>
+    );
+  }
+  if (name === 'boosts') {
+    return (
+      <View accessible={false} style={styles.pauseGlyph}>
+        <View
+          style={{
+            position: 'absolute',
+            left: 10,
+            top: 2,
+            width: 0,
+            height: 0,
+            borderTopWidth: 0,
+            borderBottomWidth: 11,
+            borderLeftWidth: 7,
+            borderRightWidth: 7,
+            borderTopColor: 'transparent',
+            borderBottomColor: stroke,
+            borderLeftColor: 'transparent',
+            borderRightColor: 'transparent',
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: 8,
+            top: 11,
+            width: 0,
+            height: 0,
+            borderTopWidth: 11,
+            borderBottomWidth: 0,
+            borderLeftWidth: 7,
+            borderRightWidth: 7,
+            borderTopColor: stroke,
+            borderBottomColor: 'transparent',
+            borderLeftColor: 'transparent',
+            borderRightColor: 'transparent',
+          }}
+        />
+      </View>
+    );
+  }
+  if (name === 'home') {
+    return (
+      <View accessible={false} style={styles.pauseGlyph}>
+        <View
+          style={{
+            position: 'absolute',
+            left: 4,
+            top: 4,
+            width: 0,
+            height: 0,
+            borderLeftWidth: 10,
+            borderRightWidth: 10,
+            borderBottomWidth: 9,
+            borderLeftColor: 'transparent',
+            borderRightColor: 'transparent',
+            borderBottomColor: stroke,
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: 7,
+            top: 12,
+            width: 14,
+            height: 10,
+            borderWidth: 1.5,
+            borderColor: stroke,
+            borderTopWidth: 0,
+            borderBottomLeftRadius: 2,
+            borderBottomRightRadius: 2,
+          }}
+        />
+      </View>
+    );
+  }
+  return (
+    <View accessible={false} style={styles.pauseGlyph}>
+      <View
+        style={{
+          position: 'absolute',
+          left: 5,
+          top: 5,
+          width: 16,
+          height: 16,
+          borderRadius: 8,
+          borderWidth: 2,
+          borderColor: stroke,
+          borderRightColor: 'transparent',
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          right: 3,
+          top: 3,
+          width: 0,
+          height: 0,
+          borderTopWidth: 0,
+          borderBottomWidth: 7,
+          borderLeftWidth: 6,
+          borderRightWidth: 0,
+          borderTopColor: 'transparent',
+          borderBottomColor: stroke,
+          borderLeftColor: 'transparent',
+          borderRightColor: 'transparent',
+          transform: [{ rotate: '35deg' }],
+        }}
+      />
+    </View>
+  );
+}
+
+function PauseActionButton({
+  icon,
+  label,
+  onPress,
+  disabled,
+}: {
+  icon: PauseIcon;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.pauseAction,
+        disabled && styles.pauseActionDisabled,
+        pressed && !disabled && styles.pauseActionPressed,
+      ]}
+    >
+      <View style={styles.pauseActionIcon}>
+        <PauseGlyph name={icon} />
+      </View>
+      <Text style={[styles.pauseActionLabel, disabled && styles.pauseActionLabelDisabled]} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -770,6 +951,56 @@ const styles = StyleSheet.create({
     marginTop: 28,
     width: '100%',
     maxWidth: 360,
+  },
+  pauseActions: {
+    marginTop: 18,
+    width: '100%',
+    maxWidth: 360,
+    gap: 10,
+  },
+  pauseAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 52,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(126,240,255,0.35)',
+    backgroundColor: 'rgba(8,22,40,0.72)',
+    gap: 14,
+  },
+  pauseActionPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.985 }],
+    backgroundColor: 'rgba(0,180,255,0.16)',
+  },
+  pauseActionDisabled: {
+    opacity: 0.38,
+  },
+  pauseActionIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,180,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(126,240,255,0.28)',
+  },
+  pauseGlyph: {
+    width: 28,
+    height: 24,
+  },
+  pauseActionLabel: {
+    flex: 1,
+    color: color.cyanBright,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 1.6,
+  },
+  pauseActionLabelDisabled: {
+    color: color.creamFaint,
   },
   startOverlay: {
     ...StyleSheet.absoluteFill,

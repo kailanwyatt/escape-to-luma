@@ -67,9 +67,12 @@ describe('ricochet integration',()=>{
  });
  it('recovers a missing iris lesson even if the world arrival was acknowledged',()=>{
   const story=storyForLevel(46,['arrival.level-46'])!;expect(story.id).toBe('mechanic.iris.v2');expect(story.instruction).toContain('expands');
-  expect(storyForLevel(47,['arrival.level-46','mechanic.iris.v2'])).toBeNull();
+  // L47 is the Rolling Aperture isolation remap (Upper Atmosphere).
+  expect(storyForLevel(47,[])?.id).toBe('encounter.47.v1');
+  expect(storyForLevel(47,['encounter.47.v1','arrival.level-46','mechanic.iris.v2'])).toBeNull();
   expect(storyForLevel(48,[])?.instruction).toContain('cyan');
   expect(storyForLevel(87,[])?.instruction).toContain('both');
-  expect(storyForLevel(78,[])?.instruction).toContain('attracts');
+  // L78 is Magnetopause isolation (Moon); gravity slingshot moved off this slot.
+  expect(storyForLevel(78,[])?.instruction).toContain('open gap');
  });
 });

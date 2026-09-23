@@ -1,128 +1,127 @@
 /**
  * Isolation remaps for new library obstacle families.
- * Preserves level IDs, world exits and save progress (same pattern as NewEncounters).
- * Remaps sit in early Journey chapters so every family is playable before polish.
- * Authored for Original Spark (ball r≈0.22) with a clear center path.
+ * Placement follows docs/CURSOR-OBSTACLE-STORY-PLACEMENT.md (recapture story).
+ * Preserves level IDs, rewards, finales and save progress.
  */
 
 import type { CampaignLevelDefinition } from '../types';
 import type { ObstacleConfig } from '../../config/ObstacleConfig';
 
 export const LIBRARY_LESSONS: Record<number, { name: string; body: string; hint: string }> = {
-  13: {
+  6: {
     name: 'Piston Field',
-    body: 'Containment pistons extend and retract on offset phases.',
-    hint: 'Read which lane is open when Spark arrives — do not aim at a fully extended piston.',
+    body: "The chamber's pumping machinery leaves a route out.",
+    hint: 'Floor rams thrust upward — throw through a lane whose tip is still low when Spark arrives.',
   },
-  14: {
-    name: 'Split Shutter',
-    body: 'Two panels part and meet on a shared cycle.',
-    hint: 'Aim for the center gap at arrival — both halves move together.',
-  },
-  17: {
-    name: 'Orbiting Moons',
-    body: 'Compact moons share one circular orbit around a fixed center.',
-    hint: 'Watch the loop and throw through the gap between moons.',
-  },
-  18: {
-    name: 'Sequential Tunnel',
-    body: 'One aperture opens at a time across a shared cycle.',
-    hint: 'Aim only at the currently open hole — the others stay closed.',
-  },
-  19: {
+  9: {
     name: 'Elevator Blocks',
-    body: 'City platforms rise and fall in timed columns.',
+    body: 'The escape shaft still carries its captive cargo.',
     hint: 'Choose a lane at the actual crossing height, not where the block is now.',
   },
-  20: {
+  10: {
     name: 'Reactive Gate',
-    body: 'Paired doors telegraph closed, amber warning, then open.',
+    body: 'Security doors are channeling Spark back toward containment.',
     hint: 'Wait for the doors to part — amber means they are about to open.',
   },
-  21: {
-    name: 'Corkscrew Tunnel',
-    body: 'A ring wall turns with one open sector — unlike thin rotor blades, this is a tunnel mouth.',
-    hint: 'Aim through the open hub or the wide rotating gap in the ring, not at the solid band.',
+  13: {
+    name: 'Split Shutter',
+    body: 'The final barriers seal behind the escaped specimen.',
+    hint: 'Aim for the center gap at arrival — both halves move together.',
   },
-  23: {
-    name: 'Moving Safe Zone',
-    body: 'A dangerous field leaves one drifting safe hole.',
-    hint: 'Track the green hole — arrive inside it, not where it was at launch.',
-  },
-  25: {
-    name: 'Comet Crossing',
-    body: 'A compact blocker loops across the flight line on a diagonal.',
-    hint: 'Read the loop and throw through when the comet is clear of center.',
-  },
-  26: {
-    name: 'Scissor Gate',
-    body: 'Two bars pivot together and apart around one hinge pair.',
-    hint: 'The center diamond always stays open — time a wider aperture if you want more room.',
-  },
-  27: {
-    name: 'Accretion Shredder',
-    body: 'Debris spirals inward; the center lane stays clearer than the rim.',
-    hint: 'Throw through the quiet center while the fragments spiral past.',
-  },
-  28: {
-    name: 'Speed Field',
-    body: 'A marked volume multiplies Spark speed while inside.',
-    hint: 'The preview uses the same multiplier — commit knowing the arrival will come sooner.',
-  },
-  29: {
-    name: 'Pulsar Beam',
-    body: 'A wide beam pulses on and off across a fixed plane.',
-    hint: 'Throw while the beam is dark, or stay clear of its band while it is bright.',
-  },
-  31: {
-    name: 'Solar Sail',
-    body: 'A broad panel swings open like a solar array.',
-    hint: 'Wait until the sail lifts edge-on, then throw through the open plane.',
-  },
-  32: {
-    name: 'Magnetopause',
-    body: 'A sheath ring turns with one open sector.',
-    hint: 'Aim through the open gap in the arc, or through the quiet inner hub.',
-  },
-  33: {
-    name: 'Lagrange Null',
-    body: 'A calm dark pocket cancels nearby force effects.',
-    hint: 'Fly through the null — it is not lethal; use it to quiet a pull you can see.',
-  },
-  34: {
-    name: 'Conveyor Gate',
-    body: 'Blockers stream sideways and wrap across the plane.',
-    hint: 'Lead the gap — predict where clear space will be when Spark arrives.',
-  },
-  35: {
+  14: {
     name: 'Clock Hands',
-    body: 'Long rotating arms sweep a fixed plane.',
+    body: 'A retrieval unit sweeps the passage to the surface.',
     hint: 'Aim through the angular gap; both hands share one readable cycle.',
   },
-  36: {
-    name: 'Pulse Ring',
-    body: 'An expanding ring cycles outward then resets — the hub stays safe.',
-    hint: 'Throw straight through the center; the ring never closes the hub.',
+  17: {
+    name: 'Patrol Drones',
+    body: 'Retrieval drones are searching the rooftops.',
+    hint: 'Watch their patrol rhythm. Cross where the gap will be when Spark arrives.',
   },
-  37: {
-    name: 'Rolling Aperture',
-    body: 'A drifting iris expands and contracts while sliding.',
-    hint: 'Track both size and position — aim where the opening will be.',
+  32: {
+    name: 'Capture Pincers',
+    body: 'A retrieval unit guards the climb above the city.',
+    hint: 'The hinge sits above the path — throw through the open diamond below.',
   },
-  38: {
-    name: 'Teleporting Portal',
-    body: 'The opening jumps among fixed anchors after a warning flash.',
-    hint: 'Aim where the portal will be at arrival — amber marks the next stop.',
-  },
-  39: {
-    name: 'Entry / Exit Portal',
-    body: 'Pass the green entry to warp toward the cyan exit marker.',
-    hint: 'Hit the green entry disk; Spark relocates toward the exit before continuing.',
+  33: {
+    name: 'Solar Sail',
+    body: 'Solar panels turn above the last rooftops.',
+    hint: 'Wait until the panel is nearly edge-on; when it is open, the plane is clear.',
   },
   40: {
+    name: 'Pulse Ring',
+    body: 'A ring of charged air spreads through the storm.',
+    hint: 'Throw straight through the center; the ring never closes the hub.',
+  },
+  47: {
+    name: 'Rolling Aperture',
+    body: 'At the edge of the atmosphere, a drifting opening offers passage.',
+    hint: 'Track both size and position — aim where the opening will be.',
+  },
+  70: {
+    name: 'Sequential Tunnel',
+    body: 'An abandoned bulkhead still cycles its access ports.',
+    hint: 'Aim only at the currently open hole — the others stay closed.',
+  },
+  71: {
+    name: 'Moving Safe Zone',
+    body: 'Something was once held inside this field. A clear pocket still drifts through it.',
+    hint: 'Arrive inside the drifting safe hole, not where it was at launch.',
+  },
+  77: {
+    name: 'Orbiting Lights',
+    body: "Small lights circle nearby, drawn to Spark's glow.",
+    hint: 'Watch the shared orbit and throw through the gap between them.',
+  },
+  78: {
+    name: 'Magnetopause',
+    body: 'A charged arc turns across the lunar passage.',
+    hint: 'Aim through the open gap in the arc, or through the quiet inner hub.',
+  },
+  85: {
+    name: 'Lagrange Null',
+    body: 'Beyond the Moon, a quiet pocket interrupts the glow.',
+    hint: 'Fly through the dark pocket — wind and pull cancel inside it.',
+  },
+  86: {
+    name: 'Corkscrew Tunnel',
+    body: 'A forgotten transit ring turns in the darkness.',
+    hint: 'Aim through the open hub or the wide gap in the ring — not like thin rotor blades.',
+  },
+  92: {
+    name: 'Comet Crossing',
+    body: "An icy traveler crosses Spark's path.",
+    hint: 'Read the loop and throw when the comet is clear of center.',
+  },
+  93: {
+    name: 'Accretion Shredder',
+    body: "Drawn to Spark's light, small creatures spiral through the debris.",
+    hint: 'Throw through the quiet center while the fragments spiral past.',
+  },
+  100: {
+    name: 'Speed Field',
+    body: 'A luminous current carries Spark faster.',
+    hint: 'The preview uses the same multiplier — commit knowing the arrival will come sooner.',
+  },
+  101: {
+    name: 'Pulsar Beam',
+    body: 'A distant star sends pulses across the route.',
+    hint: 'Throw while the beam is dark, or stay clear of its band while it is bright.',
+  },
+  112: {
     name: 'The Null',
-    body: 'A light-eating field shrinks the safe route — escape, do not fight.',
+    body: 'The darkness presses against a remaining opening of light.',
     hint: 'Throw through the bright safe hole before the field closes around it.',
+  },
+  117: {
+    name: 'Teleporting Portal',
+    body: 'The familiar beacon shifts between relay anchors.',
+    hint: 'Pass through the current opening; amber warns of the next anchor before it swaps.',
+  },
+  118: {
+    name: 'Entry / Exit Portal',
+    body: 'The beacon leads onward. This is not home.',
+    hint: 'Hit the green entry disk; Spark relocates toward the cyan exit before continuing.',
   },
 };
 
@@ -132,12 +131,14 @@ function piston(z: number): ObstacleConfig {
     z,
     laneCount: 4,
     spacing: 1.4,
-    maxExtension: 1.2,
-    minExtension: 0.08,
+    // Floor rams: retracted tips stay under the flight band; extended tips cross ~y=3.
+    floorY: 0.12,
+    clearY: 2.15,
+    pistonHeight: 0.48,
+    minExtension: 0.12,
+    maxExtension: 3.35,
     speed: 0.8,
-    centerY: 3,
     halfWidth: 0.36,
-    pistonHeight: 0.42,
   };
 }
 
@@ -460,34 +461,38 @@ export function applyLibraryEncounters(source: CampaignLevelDefinition): Campaig
   level.gravityScale = 1;
   level.gravityWells = [];
 
-  if (n === 13) obstacles = [piston(5.8)];
-  else if (n === 14) obstacles = [splitShutter(5.9)];
-  else if (n === 17) obstacles = [orbitingMoons(6)];
-  else if (n === 18) obstacles = [sequentialTunnel(6)];
-  else if (n === 19) obstacles = [elevators(6)];
-  else if (n === 20) obstacles = [reactiveGate(6)];
-  else if (n === 21) obstacles = [corkscrew(6)];
-  else if (n === 23) obstacles = [movingSafeZone(6)];
-  else if (n === 25) obstacles = [comet(6.2)];
-  else if (n === 26) obstacles = [scissor(6)];
-  else if (n === 27) obstacles = [accretion(6)];
-  else if (n === 28) {
+  if (n === 6) obstacles = [piston(5.8)];
+  else if (n === 9) obstacles = [elevators(6)];
+  else if (n === 10) obstacles = [reactiveGate(6)];
+  else if (n === 13) obstacles = [splitShutter(5.9)];
+  else if (n === 14) obstacles = [clocks(6.1)];
+  else if (n === 17) obstacles = [conveyorGate(6)];
+  else if (n === 32) obstacles = [scissor(6)];
+  else if (n === 33) obstacles = [solarSail(6)];
+  else if (n === 40) obstacles = [pulse(6)];
+  else if (n === 47) obstacles = [rollingAperture(6.1)];
+  else if (n === 70) obstacles = [sequentialTunnel(6)];
+  else if (n === 71) obstacles = [movingSafeZone(6)];
+  else if (n === 77) obstacles = [orbitingMoons(6)];
+  else if (n === 78) obstacles = [magnetopause(6)];
+  else if (n === 85) {
+    obstacles = [lagrangeNull(5.8)];
+    // Side pull that the null cancels — teaches force nullification, not lethality.
+    level.gravityWells = [{ x: 1.15, y: 3.05, z: 5.8, strength: 1.35, radius: 3.4 }];
+  } else if (n === 86) obstacles = [corkscrew(6)];
+  else if (n === 92) obstacles = [comet(6.2)];
+  else if (n === 93) obstacles = [accretion(6)];
+  else if (n === 100) {
     obstacles = [speed(5.6, 1.35)];
     target.radius = 1.05;
-  } else if (n === 29) obstacles = [pulsar(6)];
-  else if (n === 31) obstacles = [solarSail(6)];
-  else if (n === 32) obstacles = [magnetopause(6)];
-  else if (n === 33) obstacles = [lagrangeNull(5.8)];
-  else if (n === 34) obstacles = [conveyorGate(6)];
-  else if (n === 35) obstacles = [clocks(6.1)];
-  else if (n === 36) obstacles = [pulse(6)];
-  else if (n === 37) obstacles = [rollingAperture(6.1)];
-  else if (n === 38) obstacles = [teleportPortal(6)];
-  else if (n === 39) {
+  } else if (n === 101) obstacles = [pulsar(6)];
+  else if (n === 112) obstacles = [theNull(6)];
+  else if (n === 117) obstacles = [teleportPortal(6)];
+  else if (n === 118) {
     obstacles = [entryExit(6)];
     target.x = 0.85;
     target.y = 3.25;
-  } else if (n === 40) obstacles = [theNull(6)];
+  }
 
   level.tutorialHint = lesson.hint;
   level.storyBeat = lesson.body;

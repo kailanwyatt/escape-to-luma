@@ -180,9 +180,14 @@ export function evaluatePulsarBeamCollision(
   return near(clearance);
 }
 
-/** Solar Sail — broad panel swings; open when nearly edge-on / raised. */
+/** Solar Sail — broad panel swings; collision matches the rotated visual. */
 export function solarSailAngle(config: SolarSailConfig, time: number): number {
   return Math.sin(time * config.speed + (config.phase ?? 0)) * config.maxAngle;
+}
+
+/** True when the panel has swung far enough to clear the flight corridor. */
+export function solarSailOpen(config: SolarSailConfig, time: number): boolean {
+  return Math.abs(solarSailAngle(config, time)) >= config.openAngle;
 }
 
 export function evaluateSolarSailCollision(
@@ -192,13 +197,20 @@ export function evaluateSolarSailCollision(
   y: number,
   radius: number,
 ): SampleHit {
+  // Authoritative: openAngle clears the corridor; otherwise use the same OBB as the mesh.
+  if (solarSailOpen(config, time)) return near(0.45);
   const ang = solarSailAngle(config, time);
-  const open = Math.abs(ang) >= config.openAngle;
-  if (open) return near(0.45);
-  const dx = Math.abs(x - config.centerX) - config.halfWidth;
-  const dy = Math.abs(y - config.centerY) - config.halfHeight;
-  const d = Math.hypot(Math.max(0, dx), Math.max(0, dy)) + Math.min(Math.max(dx, dy), 0) - radius;
-  return near(d);
+  const dx = x - config.centerX;
+  const dy = y - config.centerY;
+  const c = Math.cos(-ang);
+  const s = Math.sin(-ang);
+  const lx = dx * c - dy * s;
+  const ly = dx * s + dy * c;
+  const ox = Math.abs(lx) - config.halfWidth;
+  const oy = Math.abs(ly) - config.halfHeight;
+  const outside =
+    Math.hypot(Math.max(ox, 0), Math.max(oy, 0)) + Math.min(Math.max(ox, oy), 0);
+  return near(outside - radius);
 }
 
 /** Magnetopause — ring arc with a cyclic open sector (corkscrew-like). */
@@ -248,7 +260,14 @@ export function pointInLagrangeNull(
 export function teleportPortalPoseAtTime(
   config: TeleportPortalConfig,
   time: number,
-): { x: number; y: number; radius: number; warning: boolean } {
+): {
+  x: number;
+  y: number;
+  radius: number;
+  warning: boolean;
+  nextX: number;
+  nextY: number;
+} {
   const dwell = Math.max(0.35, config.dwell);
   const warn = Math.max(0.15, config.warning);
   const cycle = dwell + warn;
@@ -261,9 +280,16 @@ export function teleportPortalPoseAtTime(
   const next = anchors[(idx + 1) % n];
   const cur = anchors[idx];
   const warning = local >= dwell;
-  // During warning, show next anchor (destabilize); collide against current until swap.
-  const pose = warning ? next : cur;
-  return { x: pose.x, y: pose.y, radius: config.radius, warning };
+  // Collision and prediction use the CURRENT anchor until swap.
+  // Warning telegraph exposes the NEXT anchor separately for UI.
+  return {
+    x: cur.x,
+    y: cur.y,
+    radius: config.radius,
+    warning,
+    nextX: next.x,
+    nextY: next.y,
+  };
 }
 
 export function evaluateTeleportPortalCollision(

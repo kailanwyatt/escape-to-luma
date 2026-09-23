@@ -112,4 +112,42 @@ describe('projectile forces', () => {
     expect(actual.y).toBeCloseTo(withField.y, 5);
     projectile.dispose();
   });
+
+  it('cancels wind and wells inside a Lagrange Null', () => {
+    const start = { x: 0, y: 3, z: 0 };
+    const velocity = { vx: 0, vy: 2.2, vz: 6 };
+    const nullPocket = {
+      type: 'lagrangeNull' as const,
+      z: 2.5,
+      centerX: 0,
+      centerY: 3,
+      radius: 1.4,
+    };
+    const well = { x: 1.2, y: 3, z: 2.5, strength: 1.4, radius: 3.5 };
+    const exposed = simulateToZ(start, velocity, 5, 1 / 120, {
+      windX: 0.4,
+      wells: [well],
+    })!;
+    const sheltered = simulateToZ(start, velocity, 5, 1 / 120, {
+      windX: 0.4,
+      wells: [well],
+      lagrangeNulls: [nullPocket],
+    })!;
+    expect(Math.abs(sheltered.x)).toBeLessThan(Math.abs(exposed.x));
+
+    const projectile = new Projectile();
+    projectile.position.set(start.x, start.y, start.z);
+    projectile.velocity.set(velocity.vx, velocity.vy, velocity.vz);
+    const system = new ProjectileSystem();
+    system.windX = 0.4;
+    system.wells = [well];
+    system.lagrangeNulls = [nullPocket];
+    while (!system.crossedPlane(projectile, 5)) {
+      system.integrate(projectile, 1 / 120);
+    }
+    const actual = system.interpolateAtZ(projectile, 5);
+    expect(actual.x).toBeCloseTo(sheltered.x, 5);
+    expect(actual.y).toBeCloseTo(sheltered.y, 5);
+    projectile.dispose();
+  });
 });

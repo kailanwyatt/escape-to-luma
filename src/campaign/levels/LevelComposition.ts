@@ -1,5 +1,5 @@
 import {t} from '../../i18n';
-import { iris, pendulum, orbiter, Z_B } from './helpers';
+import { iris, pendulum, Z_B } from './helpers';
 import type { CampaignLevelDefinition } from '../types';
 import type { ObstacleConfig } from '../../config/ObstacleConfig';
 import { isRotorConfig } from '../../config/ObstacleConfig';
@@ -25,6 +25,33 @@ export function composeCampaignLevel(input: CampaignLevelDefinition): CampaignLe
     }};
   }
   if (n === 150) return input;
+  // Luma (147–149): ceremonial single soft gates — no hostile gauntlet.
+  if (n >= 147) {
+    const level: CampaignLevelDefinition = JSON.parse(JSON.stringify(input));
+    level.windX = 0;
+    level.gravityScale = 1;
+    level.gravityWells = [];
+    const targetX = n === 148 ? 0.18 : n === 149 ? -0.14 : 0;
+    const targetY = n === 147 ? 3.15 : n === 148 ? 3.02 : 3.22;
+    const softGate = iris(
+      n === 147 ? 0.82 : n === 148 ? 0.76 : 0.7,
+      n === 147 ? 2.1 : n === 148 ? 2.0 : 1.9,
+      n === 147 ? 0.36 : n === 148 ? 0.42 : 0.48,
+    );
+    softGate.centerX = targetX * 0.45;
+    softGate.centerY = targetY;
+    level.challenge = {
+      ...level.challenge,
+      obstacles: [softGate],
+      target: {
+        ...level.challenge.target,
+        x: targetX,
+        y: targetY,
+        radius: Math.max(1.15, level.challenge.target.radius ?? 1.15),
+      },
+    };
+    return level;
+  }
   const local = (n - 1) % 15;
   const [x, routeY] = ROUTES[local];
   // This debris/ring crossing needs a lower arc to clear both planes.
@@ -41,10 +68,8 @@ export function composeCampaignLevel(input: CampaignLevelDefinition): CampaignLe
     const routeY = 3 + (y - 3) * 0.6;
     dressRoute(obstacle, routeX, routeY, local, index);
   }
-  // The homeward mastery ramp continues through 149; only 150 is the safe arrival.
+  // Homeward mastery adds a second plane on the chapter finale approach.
   if (n === 146) level.challenge.obstacles.push(pendulum(0.74, 0.68, Z_B));
-  if (n === 148) level.challenge.obstacles.push(iris(0.48, 1.6, 0.82, Z_B));
-  if (n === 149) level.challenge.obstacles.push(orbiter(0.8, 1.25, 0.32, Z_B));
   // Two-plane chapters use different approaches: matching, crossing, staggered,
   // reversed order. Order changes only where the existing pair is symmetric/legal.
   const obstacles = level.challenge.obstacles;

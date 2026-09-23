@@ -4,6 +4,8 @@
  */
 
 import * as THREE from 'three';
+import { LibraryPriorityArt } from './LibraryPriorityArt';
+import { LibraryWorldArt } from './LibraryWorldArt';
 
 import type { EnvironmentId } from '../config/ChallengeConfig';
 import type {
@@ -115,6 +117,8 @@ export class LibraryObstacle {
   active = false;
   private config: LibraryObstacleConfig | null = null;
   private meshes: THREE.Mesh[] = [];
+  private priorityArt: LibraryPriorityArt | null = null;
+  private worldArt: LibraryWorldArt | null = null;
   private elapsed = 0;
   /** Last sim time used by predictState / crossing eval (prediction parity). */
   private evalTime = 0;
@@ -173,10 +177,11 @@ export class LibraryObstacle {
       case 'pistonField': {
         const lanes = pistonFieldStateAtTime(this.config, simTime);
         const open = lanes.find((lane) => lane.open) ?? lanes[Math.floor(lanes.length / 2)];
+        // Marker sits in the flight band above a retracted ram, not on the floor body.
         predicted.openingX = open?.x ?? 0;
-        predicted.openingY = open?.y ?? 3;
-        predicted.openingWidth = open?.width ?? 0;
-        predicted.openingHeight = open?.height ?? 0;
+        predicted.openingY = 3;
+        predicted.openingWidth = open?.width ?? 0.7;
+        predicted.openingHeight = Math.max(0.6, 3 - (open?.top ?? 2));
         break;
       }
       case 'clockHands': {
@@ -350,236 +355,24 @@ export class LibraryObstacle {
   private rebuildMeshes(): void {
     this.clearMeshes();
     if (!this.config) return;
-    const isField = this.config.type === 'speedField';
-    const mat = new THREE.MeshBasicMaterial({
-      color: isField ? 0x3ad4ff : 0x8ab4c8,
-      transparent: true,
-      opacity: isField ? 0.28 : 0.85,
-      depthWrite: false,
-    });
-    let count = 1;
-    switch (this.config.type) {
-      case 'pistonField':
-      case 'elevatorBlocks':
-        count = this.config.laneCount;
-        break;
-      case 'clockHands':
-        count = this.config.handCount + 1;
-        break;
-      case 'scissorGate':
-      case 'splitShutter':
-      case 'reactiveGate':
-        count = 2;
-        break;
-      case 'conveyorGate':
-        count = Math.max(2, Math.floor(this.config.blockCount));
-        break;
-      case 'pulseRing':
-        // Ring band approximated with 12 segments (not a filled square).
-        count = 12;
-        break;
-      case 'rollingAperture':
-        // Outer ring segments around the open hole.
-        count = 10;
-        break;
-      case 'corkscrewTunnel':
-        count = 10;
-        break;
-      default:
-        count = 1;
-    }
-    for (let i = 0; i < count; i += 1) {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.08), mat.clone());
-      this.meshes.push(mesh);
-      this.group.add(mesh);
+    if (LibraryPriorityArt.supports(this.config)) {
+      this.priorityArt = new LibraryPriorityArt(this.config);
+      this.group.add(this.priorityArt.group);
+    } else {
+      this.worldArt = new LibraryWorldArt(this.config);
+      this.group.add(this.worldArt.group);
     }
   }
 
   private clearMeshes(): void {
-    for (const mesh of this.meshes) {
-      this.group.remove(mesh);
-      mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
-    }
-    this.meshes = [];
+    this.priorityArt?.dispose();
+    this.priorityArt = null;
+    this.worldArt?.dispose();
+    this.worldArt = null;
   }
 
   private layout(time: number): void {
-    if (!this.config) return;
-    switch (this.config.type) {
-      case 'pistonField': {
-        const lanes = pistonFieldStateAtTime(this.config, time);
-        lanes.forEach((lane, i) => {
-          const mesh = this.meshes[i];
-          if (!mesh) return;
-          mesh.position.set(lane.x, lane.y, 0);
-          mesh.scale.set(lane.width, lane.height, 1);
-        });
-        break;
-      }
-      case 'elevatorBlocks': {
-        const blocks = elevatorBlocksStateAtTime(this.config, time);
-        blocks.forEach((block, i) => {
-          const mesh = this.meshes[i];
-          if (!mesh) return;
-          mesh.position.set(block.x, block.y, 0);
-          mesh.scale.set(block.width, block.height, 1);
-        });
-        break;
-      }
-      case 'clockHands': {
-        const state = clockHandsStateAtTime(this.config, time);
-        const hub = this.meshes[0];
-        if (hub) {
-          hub.position.set(state.hubX, state.hubY, 0);
-          hub.scale.set(state.hubRadius * 2, state.hubRadius * 2, 1);
-        }
-        state.hands.forEach((hand, i) => {
-          const mesh = this.meshes[i + 1];
-          if (!mesh || !this.config || this.config.type !== 'clockHands') return;
-          const mx = (state.hubX + hand.tipX) / 2;
-          const my = (state.hubY + hand.tipY) / 2;
-          mesh.position.set(mx, my, 0);
-          mesh.rotation.z = hand.angle;
-          mesh.scale.set(this.config.length, this.config.thickness * 2, 1);
-        });
-        break;
-      }
-      case 'pulseRing': {
-        const state = pulseRingStateAtTime(this.config, time);
-        const n = this.meshes.length;
-        const band = state.radius;
-        const segW = Math.max(0.15, state.thickness * 2.2);
-        const segH = Math.max(0.2, ((Math.PI * 2) / n) * band * 0.95);
-        for (let i = 0; i < n; i += 1) {
-          const mesh = this.meshes[i];
-          if (!mesh) continue;
-          const ang = (i / n) * Math.PI * 2;
-          mesh.position.set(
-            state.centerX + Math.cos(ang) * band,
-            state.centerY + Math.sin(ang) * band,
-            0,
-          );
-          mesh.rotation.z = ang;
-          mesh.scale.set(segW, segH, 1);
-          (mesh.material as THREE.MeshBasicMaterial).opacity = 0.4 + 0.35 * (1 - state.cycleT);
-        }
-        break;
-      }
-      case 'scissorGate': {
-        const state = scissorGateStateAtTime(this.config, time);
-        state.bars.forEach((bar, i) => {
-          const mesh = this.meshes[i];
-          if (!mesh || !this.config || this.config.type !== 'scissorGate') return;
-          mesh.position.set((bar.ax + bar.bx) / 2, (bar.ay + bar.by) / 2, 0);
-          mesh.rotation.z = Math.atan2(bar.by - bar.ay, bar.bx - bar.ax);
-          mesh.scale.set(this.config.barLength * 2, this.config.barThickness * 2, 1);
-        });
-        break;
-      }
-      case 'speedField': {
-        const state = speedFieldStateAtTime(this.config, time);
-        const mesh = this.meshes[0];
-        if (!mesh) return;
-        mesh.position.set(state.centerX, state.centerY, 0);
-        mesh.scale.set(state.width, state.height, 1);
-        (mesh.material as THREE.MeshBasicMaterial).opacity = 0.18 + 0.16 * state.pulse;
-        break;
-      }
-      case 'splitShutter': {
-        const state = splitShutterStateAtTime(this.config, time);
-        const left = this.meshes[0];
-        const right = this.meshes[1];
-        if (left) {
-          left.position.set(state.leftX, state.y, 0);
-          left.scale.set(this.config.panelWidth, state.height, 1);
-        }
-        if (right) {
-          right.position.set(state.rightX, state.y, 0);
-          right.scale.set(this.config.panelWidth, state.height, 1);
-        }
-        break;
-      }
-      case 'reactiveGate': {
-        const state = reactiveGateStateAtTime(this.config, time);
-        const left = this.meshes[0];
-        const right = this.meshes[1];
-        const color = state.warning ? 0xffb14a : state.phase === 'open' ? 0x6bc4d8 : 0x8ab4c8;
-        const opacity = state.phase === 'open' ? 0.75 : state.warning ? 0.9 : 0.95;
-        if (left) {
-          left.position.set(state.leftX, state.y, 0);
-          left.scale.set(state.panelWidth, state.panelHeight, 1);
-          const mat = left.material as THREE.MeshBasicMaterial;
-          mat.color.setHex(color);
-          mat.opacity = opacity;
-        }
-        if (right) {
-          right.position.set(state.rightX, state.y, 0);
-          right.scale.set(state.panelWidth, state.panelHeight, 1);
-          const mat = right.material as THREE.MeshBasicMaterial;
-          mat.color.setHex(color);
-          mat.opacity = opacity;
-        }
-        break;
-      }
-      case 'conveyorGate': {
-        const blocks = conveyorGateBlocksAtTime(this.config, time);
-        blocks.forEach((block, i) => {
-          const mesh = this.meshes[i];
-          if (!mesh) return;
-          mesh.position.set(block.x, block.y, 0);
-          mesh.scale.set(block.radius * 2, block.radius * 2, 1);
-        });
-        break;
-      }
-      case 'rollingAperture': {
-        const state = rollingApertureStateAtTime(this.config, time);
-        const n = this.meshes.length;
-        const band = state.radius + 0.18;
-        const segW = 0.28;
-        const segH = Math.max(0.22, ((Math.PI * 2) / n) * band * 0.9);
-        for (let i = 0; i < n; i += 1) {
-          const mesh = this.meshes[i];
-          if (!mesh) continue;
-          const ang = (i / n) * Math.PI * 2;
-          mesh.position.set(state.x + Math.cos(ang) * band, state.y + Math.sin(ang) * band, 0);
-          mesh.rotation.z = ang;
-          mesh.scale.set(segW, segH, 1);
-          (mesh.material as THREE.MeshBasicMaterial).opacity = 0.8;
-        }
-        break;
-      }
-      case 'corkscrewTunnel': {
-        const state = corkscrewStateAtTime(this.config, time);
-        const band = (state.radius + state.innerRadius) / 2;
-        const thickness = Math.max(0.2, state.radius - state.innerRadius);
-        const span = Math.PI * 2 - state.gapWidth;
-        const start = state.gapAngle + state.gapWidth / 2;
-        const n = this.meshes.length;
-        for (let i = 0; i < n; i += 1) {
-          const mesh = this.meshes[i];
-          if (!mesh) continue;
-          const t = n <= 1 ? 0 : i / (n - 1);
-          const ang = start + span * t;
-          mesh.visible = true;
-          mesh.position.set(
-            state.centerX + Math.cos(ang) * band,
-            state.centerY + Math.sin(ang) * band,
-            0,
-          );
-          mesh.rotation.z = ang;
-          mesh.scale.set(thickness, Math.max(0.22, (span / Math.max(1, n - 1)) * band * 0.95), 1);
-        }
-        break;
-      }
-      case 'cometCrossing': {
-        const state = cometCrossingStateAtTime(this.config, time);
-        const mesh = this.meshes[0];
-        if (!mesh) return;
-        mesh.position.set(state.x, state.y, 0);
-        mesh.scale.set(state.radius * 2, state.radius * 2, 1);
-        break;
-      }
-    }
+    this.priorityArt?.update(time);
+    this.worldArt?.update(time);
   }
 }

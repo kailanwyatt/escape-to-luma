@@ -14,8 +14,14 @@ import {
   evaluateTheNullCollision,
   entryExitWarpTarget,
   pulsarBeamOn,
+  solarSailAngle,
+  solarSailOpen,
   teleportPortalPoseAtTime,
 } from '../src/obstacles/StoryLibraryState';
+import { ObstacleSlot } from '../src/obstacles/ObstacleSlot';
+import { Target } from '../src/target/Target';
+import { predictShot } from '../src/debug/ShotDiagnostics';
+import { GAME_TUNING } from '../src/game/gameTuning';
 
 const BALL = 0.22;
 
@@ -89,6 +95,33 @@ describe('story library obstacle math', () => {
     expect(entryExitWarpTarget(config)).toEqual({ x: 0.85, y: 3.25 });
   });
 
+  it('predicts target arrival after an Entry/Exit warp', () => {
+    const slot = new ObstacleSlot('portal');
+    slot.applyConfig(
+      {
+        type: 'entryExitPortal',
+        z: 6,
+        entryX: 0,
+        entryY: 3,
+        exitX: 0.85,
+        exitY: 3.25,
+        radius: 0.95,
+      },
+      'space',
+    );
+    const target = new Target();
+    target.applyConfig({ x: 0.85, y: 3.25, z: 12, radius: 1.2 });
+    const start = { x: 0, y: 3, z: 0 };
+    const velocity = { vx: 0, vy: GAME_TUNING.gravity * 0.45, vz: 8 };
+    const prediction = predictShot(start, velocity, [slot], target, 0, 1, {
+      portalWarps: [{ z: 6, x: 0.85, y: 3.25 }],
+    });
+    expect(prediction.rotors[0].verdict).toBe('CLEAR');
+    // Post-warp target sample must sit near the exit lane, not the entry x.
+    expect(prediction.target.simulated.x).toBeGreaterThan(0.5);
+    expect(Math.abs(prediction.target.simulated.x - 0.85)).toBeLessThan(0.45);
+  });
+
   it('jumps teleport portals among fixed anchors', () => {
     const config = {
       type: 'teleportPortal' as const,
@@ -106,6 +139,38 @@ describe('story library obstacle math', () => {
     expect(a.x).toBe(0);
     expect(a.warning).toBe(false);
     expect(evaluateTeleportPortalCollision(config, 0.2, 0, 3, BALL).hit).toBe(false);
+  });
+
+  it('uses rotated OBB for closed Solar Sail and openAngle for clearance', () => {
+    const config = {
+      type: 'solarSail' as const,
+      z: 6,
+      centerX: 0,
+      centerY: 3,
+      halfWidth: 1.6,
+      halfHeight: 0.35,
+      maxAngle: 1.15,
+      openAngle: 0.85,
+      speed: 0.7,
+    };
+    expect(solarSailOpen(config, 0)).toBe(false);
+    expect(evaluateSolarSailCollision(config, 0, 0, 3, BALL).hit).toBe(true);
+    const tilted = 0.55;
+    const ang = solarSailAngle(config, tilted);
+    expect(Math.abs(ang)).toBeGreaterThan(0.35);
+    expect(solarSailOpen(config, tilted)).toBe(false);
+    const lx = config.halfWidth * 0.7;
+    const tipX = config.centerX + lx * Math.cos(ang);
+    const tipY = config.centerY + lx * Math.sin(ang);
+    expect(evaluateSolarSailCollision(config, tilted, tipX, tipY, BALL).hit).toBe(true);
+    let opened = false;
+    for (let t = 0; t < 8; t += 0.05) {
+      if (solarSailOpen(config, t) && !evaluateSolarSailCollision(config, t, 0, 3, BALL).hit) {
+        opened = true;
+        break;
+      }
+    }
+    expect(opened).toBe(true);
   });
 
   it('keeps moving safe / accretion / sail / sheath / null passable sometime', () => {
