@@ -15,6 +15,10 @@
       "requireFullScreen": true,
       "config": {
         "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "GCSupportsGameMode": true,
+        "LSApplicationCategoryType": "public.app-category.games"
       }
     },
     "android": {

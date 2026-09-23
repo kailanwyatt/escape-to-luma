@@ -4,7 +4,7 @@ import type {SlidingGateConfig} from '../../config/ObstacleConfig';
 import type {RapidShutterConfig} from '../../obstacles/RapidShutterState';
 /** Authored City lessons, applied after generic composition and balance. */
 export function applyCityShutterProgression(source:CampaignLevelDefinition):CampaignLevelDefinition {
- if(source.worldId!=='city')return source;
+ if(source.levelNumber<16||source.levelNumber>30)return source;
  const level:CampaignLevelDefinition=JSON.parse(JSON.stringify(source)),n=level.levelNumber;
  const original=level.challenge.obstacles.find((o):o is SlidingGateConfig=>o.type==='slidingGate');
  if(!original)return level;

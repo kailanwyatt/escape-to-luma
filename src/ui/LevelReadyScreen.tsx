@@ -3,12 +3,14 @@ import {ShopArt} from './ShopArt';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ECONOMY, type BoostId } from '../config/economy';
+import { BOOST_LOADOUT_LIMIT, ECONOMY, type BoostId } from '../config/economy';
 import { getCampaignLevel } from '../campaign/levels';
 import type { SelectedBoosts } from '../campaign/types';
 import { Button, GlassPanel, Screen, ScreenTitle, color, radius, space } from '../design';
 import type { PersistentGameData } from '../persistence/GameSave';
 import { worldForLevel } from '../campaign/worlds';
+import { sparkById } from '../customization/sparks';
+import { abilityDefinitionForSpark } from '../customization/sparkAbilities';
 
 type Props = {
   save: PersistentGameData;
@@ -16,22 +18,37 @@ type Props = {
   onPlay: (boosts: SelectedBoosts) => void;
   onBack: () => void;
   onShop:()=>void;
+  onSparks?: () => void;
 };
 
-const BOOSTS: { id: BoostId; label: string; costKey: keyof typeof ECONOMY.boostCosts }[] = [
-  { id: 'portalBloom',label:t("levelreadyscreen.portal_bloom"),costKey:'portalBloom' },
-  { id: 'guidance', label: t("levelreadyscreen.guidance"), costKey: 'guidance' },
-  { id: 'slowField', label: t("levelreadyscreen.slow_field"), costKey: 'slowField' },
-  { id: 'secondChance', label: t("levelreadyscreen.second_chance"), costKey: 'secondChance' },
+const BOOSTS: { id: BoostId; label: string; costKey: keyof typeof ECONOMY.boostCosts; description: string }[] = [
+  { id: 'portalBloom',label:t("levelreadyscreen.portal_bloom"),costKey:'portalBloom', description:t("levelreadyscreen.a_25_larger_portal_for_this_attempt_obstacles_stay_unchanged") },
+  { id: 'guidance', label: t("levelreadyscreen.guidance"), costKey: 'guidance', description:t("levelreadyscreen.preview_the_route_before_committing_to_your_shot") },
+  { id: 'slowField', label: t("levelreadyscreen.slow_field"), costKey: 'slowField', description:t("levelreadyscreen.slow_obstacle_movement_to_give_yourself_more_time") },
+  { id: 'secondChance', label: t("levelreadyscreen.second_chance"), costKey: 'secondChance', description:t("levelreadyscreen.recover_from_one_failed_shot_during_this_attempt") },
+  { id: 'phaseShield', label: t("levelreadyscreen.phase_shield"), costKey: 'phaseShield', description:t("levelreadyscreen.phase_shield_desc") },
+  { id: 'timeLock', label: t("levelreadyscreen.time_lock"), costKey: 'timeLock', description:t("levelreadyscreen.time_lock_desc") },
 ];
 
-export function LevelReadyScreen({ save, levelNumber, onPlay, onBack,onShop }: Props) {
+const TILE: Partial<Record<BoostId, number>> = {
+  guidance: 1,
+  slowField: 2,
+  portalBloom: 3,
+  secondChance: 4,
+  phaseShield: 2,
+  timeLock: 1,
+  hyperjump: 1,
+};
+
+export function LevelReadyScreen({ save, levelNumber, onPlay, onBack,onShop, onSparks }: Props) {
   const [selected, setSelected] = useState<SelectedBoosts>({});
   const def = getCampaignLevel(levelNumber);
   const world = worldForLevel(levelNumber);
-  const progress = def ? save.campaign.completedLevels[def.id] : undefined;
   const inv = save.campaign.boostInventory;
   const showBoosts = levelNumber > 5;
+  const spark = sparkById(save.campaign.equippedSparkId);
+  const passive = abilityDefinitionForSpark(spark.id);
+  const selectedCount = Object.values(selected).filter(Boolean).length;
 
   return (
     <Screen onBack={onBack} backLabel={t("levelreadyscreen.back_to_game")}>
@@ -40,26 +57,42 @@ export function LevelReadyScreen({ save, levelNumber, onPlay, onBack,onShop }: P
       <Text style={styles.best}>{t("levelreadyscreen.choose_boosts_now_stock_is_used_only_when_you_launch_cancelling_y")}</Text>
       {def?.windX ? <Text style={styles.wind}>{t("levelreadyscreen.wind_active")}</Text> : null}
 
+      <GlassPanel style={styles.sparkPanel}>
+        <Text style={styles.section}>{t("levelreadyscreen.equipped_spark")}</Text>
+        <Text style={styles.sparkName}>{spark.name}</Text>
+        <Text style={styles.passive}>{t("levelreadyscreen.passive")}: {passive.summary}</Text>
+        {onSparks ? (
+          <Pressable accessibilityRole="button" onPress={onSparks} style={styles.changeCollection}>
+            <Text style={styles.changeCollectionText}>{t("levelreadyscreen.change_collection")}</Text>
+          </Pressable>
+        ) : null}
+      </GlassPanel>
+
       {showBoosts ? (
         <>
-          <Text style={styles.section}>{t("gameplaycontrols.boosts_2")}</Text>
+          <Text style={styles.section}>{t("gameplaycontrols.boosts_2")} · max {BOOST_LOADOUT_LIMIT}</Text>
           {BOOSTS.map((boost) => {
             const owned = inv[boost.id] ?? 0;
             const on = Boolean(selected[boost.id]);
+            const blocked = !on && selectedCount >= BOOST_LOADOUT_LIMIT;
             return (
               <GlassPanel
                 key={boost.id}
                 style={[styles.boost, on && styles.boostOn]}
               >
-                <ShopArt tile={{guidance:1,slowField:2,portalBloom:3,secondChance:4,hyperjump:1}[boost.id]} style={{width:"100%",height:125,borderTopLeftRadius:16,borderTopRightRadius:16}}/>
+                <ShopArt tile={TILE[boost.id] ?? 1} style={{width:"100%",height:125,borderTopLeftRadius:16,borderTopRightRadius:16}}/>
                 <Pressable
-                  accessibilityRole="checkbox" accessibilityState={{checked:on,disabled:owned<=0}} disabled={owned<=0}
+                  accessibilityRole="checkbox" accessibilityState={{checked:on,disabled:owned<=0||blocked}} disabled={owned<=0||blocked}
                   style={styles.boostPress}
                   onPress={() => {
-                    if (owned <= 0) {
-                      return;
-                    }
-                    setSelected((current) => ({ ...current, [boost.id]: !current[boost.id] }));
+                    if (owned <= 0) return;
+                    setSelected((current) => {
+                      const nextOn = !current[boost.id];
+                      if (nextOn && Object.values(current).filter(Boolean).length >= BOOST_LOADOUT_LIMIT) {
+                        return current;
+                      }
+                      return { ...current, [boost.id]: nextOn };
+                    });
                   }}
                 >
                   <Text style={styles.boostLabel}>
@@ -70,7 +103,7 @@ export function LevelReadyScreen({ save, levelNumber, onPlay, onBack,onShop }: P
                     {owned > 0 ? `×${owned}` : t("levelreadyscreen.get_in_shop")}
                   </Text>
                 </Pressable>
-                <Text style={{padding:12,color:color.creamFaint,fontSize:12,lineHeight:18}}>{boost.id==='portalBloom'?t("levelreadyscreen.a_25_larger_portal_for_this_attempt_obstacles_stay_unchanged"):boost.id==='guidance'?t("levelreadyscreen.preview_the_route_before_committing_to_your_shot"):boost.id==='slowField'?t("levelreadyscreen.slow_obstacle_movement_to_give_yourself_more_time"):t("levelreadyscreen.recover_from_one_failed_shot_during_this_attempt")}</Text>
+                <Text style={{padding:12,color:color.creamFaint,fontSize:12,lineHeight:18}}>{boost.description}</Text>
               </GlassPanel>
             );
           })}
@@ -91,6 +124,11 @@ const styles = StyleSheet.create({
   wind: { marginTop: space.xs, color: color.amberBright, fontSize: 12, fontWeight: '800', letterSpacing: 2, textAlign: 'center' },
   teaching: { marginTop: space.xl, color: color.cyanDim, fontSize: 11, fontWeight: '800', letterSpacing: 1.5, textAlign: 'center' },
   section: { marginTop: space.xl, color: color.cyanBright, fontSize: 12, fontWeight: '900', letterSpacing: 2 },
+  sparkPanel: { marginTop: space.md, padding: space.sm },
+  sparkName: { color: color.cream, fontSize: 18, fontWeight: '800', marginTop: 6 },
+  passive: { color: color.creamFaint, fontSize: 13, lineHeight: 18, marginTop: 6 },
+  changeCollection: { marginTop: 10, alignSelf: 'flex-start' },
+  changeCollectionText: { color: color.cyanBright, fontSize: 12, fontWeight: '800', letterSpacing: 1 },
   boost: { marginTop: space.xs, padding: 0, borderRadius: radius.md },
   boostPress: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: space.sm, paddingHorizontal: space.sm },
   boostOn: { backgroundColor: color.cyanGlow, borderColor: color.cyanBright },

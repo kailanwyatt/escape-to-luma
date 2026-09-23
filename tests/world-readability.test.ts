@@ -11,7 +11,7 @@ describe('world and obstacle readability',()=>{
  it('replaces the active world kit and restores the ordinary environment',()=>{
   const scene=new THREE.Scene(),manager=new EnvironmentManager(scene);
   for(const id of Object.keys(JOURNEY_LOOKS)){
-   manager.setEnvironment(id==='sky'?'rooftop':'space',scene);manager.setCampaignLevel(null);manager.setSpaceWorld(id);
+   manager.setEnvironment(id==='sky'||id==='ascent'||id==='storm'?'rooftop':'space',scene);manager.setCampaignLevel(null);manager.setSpaceWorld(id);
    const kits=manager.group.children.filter(o=>o.name.startsWith('world-'));
    expect(kits).toHaveLength(1);expect(kits[0].name).toBe(`world-${id}`);expect(kits[0].visible).toBe(true);
    manager.setSpaceWorld(id);expect(manager.group.children.filter(o=>o.name.startsWith('world-'))).toHaveLength(1);

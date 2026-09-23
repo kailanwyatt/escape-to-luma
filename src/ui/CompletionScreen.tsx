@@ -5,7 +5,7 @@ import {worldForLevel,WORLDS} from '../campaign/worlds';
 import {sparkById} from '../customization/sparks';
 import {SparkPortrait} from './SparksScreen';
 import {SPARK_DESCRIPTIONS} from './sparkPresentation';
-import {JOURNEY_PRESENTATION} from './journeyPresentation';
+import {journeyLookFor} from './journeyPresentation';
 import {StoryTemplate} from './StoryTemplate';
 
 export function CompletionScreen({hud,onContinue,onHome,reduceMotion}:{hud:HudSnapshot;onContinue:()=>void;onHome:()=>void;reduceMotion:boolean}) {
@@ -17,7 +17,7 @@ export function CompletionScreen({hud,onContinue,onHome,reduceMotion}:{hud:HudSn
    {!unlock&&hud.lastShardsGained>0?<Text style={{color:'#ffd777',fontSize:22,fontWeight:'800'}}>{t('completion.shards',{count:hud.lastShardsGained})}</Text>:null}
    <Text style={{color:'#83dbea',textAlign:'center'}}>{t('completion.world_progress',{world:world.name,count:hud.currentWorldClears??0})}</Text>
  </View>;
- return <StoryTemplate id={`${hud.phase}-${hud.campaignLevel}`} image={JOURNEY_PRESENTATION[world.id].image??'story.05'}
+ return <StoryTemplate id={`${hud.phase}-${hud.campaignLevel}`} image={journeyLookFor(world.id).image??'story.05'}
    artContent={unlock&&spark?<View style={{flex:1,alignItems:'center',justifyContent:'center'}}><SparkPortrait spark={spark} size={280}/></View>:undefined}
    eyebrow={unlock?t('game.new_spark'):world.name}
    title={unlock?hud.unlockedSparkName??t('branding.spark'):t('hud.world_complete')}

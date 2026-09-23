@@ -13,6 +13,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { canStartLevel } from './src/campaign/CampaignPlay';
 import { getCampaignLevel } from './src/campaign/levels';
+import { WORLDS } from './src/campaign/worlds';
 import { ECONOMY } from './src/config/economy';
 import { Game } from './src/game/Game';
 import { preloadAssetGroup } from './src/graphics/assetRegistry';
@@ -34,6 +35,7 @@ import { SettingsScreen } from './src/ui/SettingsScreen';
 import { ShopScreen } from './src/ui/ShopScreen';
 import { SparksScreen } from './src/ui/SparksScreen';
 import { StatsScreen } from './src/ui/StatsScreen';
+import { PurchaseService } from './src/services/purchases/PurchaseService';
 
 type AppScreen =
   | 'home'
@@ -115,6 +117,7 @@ const INITIAL_HUD: HudSnapshot = {
   maxEnergy: ECONOMY.maxEnergy,
   shards: 0,
   unlimitedEnergy: false,
+  overchargeRemainingLabel: null,
   lastShardsGained: 0,
   lastPrecisionRank: null,
   storyBeat: null,
@@ -169,6 +172,7 @@ function AppShell() {
   const [save, setSave] = useState<PersistentGameData>(emptySave());
   const [screen, setScreen] = useState<AppScreen>('home');
   const [pendingLevel, setPendingLevel] = useState(1);
+  const [journeyFocusLevel, setJourneyFocusLevel] = useState<number | null>(null);
   const [devUnlockAll,setDevUnlockAll]=useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [debugSnapshot, setDebugSnapshot] = useState<DebugSnapshot | null>(null);
@@ -253,6 +257,9 @@ function AppShell() {
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       if (next === 'active') {
+        // Foreground: reconcile Overcharge expiry from cached save + refresh store catalog.
+        refreshSave();
+        void PurchaseService.refreshOverchargeProducts();
         if (playingRef.current && !pausedRef.current) {
           gameRef.current?.resume();
         }
@@ -488,6 +495,19 @@ function AppShell() {
             GameHaptics.forUi();
             gameRef.current?.skipCampaignOpening();
           }}
+          onOpenJourney={() =>
+            tap(() => {
+              const level = hud.campaignLevel || pendingLevel || 1;
+              setJourneyFocusLevel(level);
+              setPendingLevel(level);
+              pausedRef.current = true;
+              setPaused(true);
+              gameRef.current?.onTouchCancel();
+              gameRef.current?.pause();
+              refreshSave();
+              setScreen('journey');
+            })
+          }
         />
       ) : null}
       {showOutOfEnergyOverlay ? (
@@ -495,6 +515,7 @@ function AppShell() {
           save={save}
           onWatch={async()=>{await gameRef.current?.watchRewardedEnergy();refreshSave();}}
           onShop={()=>{refreshSave();setShopReturn(screen);setScreen('shop');}}
+          onOvercharge={()=>{refreshSave();setShopReturn(screen);setScreen('shop');}}
           onRetry={() =>
             tap(() => {
               if (screen === 'outOfEnergy') {
@@ -572,6 +593,7 @@ function AppShell() {
           onJourney={() =>
             tap(() => {
               syncEnergyAndSave();
+              setJourneyFocusLevel(null);
               setScreen('journey');
             })
           }
@@ -613,17 +635,36 @@ function AppShell() {
       ) : null}
       {screen === 'journey' ? (
         <JourneyScreen
+          key={`journey-${journeyFocusLevel ?? 'root'}`}
           devUnlockAll={__DEV__ && devUnlockAll}
           save={save}
-          onSelectLevel={(levelNumber) =>
-            tap(() => startSelectedLevel(levelNumber))
+          focusLevel={journeyFocusLevel}
+          initialWorldId={
+            journeyFocusLevel != null
+              ? WORLDS.find(
+                  (w) =>
+                    journeyFocusLevel >= w.firstLevel && journeyFocusLevel <= w.lastLevel,
+                )?.id ?? null
+              : null
           }
-          onBack={() => tap(() => setScreen('home'))}
+          onSelectLevel={(levelNumber) =>
+            tap(() => {
+              setJourneyFocusLevel(levelNumber);
+              startSelectedLevel(levelNumber);
+            })
+          }
+          onBack={() =>
+            tap(() => {
+              setJourneyFocusLevel(null);
+              setScreen('home');
+            })
+          }
         />
       ) : null}
       {screen === 'levelReady' || (screen==='shop'&&shopReturn==='levelReady') ? (
         <View style={[StyleSheet.absoluteFill,{display:screen==='levelReady'?'flex':'none'}]}><LevelReadyScreen
           onShop={()=>{refreshSave();setShopReturn('levelReady');setScreen('shop');}}
+          onSparks={()=>{refreshSave();setScreen('sparks');}}
           save={save}
           levelNumber={pendingLevel}
           onPlay={(boosts) =>
@@ -671,6 +712,8 @@ function AppShell() {
           onWatchEnergy={async()=>{await gameRef.current?.watchRewardedEnergy();refreshSave();}}
           onBuyEnergy={()=>{gameRef.current?.buyEnergyRefill();refreshSave();}}
           onShardPack={async(id)=>{const result=await gameRef.current?.purchaseShardPack(id)??'unavailable';refreshSave();return result;}}
+          onOvercharge={async(id)=>{const result=await gameRef.current?.purchaseOvercharge(id)??'unavailable';refreshSave();return result;}}
+          onRestoreOvercharge={async()=>{const ok=await gameRef.current?.restoreOverchargePurchases()??false;refreshSave();return ok;}}
           backLabel={shopReturn==='levelReady'?t("app.back_to_boosts"):shopReturn==='home'?'BACK':t("app.back_to_game")}
           onBack={() => tap(() => {refreshSave();setScreen(shopReturn);})}
         />

@@ -19,8 +19,8 @@ export class AmbientLife {
   disposeThreeObject(this.group);this.group.clear();this.floaters=[];this.clouds=[];this.beacons=[];this.stars=null;this.comet=null;this.cometMaterial=null;
   this.world=world;this.source=source;this.time=0;this.asteroids=[];
   source.traverse(o=>{if(o.userData.ambientAsteroid)this.asteroids.push({object:o,x:o.rotation.x,y:o.rotation.y,z:o.rotation.z,px:o.position.x,py:o.position.y,pz:o.position.z,phase:this.asteroids.length*2.399,speed:.012+(this.asteroids.length%5)*.004});});
-  source.traverse(o=>{if(o.userData.ambientCloud)this.clouds.push({object:o,x:o.position.x,y:o.position.y,z:o.position.z,phase:this.clouds.length*1.73,amplitude:world==='sky'?.85:.4});});
-  const space=!['containment','workshop','city','rooftop','sky'].includes(world);
+  source.traverse(o=>{if(o.userData.ambientCloud)this.clouds.push({object:o,x:o.position.x,y:o.position.y,z:o.position.z,phase:this.clouds.length*1.73,amplitude:world==='sky'||world==='ascent'||world==='storm'?.85:.4});});
+  const space=!['containment','lockdown','workshop','city','rooftop','sky','ascent','storm'].includes(world);
   if(space){
    const p:number[]=[],ph:number[]=[];
    for(let i=0;i<72;i++){p.push(Math.sin(i*4.718)*27,9+(i*7%17),32+(i*11%23));ph.push(i*2.399);}
@@ -29,14 +29,14 @@ export class AmbientLife {
     vertexShader:`attribute float phase;uniform float clock;uniform float motion;varying float b;void main(){b=.55+.3*motion*sin(clock*.85+phase);gl_PointSize=3.5;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
     fragmentShader:`varying float b;void main(){vec2 p=abs(gl_PointCoord-.5);float a=exp(-20.*dot(p,p));float rays=exp(-40.*min(p.x,p.y))*exp(-7.*max(p.x,p.y));gl_FragColor=vec4(.73,.85,1.,b*max(a,rays*.55));}`});
    const stars=new THREE.Points(geo,this.stars);stars.name='twinkling-stars';this.group.add(stars);
-   if(world!=='homeward'){
+   if(world!=='homeward'&&world!=='luma'){
     this.comet=new THREE.Group();this.comet.name='distant-comet';
     const head=new THREE.Mesh(new THREE.SphereGeometry(.055,8,6),new THREE.MeshBasicMaterial({color:0xc0e3ff}));this.comet.add(head);
     const trail=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),new THREE.Vector3(-3.2,.8,.4)]);
     this.cometMaterial=new THREE.LineBasicMaterial({color:0x83b4d5,transparent:true,opacity:.3,depthWrite:false});this.comet.add(new THREE.Line(trail,this.cometMaterial));this.group.add(this.comet);
    }
   }
-  const industrial=['containment','workshop','city','rooftop','sky','atmosphere','orbit','moon'].includes(world);
+  const industrial=['containment','lockdown','workshop','city','rooftop','sky','ascent','storm','upper_atmosphere','orbit','orbital_graveyard','moon','far_side'].includes(world);
   if(industrial){
    for(let i=0;i<4;i++){
     const material=new THREE.MeshBasicMaterial({color:0xe4aa5c,transparent:true,opacity:.75});this.beacons.push(material);

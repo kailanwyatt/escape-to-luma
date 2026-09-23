@@ -1,5 +1,9 @@
 import {t} from '../i18n';
 import type { RuntimeAssetId } from '../graphics/assetRegistry';
+import {
+  abilityIdForSpark,
+  type SparkAbilityId,
+} from './sparkAbilities';
 
 export type SkinAcquisition = 'default' | 'shards' | 'world_completion' | 'mastery' | 'premium';
 
@@ -30,6 +34,8 @@ export type SparkDefinition = {
   trailWidth: number;
   trailColor: number;
   visualProfile?: SparkVisualProfile;
+  /** Persistent passive specialization; lookup may also use sparkAbilities catalog. */
+  abilityId?: SparkAbilityId;
 };
 
 const DEFAULT_PROFILE: SparkVisualProfile = {
@@ -131,7 +137,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     id: 'aurora',
     name: t("sparks.aurora"),
     acquisition: 'world_completion',
-    worldId: 'atmosphere',
+    worldId: 'upper_atmosphere',
     color: 0x6dffc8,
     emissive: 0x2bff9a,
     emissiveIntensity: 0.9,
@@ -167,7 +173,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     id: 'meteor',
     name: t("sparks.meteor"),
     acquisition: 'world_completion',
-    worldId: 'asteroid',
+    worldId: 'asteroid_belt',
     color: 0xff7a2a,
     emissive: 0xff3b00,
     emissiveIntensity: 0.85,
@@ -261,6 +267,10 @@ export const DEFAULT_SPARK_ID = 'original';
 
 export function sparkById(id: string): SparkDefinition {
   return SPARK_CATALOG.find((spark) => spark.id === id) ?? SPARK_CATALOG[0];
+}
+
+export function sparkAbilityId(spark: SparkDefinition): SparkAbilityId {
+  return spark.abilityId ?? abilityIdForSpark(spark.id);
 }
 
 export function sparkVisualProfile(spark: SparkDefinition): SparkVisualProfile {

@@ -12,7 +12,30 @@ export type ObstacleType =
   | 'phaseField'
   | 'shiftingAperture'
   | 'laserGrid'
-  | 'formation';
+  | 'formation'
+  | 'pistonField'
+  | 'clockHands'
+  | 'elevatorBlocks'
+  | 'pulseRing'
+  | 'scissorGate'
+  | 'speedField'
+  | 'splitShutter'
+  | 'reactiveGate'
+  | 'conveyorGate'
+  | 'rollingAperture'
+  | 'corkscrewTunnel'
+  | 'cometCrossing'
+  | 'orbitingMoons'
+  | 'sequentialTunnel'
+  | 'movingSafeZone'
+  | 'accretionShredder'
+  | 'pulsarBeam'
+  | 'solarSail'
+  | 'magnetopause'
+  | 'lagrangeNull'
+  | 'teleportPortal'
+  | 'entryExitPortal'
+  | 'theNull';
 
 export type RingMovementType = 'horizontal' | 'vertical' | 'ellipse';
 
@@ -173,6 +196,302 @@ export interface FormationConfig {
   openingRadius?: number;
 }
 
+export interface PistonFieldConfig {
+  type: 'pistonField';
+  z: number;
+  centerY?: number;
+  laneCount: number;
+  spacing: number;
+  maxExtension: number;
+  minExtension: number;
+  speed: number;
+  phase?: number;
+  halfWidth?: number;
+  pistonHeight?: number;
+}
+
+export interface ClockHandsConfig {
+  type: 'clockHands';
+  z: number;
+  hubX: number;
+  hubY: number;
+  length: number;
+  thickness: number;
+  handCount: 1 | 2;
+  speed: number;
+  phase?: number;
+  secondSpeedScale?: number;
+  hubRadius?: number;
+}
+
+export interface ElevatorBlocksConfig {
+  type: 'elevatorBlocks';
+  z: number;
+  laneCount: number;
+  spacing: number;
+  baseY: number;
+  amplitude: number;
+  speed: number;
+  phase?: number;
+  blockWidth?: number;
+  blockHeight?: number;
+}
+
+export interface PulseRingConfig {
+  type: 'pulseRing';
+  z: number;
+  centerX: number;
+  centerY: number;
+  minRadius: number;
+  maxRadius: number;
+  thickness: number;
+  speed: number;
+  phase?: number;
+}
+
+export interface ScissorGateConfig {
+  type: 'scissorGate';
+  z: number;
+  centerX: number;
+  centerY: number;
+  barLength: number;
+  barThickness: number;
+  maxAngle: number;
+  /** Floor so the aperture never fully closes (defaults to 0.35). */
+  minAngle?: number;
+  speed: number;
+  phase?: number;
+}
+
+export interface SpeedFieldConfig {
+  type: 'speedField';
+  z: number;
+  centerX: number;
+  centerY: number;
+  width: number;
+  height: number;
+  speedMultiplier: number;
+  pulseSpeed?: number;
+  phase?: number;
+}
+
+export interface SplitShutterConfig {
+  type: 'splitShutter';
+  z: number;
+  centerX: number;
+  centerY?: number;
+  panelWidth: number;
+  panelHeight: number;
+  minGap: number;
+  maxGap: number;
+  speed: number;
+  phase?: number;
+}
+
+export interface ReactiveGateConfig {
+  type: 'reactiveGate';
+  z: number;
+  centerX: number;
+  centerY?: number;
+  closedWidth: number;
+  openWidth: number;
+  openHeight: number;
+  speed: number;
+  phase?: number;
+  closedHold?: number;
+  warningHold?: number;
+  openHold?: number;
+}
+
+export interface ConveyorGateConfig {
+  type: 'conveyorGate';
+  z: number;
+  centerX: number;
+  centerY?: number;
+  blockCount: number;
+  blockRadius: number;
+  wrapWidth: number;
+  speed: number;
+  phase?: number;
+  direction?: 1 | -1;
+}
+
+export interface RollingApertureConfig {
+  type: 'rollingAperture';
+  z: number;
+  baseX: number;
+  baseY: number;
+  minRadius: number;
+  maxRadius: number;
+  pulseSpeed: number;
+  driftSpeed: number;
+  driftAmplitudeX: number;
+  driftAmplitudeY: number;
+  phase?: number;
+}
+
+export interface CorkscrewTunnelConfig {
+  type: 'corkscrewTunnel';
+  z: number;
+  centerX: number;
+  centerY: number;
+  /** Outer radius of the ring wall. */
+  radius: number;
+  /** Angular width of the open sector (radians). */
+  gapWidth: number;
+  speed: number;
+  phase?: number;
+  helixStep?: number;
+  segmentIndex?: number;
+  /** Inner open radius (hub). Defaults to ~45% of outer radius. */
+  innerRadius?: number;
+}
+
+export interface CometCrossingConfig {
+  type: 'cometCrossing';
+  z: number;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  blockerRadius: number;
+  speed: number;
+  phase?: number;
+}
+
+export interface OrbitingMoonsConfig {
+  type: 'orbitingMoons';
+  z: number;
+  centerX: number;
+  centerY: number;
+  orbitRadius: number;
+  moonRadius: number;
+  moonCount: number;
+  speed: number;
+  phase?: number;
+}
+
+export interface SequentialTunnelConfig {
+  type: 'sequentialTunnel';
+  z: number;
+  centerX: number;
+  centerY: number;
+  apertureCount: number;
+  apertureRadius: number;
+  spacing: number;
+  speed: number;
+  phase?: number;
+  openHold?: number;
+  closedHold?: number;
+}
+
+export interface MovingSafeZoneConfig {
+  type: 'movingSafeZone';
+  z: number;
+  centerX: number;
+  centerY: number;
+  fieldRadius: number;
+  holeRadius: number;
+  baseX: number;
+  baseY: number;
+  driftSpeed: number;
+  driftAmplitudeX: number;
+  driftAmplitudeY: number;
+  phase?: number;
+}
+
+export interface AccretionShredderConfig {
+  type: 'accretionShredder';
+  z: number;
+  centerX: number;
+  centerY: number;
+  outerRadius: number;
+  debrisCount: number;
+  debrisRadius: number;
+  speed: number;
+  phase?: number;
+  turns?: number;
+}
+
+export interface PulsarBeamConfig {
+  type: 'pulsarBeam';
+  z: number;
+  centerX: number;
+  centerY: number;
+  halfWidth: number;
+  orientation: 'horizontal' | 'vertical';
+  speed: number;
+  onHold: number;
+  offHold: number;
+  phase?: number;
+}
+
+export interface SolarSailConfig {
+  type: 'solarSail';
+  z: number;
+  centerX: number;
+  centerY: number;
+  halfWidth: number;
+  halfHeight: number;
+  maxAngle: number;
+  openAngle: number;
+  speed: number;
+  phase?: number;
+}
+
+export interface MagnetopauseConfig {
+  type: 'magnetopause';
+  z: number;
+  centerX: number;
+  centerY: number;
+  innerRadius: number;
+  outerRadius: number;
+  gapWidth: number;
+  speed: number;
+  phase?: number;
+}
+
+export interface LagrangeNullConfig {
+  type: 'lagrangeNull';
+  z: number;
+  centerX: number;
+  centerY: number;
+  radius: number;
+}
+
+export interface TeleportPortalConfig {
+  type: 'teleportPortal';
+  z: number;
+  anchors: { x: number; y: number }[];
+  radius: number;
+  speed: number;
+  dwell: number;
+  warning: number;
+  phase?: number;
+}
+
+export interface EntryExitPortalConfig {
+  type: 'entryExitPortal';
+  z: number;
+  entryX: number;
+  entryY: number;
+  exitX: number;
+  exitY: number;
+  radius: number;
+}
+
+export interface TheNullConfig {
+  type: 'theNull';
+  z: number;
+  centerX: number;
+  centerY: number;
+  fieldRadius: number;
+  minSafeRadius: number;
+  maxSafeRadius: number;
+  speed: number;
+  phase?: number;
+}
+
 export type RotorObstacleConfig = RotorConfig & { type?: 'rotor' };
 
 export type ObstacleConfig =
@@ -186,7 +505,30 @@ export type ObstacleConfig =
   | PhaseFieldConfig
   | ShiftingApertureConfig
   | LaserGridConfig
-  | FormationConfig;
+  | FormationConfig
+  | PistonFieldConfig
+  | ClockHandsConfig
+  | ElevatorBlocksConfig
+  | PulseRingConfig
+  | ScissorGateConfig
+  | SpeedFieldConfig
+  | SplitShutterConfig
+  | ReactiveGateConfig
+  | ConveyorGateConfig
+  | RollingApertureConfig
+  | CorkscrewTunnelConfig
+  | CometCrossingConfig
+  | OrbitingMoonsConfig
+  | SequentialTunnelConfig
+  | MovingSafeZoneConfig
+  | AccretionShredderConfig
+  | PulsarBeamConfig
+  | SolarSailConfig
+  | MagnetopauseConfig
+  | LagrangeNullConfig
+  | TeleportPortalConfig
+  | EntryExitPortalConfig
+  | TheNullConfig;
 
 export function obstacleTypeOf(config: ObstacleConfig): ObstacleType {
   return config.type ?? 'rotor';

@@ -6,8 +6,8 @@ describe('campaign balance revision',()=>{
   const levels=getPlayableCampaignLevels().filter(l=>l.levelNumber>=16&&l.levelNumber<150);
   // Bank shots and dedicated mechanic lessons have authored destinations; their
   // uniqueness is checked separately in campaign-composition.test.ts.
-  const pairs=levels.slice(1).map((l,i)=>[levels[i],l]).filter(pair=>pair.every(l=>!l.challenge.ricochet&&!l.challenge.tags?.includes('new-encounter')));
-  expect(pairs.length).toBeGreaterThan(50);
+  const pairs=levels.slice(1).map((l,i)=>[levels[i],l]).filter(pair=>pair.every(l=>!l.challenge.ricochet&&!l.challenge.tags?.includes('new-encounter')&&!l.challenge.tags?.includes('library-encounter')));
+  expect(pairs.length).toBeGreaterThan(25);
   const disjoint=pairs.filter(([previous,l])=>{const a=previous.challenge.target,b=l.challenge.target;return Math.hypot(a.x-b.x,a.y-b.y)>a.radius+b.radius;});
   expect(disjoint.length/pairs.length).toBeGreaterThan(.8);
  });

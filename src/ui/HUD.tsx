@@ -36,6 +36,7 @@ type Props = {
   onResume: () => void;
   onSkipOpening: () => void;
   onBoosts:()=>void;
+  onOpenJourney?: () => void;
 };
 
 const CAMPAIGN_OVERLAY_PHASES = new Set<HudSnapshot['phase']>([
@@ -69,6 +70,7 @@ export function HUD({
   onResume,
   onSkipOpening,
   onBoosts,
+  onOpenJourney,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [instructionHeight, setInstructionHeight] = useState(0);
@@ -95,7 +97,7 @@ export function HUD({
 
   return (
     <View style={styles.root} pointerEvents="box-none">
-      {showCampaignTop ? <GameplayHeader hud={hud} onBack={onPause}/> : null}
+      {showCampaignTop ? <GameplayHeader hud={hud} onBack={onPause} onTitlePress={onOpenJourney}/> : null}
       {showCampaignTop ? (
         hud.firstLevelOnboarding ? (
           <View style={[styles.breachHeaderWrap, { paddingTop: 8 }]}>

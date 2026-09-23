@@ -109,6 +109,8 @@ export type HudSnapshot = {
   maxEnergy: number;
   shards: number;
   unlimitedEnergy: boolean;
+  /** Compact remaining label while Overcharge is active; null otherwise. */
+  overchargeRemainingLabel: string | null;
   lastShardsGained: number;
   lastPrecisionRank: string | null;
   storyBeat: string | null;
@@ -203,6 +205,7 @@ export type DebugSnapshot = {
       hasUsedContinue: boolean;
       analyticsDebug: boolean;
       adsEnabled: boolean;
-      useTestAds: boolean;
-      continueUsed: boolean;
-    };
+  useTestAds: boolean;
+  continueUsed: boolean;
+  mechanicDebug?: string;
+};

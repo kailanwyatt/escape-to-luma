@@ -166,6 +166,36 @@ export function validateChallenge(
       }
       continue;
     }
+    if (
+      type === 'pistonField' ||
+      type === 'clockHands' ||
+      type === 'elevatorBlocks' ||
+      type === 'pulseRing' ||
+      type === 'scissorGate' ||
+      type === 'speedField' ||
+      type === 'splitShutter' ||
+      type === 'reactiveGate' ||
+      type === 'conveyorGate' ||
+      type === 'rollingAperture' ||
+      type === 'corkscrewTunnel' ||
+      type === 'cometCrossing' ||
+      type === 'orbitingMoons' ||
+      type === 'sequentialTunnel' ||
+      type === 'movingSafeZone' ||
+      type === 'accretionShredder' ||
+      type === 'pulsarBeam' ||
+      type === 'solarSail' ||
+      type === 'magnetopause' ||
+      type === 'lagrangeNull' ||
+      type === 'teleportPortal' ||
+      type === 'entryExitPortal' ||
+      type === 'theNull'
+    ) {
+      if (!Number.isFinite(obstacle.z) || obstacle.z <= 0) {
+        return 'library-layout';
+      }
+      continue;
+    }
     if (!isRotorConfig(obstacle)) {
       return 'unknown-obstacle';
     }

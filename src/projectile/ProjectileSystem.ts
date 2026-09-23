@@ -1,10 +1,23 @@
 import type { Projectile } from './Projectile';
-import { integrateMotion, type GravityWell } from './physics';
+import { integrateMotion, type GravityWell, type PhysicsForces } from './physics';
+import type { SpeedFieldConfig } from '../config/ObstacleConfig';
 
 export class ProjectileSystem {
   windX = 0;
   gravityScale = 1;
   wells: GravityWell[] = [];
+  speedFields: SpeedFieldConfig[] = [];
+  speedFieldTime = 0;
+
+  forces(): PhysicsForces {
+    return {
+      windX: this.windX,
+      gravityScale: this.gravityScale,
+      wells: this.wells,
+      speedFields: this.speedFields,
+      speedFieldTime: this.speedFieldTime,
+    };
+  }
 
   integrate(projectile: Projectile, dt: number): void {
     projectile.previousPosition.copy(projectile.position);
@@ -16,11 +29,7 @@ export class ProjectileSystem {
       vy: projectile.velocity.y,
       vz: projectile.velocity.z,
     };
-    integrateMotion(state, dt, {
-      windX: this.windX,
-      gravityScale: this.gravityScale,
-      wells: this.wells,
-    });
+    integrateMotion(state, dt, this.forces());
     projectile.position.set(state.x, state.y, state.z);
     projectile.velocity.set(state.vx, state.vy, state.vz);
   }

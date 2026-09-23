@@ -189,11 +189,25 @@ export const OBSTACLE_TEST_SHOTS: ChallengeConfig[] = [
   VALIDATION_15_SHOTS[4],
   VALIDATION_15_SHOTS[6],
   shot(5, 'T05', 'BASIC_ROTOR', [{ z: Z_A, bladeCount: 2, rotationSpeed: 0.48, direction: 1 }], center),
-  VALIDATION_15_SHOTS[8],
-  VALIDATION_15_SHOTS[10],
-  VALIDATION_15_SHOTS[12],
-  VALIDATION_15_SHOTS[14],
-  shot(10, 'T10', 'ELLIPTICAL_RING', [
+  shot(6, 'LIB_PISTON', 'BASIC_ROTOR', [{
+    type: 'pistonField', z: Z_A, laneCount: 4, spacing: 1.35, maxExtension: 1.6, minExtension: 0.15, speed: 1.1,
+  }], center),
+  shot(7, 'LIB_CLOCK', 'BASIC_ROTOR', [{
+    type: 'clockHands', z: Z_A, hubX: 0, hubY: 3, length: 2.2, thickness: 0.12, handCount: 2, speed: 0.55,
+  }], center),
+  shot(8, 'LIB_ELEVATOR', 'BASIC_ROTOR', [{
+    type: 'elevatorBlocks', z: Z_A, laneCount: 3, spacing: 1.5, baseY: 3, amplitude: 0.85, speed: 0.9,
+  }], center),
+  shot(9, 'LIB_PULSE', 'BASIC_ROTOR', [{
+    type: 'pulseRing', z: Z_A, centerX: 0, centerY: 3, minRadius: 0.4, maxRadius: 2.4, thickness: 0.18, speed: 0.45,
+  }], center),
+  shot(10, 'LIB_SCISSOR', 'BASIC_ROTOR', [{
+    type: 'scissorGate', z: Z_A, centerX: 0, centerY: 3, barLength: 1.8, barThickness: 0.1, maxAngle: 0.7, speed: 0.8,
+  }], center),
+  shot(11, 'LIB_SPEED', 'BASIC_ROTOR', [{
+    type: 'speedField', z: Z_A, centerX: 0, centerY: 3, width: 2.4, height: 2.2, speedMultiplier: 1.35, pulseSpeed: 1.2,
+  }], center),
+  shot(12, 'T10', 'ELLIPTICAL_RING', [
     {
       type: 'movingRing',
       z: Z_A,

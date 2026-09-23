@@ -3,15 +3,30 @@ import type { BoostId } from '../config/economy';
 
 export type WorldId =
   | 'containment'
+  | 'lockdown'
   | 'city'
+  | 'ascent'
+  | 'storm'
+  | 'upper_atmosphere'
+  | 'orbit'
+  | 'orbital_graveyard'
+  | 'moon'
+  | 'far_side'
+  | 'asteroid_belt'
+  | 'drift'
+  | 'nebula'
+  | 'the_null'
+  | 'false_home'
+  | 'ancient_network'
+  | 'the_machine'
+  | 'the_signal'
+  | 'homeward'
+  | 'luma'
+  /** Legacy authored-pack IDs remapped by `applyWorldBands`. */
   | 'sky'
   | 'atmosphere'
-  | 'orbit'
-  | 'moon'
   | 'asteroid'
-  | 'nebula'
-  | 'network'
-  | 'homeward';
+  | 'network';
 
 export type HomeSignalStrength = 'faint' | 'detectable' | 'strong' | 'located' | 'home';
 

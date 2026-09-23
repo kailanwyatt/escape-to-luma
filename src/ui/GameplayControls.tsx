@@ -8,7 +8,7 @@ import {CurrencyIcon} from './CurrencyIcon';
 import {color} from '../design';
 
 /** Presentation only: all actions and resource values come from the existing game. */
-export function GameplayHeader({hud,onBack}:{hud:HudSnapshot;onBack:()=>void}) {
+export function GameplayHeader({hud,onBack,onTitlePress}:{hud:HudSnapshot;onBack:()=>void;onTitlePress?:()=>void}) {
   const insets=useSafeAreaInsets();
   const {width}=useWindowDimensions();
   const compact=width-insets.left-insets.right<420;
@@ -16,19 +16,28 @@ export function GameplayHeader({hud,onBack}:{hud:HudSnapshot;onBack:()=>void}) {
   const local=world ? hud.campaignLevel-world.firstLevel+1 : hud.campaignLevel;
   const total=world ? world.lastLevel-world.firstLevel+1 : 0;
   const energy=hud.unlimitedEnergy?'∞':`${hud.energy}/${hud.maxEnergy}`;
+  const title=t("gameplaycontrols.l", {value1: local, value2: hud.campaignWorldName?.toUpperCase() ?? ''});
   return <View pointerEvents="box-none" style={[s.header,{paddingTop:insets.top+8,paddingLeft:insets.left+12,paddingRight:insets.right+12}]}>
     <Pressable accessibilityRole="button" accessibilityLabel={t("gameplaycontrols.pause_game")} onPress={onBack} style={({pressed})=>[s.back,pressed&&s.pressed]}>
       <View pointerEvents="none" style={s.backArrow}/>
     </Pressable>
-    <View pointerEvents="none" style={s.level} accessible accessibilityLabel={t("gameplaycontrols.level_of", {value1: local, value2: total, value3: hud.campaignWorldName})}>
-      <Text style={[s.levelTitle,compact&&s.smallTitle]}>{t("gameplaycontrols.l", {value1: local, value2: hud.campaignWorldName?.toUpperCase() ?? ''})}</Text>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t("gameplaycontrols.level_of", {value1: local, value2: total, value3: hud.campaignWorldName})}
+      accessibilityHint={t("gameplaycontrols.open_journey")}
+      disabled={!onTitlePress}
+      onPress={onTitlePress}
+      style={({pressed})=>[s.level,pressed&&onTitlePress&&s.pressed]}
+    >
+      <Text style={[s.levelTitle,compact&&s.smallTitle]}>{title}</Text>
       {total>0?<View style={s.track}>
         {Array.from({length:total},(_,i)=><View key={i} style={[s.dot,i===local-1&&s.currentDot]}/>)}
       </View>:null}
       {hud.windActive?<Text style={s.wind}>{hud.windDirection==='left'?t("gameplaycontrols.wind"):t("gameplaycontrols.wind_2")}</Text>:null}
-    </View>
+    </Pressable>
     <View pointerEvents="none" accessible accessibilityLabel={t("gameplaycontrols.energy_shards", {value1: energy, value2: hud.shards})} style={[s.resources,compact&&{gap:3,paddingHorizontal:6}]}>
       <CurrencyIcon kind="energy" size={compact?20:26}/><Text style={[s.value,compact&&s.smallValue]}>{energy}</Text>
+      {hud.unlimitedEnergy&&hud.overchargeRemainingLabel?<Text style={[s.overcharge,compact&&s.smallOvercharge]}>{hud.overchargeRemainingLabel}</Text>:null}
       <CurrencyIcon kind="shard" size={compact?20:26}/><Text style={[s.value,compact&&s.smallValue]}>{hud.shards.toLocaleString()}</Text>
     </View>
   </View>;
@@ -64,6 +73,8 @@ const s=StyleSheet.create({
  resources:{flexDirection:'row',alignItems:'center',gap:5,borderRadius:24,borderWidth:1,borderColor:'rgba(65,215,255,0.35)',backgroundColor:'rgba(2,12,22,0.8)',paddingHorizontal:10,minHeight:42},
  value:{color:color.cream,fontSize:15,fontWeight:'800',fontVariant:['tabular-nums']},
  smallValue:{fontSize:12},
+ overcharge:{color:color.cyanBright,fontSize:9,fontWeight:'700',letterSpacing:0.4,marginLeft:-2},
+ smallOvercharge:{fontSize:8},
  floating:{position:'absolute',alignItems:'center',width:72},
  boost:{width:68,height:68,borderRadius:34,borderWidth:2,borderColor:color.cyanBright,padding:4,shadowColor:color.cyanBright,shadowOpacity:0.35,shadowRadius:8,shadowOffset:{width:0,height:0}},
  boostFill:{flex:1,borderRadius:30,alignItems:'center',justifyContent:'center',paddingTop:10},

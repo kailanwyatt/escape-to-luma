@@ -31,29 +31,33 @@ export class EnvironmentManager {
       if(!this.journeyKit){this.journeyKit=createJourneyWorldScene(worldId);this.group.add(this.journeyKit);}
       for(const skin of Object.values(this.skins))skin.visible=false;
       this.journeyKit.visible=true;
-      const look=JOURNEY_LOOKS[worldId];this.scene.background=new THREE.Color(look.background);this.scene.fog=new THREE.Fog(look.background,worldId==='sky'?28:38,78);
-      this.ambient.color.setHex(look.ambient);this.ambient.intensity=worldId==='asteroid'?1.2:.8;this.key.color.setHex(look.key);
+      const look=JOURNEY_LOOKS[worldId];this.scene.background=new THREE.Color(look.background);this.scene.fog=new THREE.Fog(look.background,worldId==='sky'||worldId==='ascent'||worldId==='storm'?28:38,78);
+      this.ambient.color.setHex(look.ambient);this.ambient.intensity=worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?1.2:.8;this.key.color.setHex(look.key);
       // Broad front fill reveals rock relief without flattening it into emissive art.
-      this.fill.color.setHex(worldId==='asteroid'?0x9bcaff:0xffb060);
-      this.fill.intensity=worldId==='asteroid'?.65:.18;
-      this.fill.position.set(worldId==='asteroid'?5:4.2,3.4,worldId==='asteroid'?-6:5);
+      this.fill.color.setHex(worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?0x9bcaff:0xffb060);
+      this.fill.intensity=worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?.65:.18;
+      this.fill.position.set(worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?5:4.2,3.4,worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?-6:5);
     }
 
     this.ambientLife.setWorld(worldId ?? this.current, this.journeyKit ?? this.skins[this.current]);
-    const nearEarth = worldId === null || worldId === 'atmosphere' || worldId === 'orbit';
-    const lunar = worldId === 'moon';
+    const nearEarth =
+      worldId === null ||
+      worldId === 'upper_atmosphere' ||
+      worldId === 'orbit' ||
+      worldId === 'orbital_graveyard';
+    const lunar = worldId === 'moon' || worldId === 'far_side';
     for (const name of ['earth-horizon', 'earth-atmosphere']) {
       const object = this.skins.space.getObjectByName(name);
       if (!object) continue;
       object.visible = nearEarth || lunar;
-      object.scale.setScalar(lunar ? .18 : worldId === 'orbit' ? .85 : 1);
+      object.scale.setScalar(lunar ? .18 : worldId === 'orbit' || worldId === 'orbital_graveyard' ? .85 : 1);
       object.position.set(lunar ? 9 : 0, lunar ? 9 : -25, 49);
     }
   }
 
   setOpeningLighting(stage: number, progress: number): void {
     const signal = stage === 3 && !this.reduceMotion ? Math.sin(progress * Math.PI) : 0;
-    this.key.intensity = (this.journeyWorld === 'asteroid' ? 1.3 : .95) + signal * .22;
+    this.key.intensity = (this.journeyWorld === 'asteroid' || this.journeyWorld === 'asteroid_belt' || this.journeyWorld === 'drift' ? 1.3 : .95) + signal * .22;
     const alarm = stage === 4 ? progress : this.alarm;
     for (const lamp of this.warningLamps) {
       lamp.color.setHex(alarm > .35 ? 0xff865e : 0xffd280);

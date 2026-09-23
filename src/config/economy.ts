@@ -30,9 +30,13 @@ export const ECONOMY = {
     slowField: 50,
     secondChance: 65,
     portalBloom: 45,
+    phaseShield: 55,
+    timeLock: 60,
   },
 
   boostSlowFieldMultiplier: 0.6,
+  /** Launch-triggered Time Lock duration (seconds). */
+  boostTimeLockDuration: 1.25,
   helpAfterFailures: 5,
 
   skinCosts: {
@@ -56,11 +60,31 @@ export const ECONOMY = {
 
   mockUnlimitedEnergy24hLabel: 'MOCK · 24 HOURS',
   mockUnlimitedEnergy7dLabel: 'MOCK · 7 DAYS',
+  unlimitedEnergy2hMs: 2 * 60 * 60 * 1000,
   unlimitedEnergy24hMs: 24 * 60 * 60 * 1000,
   unlimitedEnergy7dMs: 7 * 24 * 60 * 60 * 1000,
 } as const;
 
-export type BoostId = 'guidance' | 'slowField' | 'secondChance' | 'hyperjump' | 'portalBloom';
+export type BoostId =
+  | 'guidance'
+  | 'slowField'
+  | 'secondChance'
+  | 'hyperjump'
+  | 'portalBloom'
+  | 'phaseShield'
+  | 'timeLock';
+
+/** Attempt loadout limit until playtests justify a change. */
+export const BOOST_LOADOUT_LIMIT = 2;
+
+export const SELECTABLE_BOOST_IDS: BoostId[] = [
+  'guidance',
+  'slowField',
+  'secondChance',
+  'portalBloom',
+  'phaseShield',
+  'timeLock',
+];
 
 export const SHARD_PACKS = [
   {

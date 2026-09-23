@@ -32,20 +32,20 @@ export function createWorldGateHousing(world:string):THREE.Group {
    put(block,glow,Math.cos(a)*1.28,Math.sin(a)*1.28,-.16,.085,.025,.03,a);
   }
  }
- if(['city','sky','atmosphere','orbit','moon'].includes(world)){
+ if(['city','sky','ascent','storm','upper_atmosphere','orbit','orbital_graveyard','moon','far_side'].includes(world)){
   // Braced service modules, kept outside the circular opening.
   for(const side of [-1,1]){
-   put(block,shell,side*1.5,0,.1,.22,world==='sky'?1.3:1.8,.35);
+   put(block,shell,side*1.5,0,.1,.22,world==='sky'||world==='ascent'||world==='storm'?1.3:1.8,.35);
    put(block,trim,side*1.5,0,-.1,.14,1.1,.07);
    for(let j=0;j<5;j++)put(block,glow,side*1.5,(j-2)*.16,-.15,.075,.025,.025);
-   if(world==='orbit'||world==='atmosphere'){
+   if(world==='orbit'||world==='orbital_graveyard'||world==='upper_atmosphere'){
     put(block,trim,side*1.67,.15,.18,.3,.09,.1);
     put(block,shell,side*1.85,.15,.18,.17,.72,.06);
    }
-   if(world==='moon')put(block,trim,side*1.39,-1.2,.1,.32,.16,.35);
+   if(world==='moon'||world==='far_side')put(block,trim,side*1.39,-1.2,.1,.32,.16,.35);
   }
  }
- if(world==='asteroid'){
+ if(world==='asteroid'||world==='asteroid_belt'||world==='drift'){
   const arc=new THREE.TorusGeometry(1.38,.07,6,36,Math.PI*.7);put(arc,shell,0,0,.08,1,1,1,.4);put(arc,shell,0,0,.08,1,1,1,3.4);arc.dispose();
  }
  for(const [m,gs] of batches){root.add(new THREE.Mesh(mergeGeometries(gs,false)!,m));gs.forEach(g=>g.dispose());}

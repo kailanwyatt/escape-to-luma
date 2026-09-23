@@ -1,4 +1,6 @@
 import { GAME_TUNING } from '../game/gameTuning';
+import type { SpeedFieldConfig } from '../config/ObstacleConfig';
+import { speedMultiplierAt } from '../obstacles/SpeedFieldState';
 
 export type GravityWell = {
   x: number;
@@ -12,6 +14,12 @@ export type PhysicsForces = {
   windX?: number;
   gravityScale?: number;
   wells?: GravityWell[];
+  /** Active Speed Field volumes; sampled each step for flight/prediction parity. */
+  speedFields?: SpeedFieldConfig[];
+  /** Obstacle clock used when sampling field state (pulse is visual-only). */
+  speedFieldTime?: number;
+  /** Half-depth of the Z slab around each field plane. */
+  speedFieldSlab?: number;
 };
 
 export type MotionState = {
@@ -22,6 +30,25 @@ export type MotionState = {
   vy: number;
   vz: number;
 };
+
+/** Combined speed multiplier at a point (1 outside all fields). */
+export function speedFieldMultiplierAt(
+  x: number,
+  y: number,
+  z: number,
+  fields: SpeedFieldConfig[] | undefined,
+  time = 0,
+  slab = 0.45,
+): number {
+  if (!fields?.length) return 1;
+  let mult = 1;
+  for (const field of fields) {
+    if (Math.abs(z - field.z) > slab) continue;
+    const local = speedMultiplierAt(field, time, x, y);
+    if (local !== 1) mult *= local;
+  }
+  return mult;
+}
 
 export function integrateMotion(
   state: MotionState,
@@ -43,7 +70,15 @@ export function integrateMotion(
     state.vx += (dx / dist) * accel * dt;
     state.vy += (dy / dist) * accel * dt;
   }
-  state.x += state.vx * dt;
-  state.y += state.vy * dt;
-  state.z += state.vz * dt;
+  const speedMult = speedFieldMultiplierAt(
+    state.x,
+    state.y,
+    state.z,
+    forces.speedFields,
+    forces.speedFieldTime ?? 0,
+    forces.speedFieldSlab,
+  );
+  state.x += state.vx * dt * speedMult;
+  state.y += state.vy * dt * speedMult;
+  state.z += state.vz * dt * speedMult;
 }

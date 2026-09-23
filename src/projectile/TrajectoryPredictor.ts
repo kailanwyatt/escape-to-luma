@@ -2,12 +2,13 @@ import type {ShotPrediction} from '../debug/ShotDiagnostics';
 import * as THREE from 'three';
 
 import { GAME_TUNING } from '../game/gameTuning';
-import { integrateMotion } from './physics';
+import { integrateMotion, type PhysicsForces } from './physics';
 
 export class TrajectoryPredictor {
   readonly dots: THREE.Mesh[] = [];
   readonly group = new THREE.Group();
   private debugFull = false;
+  private clarity = 1;
   private readonly bounceMarkers:THREE.Mesh[]=[];
   private readonly ricochetPath:THREE.Line;
   private readonly ricochetPoints=new Float32Array(1024*3);
@@ -77,18 +78,16 @@ export class TrajectoryPredictor {
     start: THREE.Vector3,
     velocity: { vx: number; vy: number; vz: number },
     endZ = GAME_TUNING.target.z,
-    options?: {
-      windX?: number;
-      gravityScale?: number;
-      wells?: { x: number; y: number; z: number; strength: number; radius: number }[];
-    },
+    options?: PhysicsForces,
   ): void {
     this.ricochetPath.visible=false;for(const marker of this.bounceMarkers)marker.visible=false;
     const count = this.dots.length;
     const travelZ = Math.max(0.5, endZ - start.z);
+    const clarity = Math.max(1, this.clarity);
     const tEnd =
       (velocity.vz <= 0.001 ? 1 : travelZ / velocity.vz) *
-      (this.debugFull ? 1 : GAME_TUNING.aim.trajectoryFraction);
+      (this.debugFull ? 1 : GAME_TUNING.aim.trajectoryFraction) *
+      Math.min(1.35, clarity);
 
     const state = {
       x: start.x,
@@ -98,12 +97,14 @@ export class TrajectoryPredictor {
       vy: velocity.vy,
       vz: velocity.vz,
     };
-    const steps = count * 4;
+    // Higher clarity samples more often (denser dots along the same travel).
+    const stepStride = clarity >= 1.12 ? 3 : 4;
+    const steps = count * stepStride;
     const dt = tEnd / steps;
     let dotIndex = 0;
     for (let step = 1; step <= steps; step += 1) {
       integrateMotion(state, dt, options);
-      if (step % 4 === 0 && dotIndex < count) {
+      if (step % stepStride === 0 && dotIndex < count) {
         this.dots[dotIndex].position.set(state.x, state.y, state.z);
         dotIndex += 1;
       }
@@ -112,5 +113,10 @@ export class TrajectoryPredictor {
       this.dots[dotIndex].position.set(state.x, state.y, state.z);
       dotIndex += 1;
     }
+  }
+
+  /** Neon / Future Sight: denser and slightly longer presentation only. */
+  setClarity(clarity: number): void {
+    this.clarity = Number.isFinite(clarity) ? Math.max(1, Math.min(1.4, clarity)) : 1;
   }
 }

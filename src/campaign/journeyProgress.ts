@@ -17,5 +17,5 @@ export function journeyProgress(c:CampaignSave,devUnlockAll=false){
   const state:WorldCardState=cleared===levels.length?'completed':!unlocked?'locked':world.id===current?'current':'unlocked';
   return {world,levels,cleared,perfect,unlocked,state};
  });
- return {worlds,cleared:worlds.reduce((n,w)=>n+w.cleared,0),total:worlds.reduce((n,w)=>n+w.levels.length,0),currentIndex:Math.max(0,worlds.findIndex(w=>w.state==='current')),destination:c.campaignCompleted||c.unlockedWorldIds.includes('homeward')?'LUMA':'UNKNOWN'};
+ return {worlds,cleared:worlds.reduce((n,w)=>n+w.cleared,0),total:worlds.reduce((n,w)=>n+w.levels.length,0),currentIndex:Math.max(0,worlds.findIndex(w=>w.state==='current')),destination:c.campaignCompleted||c.unlockedWorldIds.includes('luma')||c.unlockedWorldIds.includes('homeward')?'LUMA':'UNKNOWN'};
 }

@@ -7,16 +7,17 @@ export class GravityWellField {
   readonly group = new THREE.Group();
   private readonly rings: THREE.Mesh[] = [];
 
-  setWells(wells: Well[]): void {
+  setWells(wells: Well[], options?: { showForceVectors?: boolean }): void {
     this.clear();
+    const enhanced = Boolean(options?.showForceVectors);
     for (const well of wells) {
       for (let index = 0; index < 3; index += 1) {
         const ring = new THREE.Mesh(
-          new THREE.TorusGeometry(well.radius * (0.28 + index * 0.18), 0.018, 6, 42),
+          new THREE.TorusGeometry(well.radius * (0.28 + index * 0.18), enhanced ? 0.028 : 0.018, 6, 42),
           new THREE.MeshBasicMaterial({
             color: index === 2 ? 0xb889ff : 0x57cfff,
             transparent: true,
-            opacity: 0.28 - index * 0.045,
+            opacity: (enhanced ? 0.42 : 0.28) - index * 0.045,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
           }),

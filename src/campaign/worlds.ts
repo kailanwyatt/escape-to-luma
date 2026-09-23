@@ -1,168 +1,58 @@
-import {t} from '../i18n';
-import type { WorldDefinition } from './types';
+import type { WorldDefinition, WorldId } from './types';
+import { REFACTORED_CHAPTERS } from './refactoredWorlds';
 
-export const WORLDS: WorldDefinition[] = [
-  {
-    id: 'containment',
-    index: 1,
-    name: t("worlds.containment"),
-    subtitle: t("worlds.underground_research_facility"),
-    firstLevel: 1,
-    lastLevel: 15,
-    environmentId: 'workshop',
-    storyBeat: t("worlds.specimen_s_01_escapes_containment"),
-    primaryMechanics: ['rotor', 'laserGrid'],
-    homeSignalStrength: 'faint',
-    distanceFromEarth: t("worlds.0_km_from_earth"),
-    finaleName: t("storymoments.lockdown"),
-    completionSparkId: 'reactor',
-    stub: false,
-  },
-  {
-    id: 'city',
-    index: 2,
-    name: t("worlds.the_city"),
-    subtitle: t("worlds.streets_and_rooftops_above_the_facility"),
-    firstLevel: 16,
-    lastLevel: 30,
-    environmentId: 'rooftop',
-    storyBeat: t("worlds.spark_races_across_the_city_toward_the_sky"),
-    primaryMechanics: ['slidingGate', 'wind'],
-    homeSignalStrength: 'faint',
-    distanceFromEarth: t("worlds.above_the_facility"),
-    finaleName: t("worldspack.city_limits"),
-    completionSparkId: 'neon',
-    stub: false,
-  },
-  {
-    id: 'sky',
-    index: 3,
-    name: t("worlds.the_sky"),
-    subtitle: t("worlds.storm_cut_altitudes"),
-    firstLevel: 31,
-    lastLevel: 45,
-    environmentId: 'rooftop',
-    storyBeat: t("worlds.crosswinds_and_moving_rings"),
-    primaryMechanics: ['movingRing', 'crosswind'],
-    homeSignalStrength: 'faint',
-    distanceFromEarth: t("worlds.8_km_above_earth"),
-    finaleName: t("storymoments.the_storm"),
-    completionSparkId: 'storm',
-    stub: false,
-  },
-  {
-    id: 'atmosphere',
-    index: 4,
-    name: t("worlds.upper_atmosphere"),
-    subtitle: t("worlds.thin_air_iris_locks"),
-    firstLevel: 46,
-    lastLevel: 60,
-    environmentId: 'space',
-    storyBeat: t("worlds.gravity_softens_escape_velocity_awaits"),
-    primaryMechanics: ['iris', 'gravityReduction'],
-    homeSignalStrength: 'detectable',
-    distanceFromEarth: t("worlds.100_km_from_earth"),
-    finaleName: t("storymoments.escape_velocity"),
-    completionSparkId: 'aurora',
-    stub: false,
-  },
-  {
-    id: 'orbit',
-    index: 5,
-    name: t("worlds.orbit"),
-    subtitle: t("worlds.debris_and_silence"),
-    firstLevel: 61,
-    lastLevel: 75,
-    environmentId: 'space',
-    storyBeat: t("worlds.low_gravity_graveyard"),
-    primaryMechanics: ['pendulum', 'lowGravity'],
-    homeSignalStrength: 'detectable',
-    distanceFromEarth: t("worlds.400_km_from_earth"),
-    finaleName: t("storymoments.orbital_graveyard"),
-    completionSparkId: 'solar',
-    stub: false,
-  },
-  {
-    id: 'moon',
-    index: 6,
-    name: t("worlds.the_moon"),
-    subtitle: t("worlds.far_side_signal"),
-    firstLevel: 76,
-    lastLevel: 90,
-    environmentId: 'space',
-    storyBeat: t("worlds.gravity_wells_bend_every_throw"),
-    primaryMechanics: ['orbiter', 'gravityWells'],
-    homeSignalStrength: 'detectable',
-    distanceFromEarth: t("worlds.384_000_km_from_earth"),
-    finaleName: t("storymoments.far_side"),
-    completionSparkId: 'lunar',
-    stub: false,
-  },
-  {
-    id: 'asteroid',
-    index: 7,
-    name: t("worlds.asteroid_belt"),
-    subtitle: t("worlds.many_routes_one_timing"),
-    firstLevel: 91,
-    lastLevel: 105,
-    environmentId: 'space',
-    storyBeat: t("worlds.drifting_blockers_choose_a_lane"),
-    primaryMechanics: ['driftingBlockers', 'multipleRoutes'],
-    homeSignalStrength: 'strong',
-    distanceFromEarth: t("worlds.2_7_au_from_earth"),
-    finaleName: t("storymoments.collision_course"),
-    completionSparkId: 'meteor',
-    stub: false,
-  },
-  {
-    id: 'nebula',
-    index: 8,
-    name: t("worlds.the_nebula"),
-    subtitle: t("worlds.false_lights"),
-    firstLevel: 106,
-    lastLevel: 120,
-    environmentId: 'space',
-    storyBeat: t("worlds.phase_windows_and_energy_fields"),
-    primaryMechanics: ['energyField', 'phaseWindows'],
-    homeSignalStrength: 'strong',
-    distanceFromEarth: t("worlds.light_years_from_earth"),
-    finaleName: t("storymoments.false_home"),
-    completionSparkId: 'nebula',
-    stub: false,
-  },
-  {
-    id: 'network',
-    index: 9,
-    name: t("worlds.the_ancient_network"),
-    subtitle: t("worlds.synchronized_apertures"),
-    firstLevel: 121,
-    lastLevel: 135,
-    environmentId: 'space',
-    storyBeat: t("worlds.the_key_reveals_where_home_truly_is"),
-    primaryMechanics: ['shiftingAperture', 'synchronized'],
-    homeSignalStrength: 'strong',
-    distanceFromEarth: t("worlds.beyond_the_map"),
-    finaleName: t("storymoments.the_key"),
-    completionSparkId: 'ancient',
-    stub: false,
-  },
-  {
-    id: 'homeward',
-    index: 10,
-    name: t("worlds.homeward"),
-    subtitle: t("worlds.everything_learned"),
-    firstLevel: 136,
-    lastLevel: 150,
-    environmentId: 'space',
-    storyBeat: t("worlds.no_new_families_only_the_way_home"),
-    primaryMechanics: ['combined'],
-    homeSignalStrength: 'home',
-    distanceFromEarth: t("worldspack.home"),
-    finaleName: t("worldspack.home"),
-    completionSparkId: 'origin',
-    stub: false,
-  },
+/**
+ * Live 20-chapter bands over the existing 150 authored levels.
+ * Sparks unlock on the same legacy finale level numbers as before.
+ */
+const CHAPTER_BANDS: { id: WorldId; first: number; last: number; spark?: string }[] = [
+  { id: 'containment', first: 1, last: 8 },
+  { id: 'lockdown', first: 9, last: 15, spark: 'reactor' },
+  { id: 'city', first: 16, last: 30, spark: 'neon' },
+  { id: 'ascent', first: 31, last: 38 },
+  { id: 'storm', first: 39, last: 45, spark: 'storm' },
+  { id: 'upper_atmosphere', first: 46, last: 60, spark: 'aurora' },
+  { id: 'orbit', first: 61, last: 68 },
+  { id: 'orbital_graveyard', first: 69, last: 75, spark: 'solar' },
+  { id: 'moon', first: 76, last: 83 },
+  { id: 'far_side', first: 84, last: 90, spark: 'lunar' },
+  { id: 'asteroid_belt', first: 91, last: 98 },
+  { id: 'drift', first: 99, last: 105, spark: 'meteor' },
+  { id: 'nebula', first: 106, last: 110 },
+  { id: 'the_null', first: 111, last: 115 },
+  { id: 'false_home', first: 116, last: 120, spark: 'nebula' },
+  { id: 'ancient_network', first: 121, last: 125 },
+  { id: 'the_machine', first: 126, last: 135, spark: 'ancient' },
+  { id: 'the_signal', first: 136, last: 140 },
+  { id: 'homeward', first: 141, last: 146 },
+  { id: 'luma', first: 147, last: 150, spark: 'origin' },
 ];
+
+function environmentFor(id: WorldId): WorldDefinition['environmentId'] {
+  if (id === 'containment' || id === 'lockdown') return 'workshop';
+  if (id === 'city' || id === 'ascent' || id === 'storm') return 'rooftop';
+  return 'space';
+}
+
+export const WORLDS: WorldDefinition[] = CHAPTER_BANDS.map((band, index) => {
+  const chapter = REFACTORED_CHAPTERS.find((c) => c.id === band.id)!;
+  return {
+    id: band.id,
+    index: index + 1,
+    name: chapter.name,
+    subtitle: chapter.subtitle,
+    firstLevel: band.first,
+    lastLevel: band.last,
+    environmentId: environmentFor(band.id),
+    storyBeat: chapter.subtitle,
+    primaryMechanics: chapter.obstacleFocus,
+    homeSignalStrength: chapter.homeSignalStrength,
+    distanceFromEarth: chapter.progressionRole,
+    finaleName: chapter.name,
+    completionSparkId: band.spark,
+    stub: false,
+  };
+});
 
 export const TOTAL_CORE_LEVELS = 150;
 
@@ -175,8 +65,21 @@ export function worldForLevel(levelNumber: number): WorldDefinition | undefined 
 }
 
 export function journeyDestinationLabel(unlockedWorldIds: string[], campaignCompleted: boolean): string {
-  if (campaignCompleted || unlockedWorldIds.includes('homeward')) {
+  if (campaignCompleted || unlockedWorldIds.includes('luma') || unlockedWorldIds.includes('homeward')) {
     return 'HOME';
   }
   return 'UNKNOWN';
+}
+
+/** Stamp chapter id + finale flags onto authored levels after composition. */
+export function applyWorldBands(
+  source: import('./types').CampaignLevelDefinition,
+): import('./types').CampaignLevelDefinition {
+  const world = worldForLevel(source.levelNumber);
+  if (!world) return source;
+  return {
+    ...source,
+    worldId: world.id,
+    isWorldFinale: source.levelNumber === world.lastLevel,
+  };
 }

@@ -27,6 +27,33 @@ import { ringPosition } from '../obstacles/MovingRingObstacle';
 import { orbiterPosition } from '../obstacles/OrbiterObstacle';
 import { phaseOpen } from '../obstacles/PhaseFieldObstacle';
 import { apertureState } from '../obstacles/ShiftingApertureObstacle';
+import { evaluateClockHandsCollision } from '../obstacles/ClockHandsState';
+import { evaluateElevatorBlocksCollision } from '../obstacles/ElevatorBlocksState';
+import { evaluatePistonFieldCollision } from '../obstacles/PistonFieldState';
+import { evaluatePulseRingCollision } from '../obstacles/PulseRingState';
+import { evaluateScissorGateCollision } from '../obstacles/ScissorGateState';
+import { evaluateSpeedFieldCollision } from '../obstacles/SpeedFieldState';
+import {
+  evaluateCometCrossingCollision,
+  evaluateConveyorGateCollision,
+  evaluateCorkscrewCollision,
+  evaluateReactiveGateCollision,
+  evaluateRollingApertureCollision,
+  evaluateSplitShutterCollision,
+} from '../obstacles/ExtendedLibraryState';
+import {
+  evaluateAccretionCollision,
+  evaluateEntryExitCollision,
+  evaluateLagrangeNullCollision,
+  evaluateMagnetopauseCollision,
+  evaluateMovingSafeZoneCollision,
+  evaluateOrbitingMoonsCollision,
+  evaluatePulsarBeamCollision,
+  evaluateSequentialTunnelCollision,
+  evaluateSolarSailCollision,
+  evaluateTeleportPortalCollision,
+  evaluateTheNullCollision,
+} from '../obstacles/StoryLibraryState';
 import { integrateMotion, type PhysicsForces } from '../projectile/physics';
 
 const MIN_HUB_CLEARANCE = 0.08;
@@ -226,6 +253,98 @@ function clearsObstacle(
   if (type === 'shiftingAperture' && obstacle.type === 'shiftingAperture') {
     const state = apertureState(obstacle, arrivalTime);
     const result = evaluateIrisCollision(x, y, ball, state.x, state.y, state.radius);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'pistonField' && obstacle.type === 'pistonField') {
+    const result = evaluatePistonFieldCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'clockHands' && obstacle.type === 'clockHands') {
+    const result = evaluateClockHandsCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.04;
+  }
+  if (type === 'elevatorBlocks' && obstacle.type === 'elevatorBlocks') {
+    const result = evaluateElevatorBlocksCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'pulseRing' && obstacle.type === 'pulseRing') {
+    const result = evaluatePulseRingCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.04;
+  }
+  if (type === 'scissorGate' && obstacle.type === 'scissorGate') {
+    const result = evaluateScissorGateCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'speedField' && obstacle.type === 'speedField') {
+    const result = evaluateSpeedFieldCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit;
+  }
+  if (type === 'splitShutter' && obstacle.type === 'splitShutter') {
+    const result = evaluateSplitShutterCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'reactiveGate' && obstacle.type === 'reactiveGate') {
+    const result = evaluateReactiveGateCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'conveyorGate' && obstacle.type === 'conveyorGate') {
+    const result = evaluateConveyorGateCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'rollingAperture' && obstacle.type === 'rollingAperture') {
+    const result = evaluateRollingApertureCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'corkscrewTunnel' && obstacle.type === 'corkscrewTunnel') {
+    const result = evaluateCorkscrewCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.04;
+  }
+  if (type === 'cometCrossing' && obstacle.type === 'cometCrossing') {
+    const result = evaluateCometCrossingCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'orbitingMoons' && obstacle.type === 'orbitingMoons') {
+    const result = evaluateOrbitingMoonsCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'sequentialTunnel' && obstacle.type === 'sequentialTunnel') {
+    const result = evaluateSequentialTunnelCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'movingSafeZone' && obstacle.type === 'movingSafeZone') {
+    const result = evaluateMovingSafeZoneCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'accretionShredder' && obstacle.type === 'accretionShredder') {
+    const result = evaluateAccretionCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'pulsarBeam' && obstacle.type === 'pulsarBeam') {
+    const result = evaluatePulsarBeamCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.04;
+  }
+  if (type === 'solarSail' && obstacle.type === 'solarSail') {
+    const result = evaluateSolarSailCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'magnetopause' && obstacle.type === 'magnetopause') {
+    const result = evaluateMagnetopauseCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.04;
+  }
+  if (type === 'lagrangeNull' && obstacle.type === 'lagrangeNull') {
+    const result = evaluateLagrangeNullCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit;
+  }
+  if (type === 'teleportPortal' && obstacle.type === 'teleportPortal') {
+    const result = evaluateTeleportPortalCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'entryExitPortal' && obstacle.type === 'entryExitPortal') {
+    const result = evaluateEntryExitCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'theNull' && obstacle.type === 'theNull') {
+    const result = evaluateTheNullCollision(obstacle, arrivalTime, x, y, ball);
     return !result.hit && result.clearance >= 0.05;
   }
   if (!isRotorConfig(obstacle)) {

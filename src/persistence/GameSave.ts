@@ -15,10 +15,15 @@ import { GameLog } from '../debug/GameLog';
 import { ECONOMY } from '../config/economy';
 import type { LevelProgress } from '../campaign/types';
 import { WORLDS } from '../campaign/worlds';
+import {
+  applyDualLayoutScaffolding,
+  CAMPAIGN_CONTENT_EPOCH_LEGACY,
+  CAMPAIGN_CONTENT_EPOCH_REFACTORED,
+} from '../campaign/worldMigration';
 import { DEFAULT_SPARK_ID } from '../customization/sparks';
 import { DEFAULT_TRAIL_ID } from '../customization/trails';
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 // Keep the original storage namespace so renaming the app preserves existing progress.
 const STORAGE_KEY = 'ball-game-cs.save.v1';
 const BACKUP_KEY = 'ball-game-cs.save.v1.backup';
@@ -94,6 +99,8 @@ export type CampaignSave = {
     secondChance: number;
     portalBloom: number;
     hyperjump: number;
+    phaseShield: number;
+    timeLock: number;
   };
   unlimitedEnergyExpiresAt: number;
   consecutiveFailuresOnLevel: number;
@@ -101,6 +108,16 @@ export type CampaignSave = {
   stats: CampaignStats;
   /** Dev: allow Endless Voyage before campaign complete. */
   endlessUnlockedDev: boolean;
+  /**
+   * Content layout epoch. 1 = live 10-world / 150-level catalog.
+   * 2 reserved for refactored 20-chapter layout (not flipped live yet).
+   */
+  contentEpoch: number;
+  /**
+   * Preview unlocks for the 20-chapter map (dual-layout scaffolding).
+   * Does not replace unlockedWorldIds or change playable WORLDS.
+   */
+  previewRefactoredChapterIds: string[];
 };
 
 export type PersistentGameData = {
@@ -183,12 +200,16 @@ export const EMPTY_CAMPAIGN: CampaignSave = {
     secondChance: 0,
     portalBloom: 0,
     hyperjump: 0,
+    phaseShield: 0,
+    timeLock: 0,
   },
   unlimitedEnergyExpiresAt: 0,
   consecutiveFailuresOnLevel: 0,
   lastPlayedLevel: 1,
   stats: { ...EMPTY_CAMPAIGN_STATS },
   endlessUnlockedDev: false,
+  contentEpoch: 2,
+  previewRefactoredChapterIds: [],
 };
 
 export function emptySave(): PersistentGameData {
@@ -210,6 +231,7 @@ export function emptySave(): PersistentGameData {
       ownedTrailIds: [...EMPTY_CAMPAIGN.ownedTrailIds],
       boostInventory: { ...EMPTY_CAMPAIGN.boostInventory },
       stats: { ...EMPTY_CAMPAIGN_STATS },
+      previewRefactoredChapterIds: [...EMPTY_CAMPAIGN.previewRefactoredChapterIds],
       energyUpdatedAt: Date.now(),
     },
   };
@@ -347,6 +369,8 @@ function normalizeSave(data: Partial<PersistentGameData>): PersistentGameData {
         secondChance: integer(campaign.boostInventory?.secondChance, 0, 0, 999),
         portalBloom: integer(campaign.boostInventory?.portalBloom, 0, 0, 999),
         hyperjump: integer(campaign.boostInventory?.hyperjump, 0, 0, 999),
+        phaseShield: integer(campaign.boostInventory?.phaseShield, 0, 0, 999),
+        timeLock: integer(campaign.boostInventory?.timeLock, 0, 0, 999),
       },
       unlimitedEnergyExpiresAt: finiteNumber(
         campaign.unlimitedEnergyExpiresAt,
@@ -374,6 +398,8 @@ function normalizeSave(data: Partial<PersistentGameData>): PersistentGameData {
         boostsUsed: integer(campaign.stats?.boostsUsed, 0, 0, 100_000_000),
       },
       endlessUnlockedDev: Boolean(campaign.endlessUnlockedDev),
+      contentEpoch: integer(campaign.contentEpoch, 1, 1, 2),
+      previewRefactoredChapterIds: stringArray(campaign.previewRefactoredChapterIds, []).slice(0, 40),
     };
   }
   next.playerProgress.playerLevel = playerLevelFromXp(next.playerProgress.totalXP);
@@ -385,6 +411,15 @@ export function migrateSaveData(oldVersion: number, data: Partial<PersistentGame
   if (!data.campaign && oldVersion < 4) {
     // Prototype → SPARK: keep endless progress; start journey at level 1 with full energy.
     next.campaign.hasSeenOpening = false;
+  }
+  if (oldVersion < 6) {
+    // 20-chapter layout: expand unlocks from progress; preserve level IDs.
+    next.campaign = applyDualLayoutScaffolding({
+      ...next.campaign,
+      contentEpoch: CAMPAIGN_CONTENT_EPOCH_LEGACY,
+    });
+  } else if ((next.campaign.contentEpoch ?? 1) < CAMPAIGN_CONTENT_EPOCH_REFACTORED) {
+    next.campaign = applyDualLayoutScaffolding(next.campaign);
   }
   next.playerProgress.playerLevel = playerLevelFromXp(next.playerProgress.totalXP);
   const unlocked = new Set([

@@ -1,6 +1,7 @@
 import {t} from '../i18n';
 import {getCampaignLevel, getPlayableCampaignLevels} from './levels';
 import {ENCOUNTER_LESSONS} from './levels/NewEncounters';
+import {LIBRARY_LESSONS} from './levels/LibraryEncounters';
 import {WORLDS} from './worlds';
 import type {WorldId} from './types';
 
@@ -19,15 +20,30 @@ const SCENES: Record<number, Omit<StoryMoment,'id'>> = {
 };
 const WORLD_COPY: Record<WorldId,string> = {
   containment:t("storymoments.spark_has_escaped_his_vessel_now_he_must_find_a_path_through_the_"),
+  lockdown:'The facility seals routes behind Spark. Shutters and clocks guard every corridor.',
   city:t("storymoments.spark_has_left_the_laboratory_behind_across_the_rooftops_the_fami"),
+  ascent:'Towers give way to open sky. Rings and scissors teach long throws.',
+  storm:t("storymoments.spark_climbs_the_city_s_highest_weather_towers_wind_turbines_and_"),
+  upper_atmosphere:t("storymoments.earth_curves_below_an_orbital_transfer_facility_spark_follows_the"),
+  orbit:t("storymoments.beyond_the_transfer_facility_abandoned_satellites_circle_earth_lo"),
+  orbital_graveyard:'Wreckage beyond Earth forces Spark to read multi-depth sequences.',
+  moon:t("storymoments.spark_reaches_a_deserted_lunar_relay_outpost_antenna_assemblies_t"),
+  far_side:'Earth disappears. Quiet precision and null pockets mark the far side.',
+  asteroid_belt:t("storymoments.the_lunar_relay_points_beyond_earth_s_neighborhood_spark_travels_"),
+  drift:'Sparse deep space makes momentum and timing the only landmarks.',
+  nebula:t("storymoments.beyond_the_belt_the_jump_gates_carry_spark_into_luminous_clouds_e"),
+  the_null:'A light-eating presence consumes safe routes. Escape it — do not fight.',
+  false_home:'A familiar beacon proves to be a relay. Verify destinations before trusting glow.',
+  ancient_network:t("storymoments.the_silent_relay_opens_a_route_into_an_ancient_network_its_moving"),
+  the_machine:'The network mechanism must be traversed, not fought.',
+  the_signal:'True Luma coordinates resolve through synchronized paths.',
+  homeward:t("storymoments.the_key_has_revealed_luma_across_the_final_gates_luminous_structu"),
+  luma:'Spark reunites with luminous home. The escape is complete.',
+  // Legacy authored IDs (remapped by applyWorldBands; keep Record complete).
   sky:t("storymoments.spark_climbs_the_city_s_highest_weather_towers_wind_turbines_and_"),
   atmosphere:t("storymoments.earth_curves_below_an_orbital_transfer_facility_spark_follows_the"),
-  orbit:t("storymoments.beyond_the_transfer_facility_abandoned_satellites_circle_earth_lo"),
-  moon:t("storymoments.spark_reaches_a_deserted_lunar_relay_outpost_antenna_assemblies_t"),
   asteroid:t("storymoments.the_lunar_relay_points_beyond_earth_s_neighborhood_spark_travels_"),
-  nebula:t("storymoments.beyond_the_belt_the_jump_gates_carry_spark_into_luminous_clouds_e"),
   network:t("storymoments.the_silent_relay_opens_a_route_into_an_ancient_network_its_moving"),
-  homeward:t("storymoments.the_key_has_revealed_luma_across_the_final_gates_luminous_structu"),
 };
 const HINTS: Record<string,string> = {
   rotor:t("storymoments.watch_the_rotating_arms_launch_through_the_space_they_leave_behin"),
@@ -40,13 +56,36 @@ const HINTS: Record<string,string> = {
   driftingBlocker:t("storymoments.rock_fragments_drift_across_the_route_aim_around_their_solid_silh"),
   phaseField:t("storymoments.a_red_field_with_an_x_is_active_when_the_surface_and_x_disappear_"),
   shiftingAperture:t("storymoments.the_amber_opening_moves_and_changes_size_aim_through_its_clear_ce"),
+  pistonField:'Read which lane is open when Spark arrives.',
+  clockHands:'Aim below the hub through the gap between the sweeping hands.',
+  elevatorBlocks:'Choose a lane at the crossing height, not where the block is now.',
+  pulseRing:'Throw straight through the center — the hub stays safe while the ring expands.',
+  scissorGate:'The hinge sits above the path — throw through the open diamond below.',
+  speedField:'The marked volume multiplies speed — the preview matches flight.',
+  splitShutter:'Aim for the center gap — both panels share one cycle.',
+  reactiveGate:'Wait for the doors to part; amber means they are about to open.',
+  conveyorGate:'Lead the moving gap across the wrap plane.',
+  rollingAperture:'Track both size and drift — aim where the opening will be.',
+  corkscrewTunnel:'Aim through the open hub or the wide gap in the ring — not like thin rotor blades.',
+  cometCrossing:'Read the loop and throw when the comet is clear of center.',
+  orbitingMoons:'Watch the shared orbit and throw through the gap between moons.',
+  sequentialTunnel:'Aim only at the currently open aperture.',
+  movingSafeZone:'Arrive inside the drifting safe hole, not where it was at launch.',
+  accretionShredder:'Throw through the quiet center while debris spirals past.',
+  pulsarBeam:'Throw while the beam is dark, or stay clear of its band.',
+  solarSail:'Wait until the sail lifts edge-on, then throw through.',
+  magnetopause:'Aim through the open gap in the sheath arc.',
+  lagrangeNull:'The dark pocket is not lethal — fly through to quiet nearby pull.',
+  teleportPortal:'Aim where the portal will be at arrival — amber marks the next stop.',
+  entryExitPortal:'Hit the green entry; Spark warps toward the cyan exit.',
+  theNull:'Throw through the bright safe hole before the field closes.',
 };
 /** One card per meaningful entry, authored scenes taking priority over family introductions. */
 export function storyForLevel(level: number, seen: readonly string[]): StoryMoment | null {
   if (level === 1) return null;
   if (level === 2) return seen.includes(FIRST_ESCAPE.id) ? null : FIRST_ESCAPE;
   const def = getCampaignLevel(level); if (!def) return null;
-  const encounter=ENCOUNTER_LESSONS[level],encounterId=`encounter.${level}.v1`;
+  const encounter=ENCOUNTER_LESSONS[level]??LIBRARY_LESSONS[level],encounterId=`encounter.${level}.v1`;
   if(encounter)return seen.includes(encounterId)?null:{id:encounterId,eyebrow:encounter.name.toUpperCase(),title:encounter.name,body:encounter.body,instruction:encounter.hint,action:t("storymoments.try_the_challenge")};
   const progressionLessons:Record<number,[string,string]>={53:[t("storymoments.transfer_locks"),t("storymoments.the_transfer_facility_switches_between_two_pressure_lock_lanes")],101:[t("storymoments.two_kinds_of_current"),t("storymoments.a_sideways_rock_stream_guards_a_cluster_that_expands_and_contract")],133:[t("storymoments.the_network_responds"),t("storymoments.an_ancient_aperture_guards_a_row_of_energy_columns_spark_must_pre")],143:[t("storymoments.familiar_rhythms_together"),t("storymoments.a_turning_plate_and_energy_columns_share_the_final_route_toward_l")]};
   const progression=progressionLessons[level],progressionId=`encounter.combination.${level}.v1`;
@@ -54,14 +93,15 @@ export function storyForLevel(level: number, seen: readonly string[]): StoryMome
   if(level===16)return seen.includes('arrival.level-16')?null:{id:'arrival.level-16',acknowledgements:['mechanic.rapidShutter.v1'],eyebrow:t("storymoments.world_2"),title:t("storymoments.the_city"),body:WORLD_COPY.city,instruction:t("storymoments.rooftop_shutters_retract_then_slam_shut_cyan_open_amber_warning_r"),action:t("storymoments.enter_the_city")};
   const cityLessons:Record<number,[string,string]>={21:[t("storymoments.the_shutters_change_direction"),t("storymoments.top_and_bottom_panels_now_close_the_opening_watch_where_spark_wil")],23:[t("storymoments.a_second_chance_opens"),t("storymoments.the_shutters_open_twice_then_pause_learn_both_windows_before_comm")],26:[t("storymoments.one_opening_beyond_another"),t("storymoments.each_shutter_has_its_own_clock_your_shot_must_clear_both_at_their")],28:[t("storymoments.do_not_trust_the_first_close"),t("storymoments.the_panels_partially_close_and_reopen_before_the_warning_and_full")],29:[t("storymoments.one_side_moves_first"),t("storymoments.the_two_panels_close_slightly_apart_watch_both_edges_of_the_safe_")]};
   const lesson=cityLessons[level],cityLessonId=`city.shutter.${level}.v1`;
-  if(lesson&&!seen.includes(cityLessonId))return {id:cityLessonId,eyebrow:t("storymoments.city_security"),title:lesson[0],body:lesson[1],instruction:t("storymoments.cyan_open_amber_warning_red_closing_time_spark_s_arrival"),action:t("storymoments.read_the_pattern")};
+  // Library remaps replace city shutter lessons on shared slots — skip duplicate cards.
+  if(lesson&&!LIBRARY_LESSONS[level]&&!seen.includes(cityLessonId))return {id:cityLessonId,eyebrow:t("storymoments.city_security"),title:lesson[0],body:lesson[1],instruction:t("storymoments.cyan_open_amber_warning_red_closing_time_spark_s_arrival"),action:t("storymoments.read_the_pattern")};
   if(def.challenge.obstacles.some(o=>o.type==='slidingGate'&&o.movementMode==='rapidShutter')&&!seen.includes('mechanic.rapidShutter.v1'))return {id:'mechanic.rapidShutter.v1',eyebrow:t("storymoments.rooftop_security"),title:t("storymoments.a_moment_to_slip_through"),body:t("storymoments.spark_has_escaped_the_lab_but_the_rooftops_have_their_own_securit"),instruction:t("storymoments.cyan_means_open_amber_warns_of_the_slam_aim_for_the_gap_when_spar"),action:t("storymoments.time_the_shutter")};
   const world = WORLDS.find(item=>item.id===def.worldId)!;
   const isWorld = level===world.firstLevel;
   const scene = SCENES[level];
   const types=def.challenge.obstacles.map(o=>o.type??'rotor');
   const pairedId='mechanic.iris-slidingGate.v1';
-  if (def.worldId === 'atmosphere' && types.includes('iris') && types.includes('slidingGate') && !seen.includes(pairedId)) {
+  if (def.worldId === 'upper_atmosphere' && types.includes('iris') && types.includes('slidingGate') && !seen.includes(pairedId)) {
     return {id:pairedId,acknowledgements:['mechanic.iris.v2','mechanic.slidingGate.v2'],
       eyebrow:t("storymoments.two_barriers_ahead"),title:t("storymoments.one_opening_beyond_another"),
       body:t("storymoments.spark_is_crossing_the_orbital_transfer_facility_a_circular_pressu"),
@@ -89,16 +129,30 @@ export function storyForLevel(level: number, seen: readonly string[]): StoryMome
 
 /** World exits are shown only after success. IDs remain independent of reward claims. */
 const WORLD_EXITS: Record<WorldId, Omit<StoryMoment,'id'>> = {
- containment:{eyebrow:t("storymoments.lockdown_broken"),title:t("storymoments.open_air"),body:t("storymoments.the_last_bulkhead_falls_silent_behind_spark_above_the_laboratory_"),instruction:t("storymoments.follow_the_signal_across_the_rooftops"),action:t("storymoments.enter_the_city")},
- city:{eyebrow:t("storymoments.skybreak"),title:t("storymoments.above_the_city"),body:t("storymoments.spark_reaches_the_highest_roof_weather_towers_rise_through_the_cl"),instruction:t("storymoments.watch_the_gusts_and_moving_rings_as_you_climb"),action:t("storymoments.take_to_the_sky")},
+ containment:{eyebrow:t("storymoments.lockdown_broken"),title:'Lockdown Ahead',body:'The first bulkheads fall silent. Deeper corridors still seal against Spark.',instruction:'Read the next gates carefully.',action:'Enter Lockdown'},
+ lockdown:{eyebrow:t("storymoments.lockdown_broken"),title:t("storymoments.open_air"),body:t("storymoments.the_last_bulkhead_falls_silent_behind_spark_above_the_laboratory_"),instruction:t("storymoments.follow_the_signal_across_the_rooftops"),action:t("storymoments.enter_the_city")},
+ city:{eyebrow:t("storymoments.skybreak"),title:t("storymoments.above_the_city"),body:t("storymoments.spark_reaches_the_highest_roof_weather_towers_rise_through_the_cl"),instruction:t("storymoments.watch_the_gusts_and_moving_rings_as_you_climb"),action:'Begin the Ascent'},
+ ascent:{eyebrow:t("storymoments.the_storm"),title:'Into the Storm',body:'Open sky turns violent. Pulse and wind will test every throw.',instruction:'Watch the weather systems ahead.',action:t("storymoments.take_to_the_sky")},
+ storm:{eyebrow:t("storymoments.the_storm"),title:t("storymoments.the_clouds_part"),body:t("storymoments.spark_clears_the_storm_earth_curves_below_above_an_orbital_transf"),instruction:t("storymoments.its_pressure_shutters_open_and_close_find_the_timing_that_carries"),action:t("storymoments.approach_the_facility")},
+ upper_atmosphere:{eyebrow:t("storymoments.escape_velocity"),title:t("storymoments.earth_falls_away"),body:t("storymoments.the_final_transfer_lock_opens_spark_leaves_the_launch_platforms_b"),instruction:t("storymoments.watch_the_swinging_equipment_before_crossing_the_orbital_graveyar"),action:t("storymoments.enter_orbit")},
+ orbit:{eyebrow:t("storymoments.orbital_graveyard"),title:'Orbital Graveyard',body:'Abandoned satellites give way to denser wreckage.',instruction:'Read the sequential tunnels ahead.',action:'Enter the Graveyard'},
+ orbital_graveyard:{eyebrow:t("storymoments.orbital_graveyard"),title:t("storymoments.a_light_on_the_moon"),body:t("storymoments.beyond_the_drifting_wreckage_a_lunar_relay_answers_spark_s_pulse_"),instruction:t("storymoments.the_outpost_s_antennas_and_gravity_pockets_will_change_the_route_"),action:t("storymoments.follow_the_lunar_signal")},
+ moon:{eyebrow:t("storymoments.far_side"),title:'Far Side',body:'The lunar relay points beyond Earth\'s shadow.',instruction:'Quiet precision waits on the far side.',action:'Cross to the Far Side'},
+ far_side:{eyebrow:t("storymoments.far_side"),title:t("storymoments.beyond_earth_s_shadow"),body:t("storymoments.on_the_far_side_the_signal_sharpens_a_dormant_jump_gate_wakes_ben"),instruction:t("storymoments.choose_a_clear_lane_through_the_moving_debris"),action:t("storymoments.cross_the_gate")},
+ asteroid_belt:{eyebrow:t("storymoments.collision_course"),title:'The Drift',body:'Density thins. Momentum becomes the only landmark.',instruction:'Master long shots with few cues.',action:'Enter the Drift'},
+ drift:{eyebrow:t("storymoments.collision_course"),title:t("storymoments.a_familiar_glow"),body:t("storymoments.spark_slips_beyond_the_last_tumbling_fragments_through_the_next_g"),instruction:t("storymoments.the_energy_fields_ahead_become_passable_only_during_their_quiet_p"),action:t("storymoments.enter_the_nebula")},
+ nebula:{visual:'relay',eyebrow:t("storymoments.false_home"),title:'The Null',body:'Something in the cloud eats light and safe routes.',instruction:'Escape the Null — do not fight it.',action:'Face the Null'},
+ the_null:{visual:'relay',eyebrow:t("storymoments.false_home"),title:t("storymoments.an_echo_not_an_answer"),body:t("storymoments.spark_reaches_the_heart_of_the_glow_and_the_signal_falls_silent_n"),instruction:t("storymoments.follow_the_newly_opened_route_the_source_is_still_beyond_it"),action:t("storymoments.follow_the_relay")},
+ false_home:{visual:'key',eyebrow:t("storymoments.the_key"),title:'Ancient Network',body:'The relay opens into an old transit lattice.',instruction:'Learn the synchronized apertures.',action:'Enter the Network'},
+ ancient_network:{visual:'key',eyebrow:t("storymoments.the_key"),title:'The Machine',body:'The lattice\'s mechanism must be traversed, not fought.',instruction:'Controlled complexity ahead.',action:'Enter the Machine'},
+ the_machine:{visual:'key',eyebrow:t("storymoments.the_key"),title:t("storymoments.home_has_a_name"),body:t("storymoments.the_central_mechanism_recognizes_spark_s_pulse_its_rings_align_in"),instruction:t("storymoments.the_destination_is_now_revealed_on_your_journey_map"),action:t("storymoments.set_course_for_luma")},
+ the_signal:{eyebrow:'Signal Locked',title:'Homeward',body:'True coordinates resolve. The last distance remains.',instruction:'No new families — only mastery.',action:'Set course Homeward'},
+ homeward:{visual:'reunion',eyebrow:t("storymoments.luma"),title:t("storymoments.you_were_never_the_only_light"),body:t("storymoments.spark_crosses_the_final_gate_lights_rise_from_the_luminous_fields"),instruction:t("storymoments.your_escape_is_complete_endless_voyage_lets_spark_explore_the_ope"),action:t("storymoments.home_at_last")},
+ luma:{visual:'reunion',eyebrow:t("storymoments.luma"),title:t("storymoments.you_were_never_the_only_light"),body:t("storymoments.spark_crosses_the_final_gate_lights_rise_from_the_luminous_fields"),instruction:t("storymoments.your_escape_is_complete_endless_voyage_lets_spark_explore_the_ope"),action:t("storymoments.home_at_last")},
  sky:{eyebrow:t("storymoments.the_storm"),title:t("storymoments.the_clouds_part"),body:t("storymoments.spark_clears_the_storm_earth_curves_below_above_an_orbital_transf"),instruction:t("storymoments.its_pressure_shutters_open_and_close_find_the_timing_that_carries"),action:t("storymoments.approach_the_facility")},
  atmosphere:{eyebrow:t("storymoments.escape_velocity"),title:t("storymoments.earth_falls_away"),body:t("storymoments.the_final_transfer_lock_opens_spark_leaves_the_launch_platforms_b"),instruction:t("storymoments.watch_the_swinging_equipment_before_crossing_the_orbital_graveyar"),action:t("storymoments.enter_orbit")},
- orbit:{eyebrow:t("storymoments.orbital_graveyard"),title:t("storymoments.a_light_on_the_moon"),body:t("storymoments.beyond_the_drifting_wreckage_a_lunar_relay_answers_spark_s_pulse_"),instruction:t("storymoments.the_outpost_s_antennas_and_gravity_pockets_will_change_the_route_"),action:t("storymoments.follow_the_lunar_signal")},
- moon:{eyebrow:t("storymoments.far_side"),title:t("storymoments.beyond_earth_s_shadow"),body:t("storymoments.on_the_far_side_the_signal_sharpens_a_dormant_jump_gate_wakes_ben"),instruction:t("storymoments.choose_a_clear_lane_through_the_moving_debris"),action:t("storymoments.cross_the_gate")},
  asteroid:{eyebrow:t("storymoments.collision_course"),title:t("storymoments.a_familiar_glow"),body:t("storymoments.spark_slips_beyond_the_last_tumbling_fragments_through_the_next_g"),instruction:t("storymoments.the_energy_fields_ahead_become_passable_only_during_their_quiet_p"),action:t("storymoments.enter_the_nebula")},
- nebula:{visual:'relay',eyebrow:t("storymoments.false_home"),title:t("storymoments.an_echo_not_an_answer"),body:t("storymoments.spark_reaches_the_heart_of_the_glow_and_the_signal_falls_silent_n"),instruction:t("storymoments.follow_the_newly_opened_route_the_source_is_still_beyond_it"),action:t("storymoments.follow_the_relay")},
  network:{visual:'key',eyebrow:t("storymoments.the_key"),title:t("storymoments.home_has_a_name"),body:t("storymoments.the_central_mechanism_recognizes_spark_s_pulse_its_rings_align_in"),instruction:t("storymoments.the_destination_is_now_revealed_on_your_journey_map"),action:t("storymoments.set_course_for_luma")},
- homeward:{visual:'reunion',eyebrow:t("storymoments.luma"),title:t("storymoments.you_were_never_the_only_light"),body:t("storymoments.spark_crosses_the_final_gate_lights_rise_from_the_luminous_fields"),instruction:t("storymoments.your_escape_is_complete_endless_voyage_lets_spark_explore_the_ope"),action:t("storymoments.home_at_last")},
 };
 export function storyAfterWorld(level:number,seen:readonly string[]):StoryMoment|null {
  const world=WORLDS.find(w=>w.lastLevel===level);if(!world)return null;

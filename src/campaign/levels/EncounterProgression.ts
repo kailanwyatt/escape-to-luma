@@ -40,7 +40,7 @@ export function applyEncounterProgression(source:CampaignLevelDefinition):Campai
   if(o.type==='formation'){
    o.speed*=recipe.pace;o.direction=((o.direction??1)*recipe.side) as 1|-1;
    o.phase=(o.phase??0)+.19*(source.levelNumber%4)+i*.11;
-   if(recipe.combine&&i===1){o.variant=source.worldId==='asteroid'?'expandingDebris':'phaseColumns';o.speed=o.variant==='phaseColumns'?.39:1.25;o.centerY=3.15;}
+   if(recipe.combine&&i===1){o.variant=source.worldId==='asteroid'||source.worldId==='asteroid_belt'||source.worldId==='drift'?'expandingDebris':'phaseColumns';o.speed=o.variant==='phaseColumns'?.39:1.25;o.centerY=3.15;}
   }else if(o.type==='iris'){
    o.speed*=recipe.pace;o.phase=(o.phase??0)*recipe.pace;
    o.centerX=recipe.targetX*(o.z/12);
