@@ -7,6 +7,10 @@ export type RuntimeAssetId =
   | 'world.nebulaBackdrop'
   | 'world.networkBackdrop'
   | 'world.homewardBackdrop'
+  | 'world.cityBanner'
+  | 'world.lockdownBanner'
+  | 'world.ascentBanner'
+  | 'world.stormBanner'
   | 'home.cityGateway'
   | 'brand.wordmark'
   | 'ui.energy.full'
@@ -47,6 +51,10 @@ const entries: RuntimeAssetEntry[] = [
   { id: 'world.nebulaBackdrop', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/worlds/nebula.jpg'), fallback: '3D scenery and starfield', disposalOwner: 'three-scene' },
   { id: 'world.networkBackdrop', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/worlds/network.jpg'), fallback: '3D scenery and starfield', disposalOwner: 'three-scene' },
   { id: 'world.homewardBackdrop', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/worlds/homeward.jpg'), fallback: '3D scenery and starfield', disposalOwner: 'three-scene' },
+  { id: 'world.cityBanner', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/worlds/city/neon-night-wide.png'), fallback: 'city sky gradient', disposalOwner: 'react-native' },
+  { id: 'world.lockdownBanner', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/worlds/city/construction-wide.png'), fallback: 'lockdown sky gradient', disposalOwner: 'react-native' },
+  { id: 'world.ascentBanner', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/worlds/sky/sunlit-updraft-wide.png'), fallback: 'ascent sky gradient', disposalOwner: 'react-native' },
+  { id: 'world.stormBanner', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/worlds/sky/stormfront-drift-wide.png'), fallback: 'storm sky gradient', disposalOwner: 'react-native' },
 
   { id: 'home.cityGateway', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/home/city-gateway.jpg'), fallback: 'navy home background', disposalOwner: 'react-native' },
   { id: 'story.openingScore', kind: 'audio', group: 'optional', version: 1,

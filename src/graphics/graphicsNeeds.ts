@@ -47,7 +47,7 @@ export const ART_DIRECTION = {
     'Space progression (atmosphere → orbit → moon → belt → nebula → network → home — Worlds 4–10)',
   ],
   prototypeStatus:
-    'All 3D is procedural Three.js primitives. No textures, no GLB. Campaign UI is RN text/views. Store icons are Expo defaults. Spark is a colored Phong sphere — personality/alive read is unfinished.',
+    'Gameplay 3D is mostly procedural Three.js. Journey banners use chapter art for early worlds; Spark uses layered shader core + halos. Store icons ship; wordmark still text.',
 } as const;
 
 export const GRAPHICS_NEEDS: GraphicsNeed[] = [
@@ -86,8 +86,8 @@ export const GRAPHICS_NEEDS: GraphicsNeed[] = [
     kind: 'campaign',
     priority: 'P0',
     name: 'Journey map chrome',
-    current: 'Text list of 10 worlds',
-    need: 'World nodes + path toward HOME; locked/unlocked/complete states',
+    current: 'World list with chapter banners (containment→storm + late worlds)',
+    need: 'Orbit / moon / belt / drift banners; path chrome toward HOME',
     format: 'SVG/PNG frames + optional world thumbnails 256–512',
     notes: 'Destination label UNKNOWN → HOME must read clearly.',
   },
@@ -285,9 +285,9 @@ export const GRAPHICS_NEEDS: GraphicsNeed[] = [
     kind: 'projectile',
     priority: 'P0',
     name: 'Original Spark',
-    current: 'Cyan Phong sphere',
-    need: 'Hero living-energy form (pulse/core/rim) — still spherical collider',
-    format: 'GLB ≤15k tris or layered sphere + emissive',
+    current: 'Layered shader core + dual additive halos + ground pool',
+    need: 'Optional portrait/GLB hero polish; keep spherical collider',
+    format: 'Shader materials (shipped) or GLB ≤15k tris',
     notes: 'No cartoon face/limbs. Personality via pulse, trail, emissive.',
   },
   {

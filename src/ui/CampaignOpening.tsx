@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(143,239,255,0.14)',
   },
   railBase: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'transparent',
   },
   railFilled: {

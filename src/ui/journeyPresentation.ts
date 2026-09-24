@@ -10,11 +10,11 @@ type JourneyLook = {
 /** Replaceable artwork slots. Null means intentional lightweight menu illustration. */
 const LOOKS = {
   lab: {image: 'world1.crackEscape' as RuntimeAssetId, accent: '#68E3F2', sky: ['#071827', '#164458', '#04101c'] as const, motif: 'capture'},
-  lockdown: {image: null, accent: '#F2BB68', sky: ['#08131d', '#293a47', '#0b1520'] as const, motif: 'capture'},
-  city: {image: 'home.cityGateway' as RuntimeAssetId, accent: '#F3BD76', sky: ['#102538', '#7e6271', '#efb16a'] as const, motif: 'patrol'},
-  cloud: {image: null, accent: '#9ACEEB', sky: ['#10263c', '#427c9e', '#b9dde8'] as const, motif: 'patrol'},
-  storm: {image: null, accent: '#7EB8D8', sky: ['#0c1c2c', '#2f5570', '#6a9bb0'] as const, motif: 'pulse'},
-  earth: {image: null, accent: '#7DAAF4', sky: ['#050d1a', '#102c56', '#4685c4'] as const, motif: 'earth'},
+  lockdown: {image: 'world.lockdownBanner' as RuntimeAssetId, accent: '#F2BB68', sky: ['#08131d', '#293a47', '#0b1520'] as const, motif: 'capture'},
+  city: {image: 'world.cityBanner' as RuntimeAssetId, accent: '#F3BD76', sky: ['#102538', '#7e6271', '#efb16a'] as const, motif: 'patrol'},
+  cloud: {image: 'world.ascentBanner' as RuntimeAssetId, accent: '#9ACEEB', sky: ['#10263c', '#427c9e', '#b9dde8'] as const, motif: 'patrol'},
+  storm: {image: 'world.stormBanner' as RuntimeAssetId, accent: '#7EB8D8', sky: ['#0c1c2c', '#2f5570', '#6a9bb0'] as const, motif: 'pulse'},
+  earth: {image: 'world.ascentBanner' as RuntimeAssetId, accent: '#7DAAF4', sky: ['#050d1a', '#102c56', '#4685c4'] as const, motif: 'earth'},
   orbit: {image: null, accent: '#839CF4', sky: ['#040b18', '#182640', '#050d1b'] as const, motif: 'orbit'},
   graveyard: {image: null, accent: '#6F86C8', sky: ['#030910', '#121c30', '#2a3348'] as const, motif: 'ports'},
   moon: {image: null, accent: '#CAD4DB', sky: ['#030b17', '#172337', '#455360'] as const, motif: 'moon'},
