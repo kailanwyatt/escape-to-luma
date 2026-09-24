@@ -3,7 +3,7 @@ import {containmentMetal} from '../graphics/ContainmentMaterials';
 
 /** Static orbital set. All dressing is outside the flight lane; no collision ownership.
  * Shared instanced hardware and procedural planet materials need no texture downloads. */
-export function createSpaceScene(): THREE.Group {
+export function createSpaceScene(chapter:'upper_atmosphere'|'orbit'|'orbital_graveyard'='orbit'): THREE.Group {
   const root = new THREE.Group(); root.name = 'space';
   const steel = containmentMetal(); steel.color.setHex(0x7793a8);
   const dark = new THREE.MeshPhongMaterial({color:0x101e30,shininess:28});
@@ -20,7 +20,7 @@ export function createSpaceScene(): THREE.Group {
   };
   // Detached station modules frame free flight; no deck or runway below Spark.
   for(const s of [-1,1]) {
-    for(const z of [2,8,14]) {
+    for(const z of (chapter==='upper_atmosphere'?[]:chapter==='orbital_graveyard'?[14]:[2,8,14])) {
       // Equipment bays: radiator fins, access cover, clamps and status lamps.
       box(dark,s*4.55,.18,z,1.35,.4,1.8);
       box(steel,s*4.55,.8,z,1.17,.95,1.5);
@@ -39,13 +39,15 @@ export function createSpaceScene(): THREE.Group {
       box(cyan,s*5.37,4.6,z-.15,.1,.45,.025);
     }
     // Readable solar-cell arrays, set beyond the playable obstacle corridor.
-    for(const z of [11,19,27]) {
+    for(const z of (chapter==='upper_atmosphere'?[27]:[11,19,27])) {
       const arrayX=s*(z===27?4.6:7);
       box(trim,arrayX,4.5,z,3.2,.12,.18);
       box(gold,arrayX,4.5,z,2.65,4.45,.16);
       box(dark,arrayX,4.5,z-.1,2.47,4.27,.08);
-      for(let row=0;row<8;row++)for(let col=0;col<4;col++)
-        box(cells,arrayX+(col-1.5)*.59,4.5+(row-3.5)*.52,z-.16,.56,.49,.04);
+      for(let row=0;row<8;row++)for(let col=0;col<4;col++){
+        if(chapter==='orbital_graveyard'&&(row+col)%3===0)continue;
+        box(cells,arrayX+(col-1.5)*.59,4.5+(row-3.5)*.52,z-.16,.56,.49,.04,chapter==='orbital_graveyard'?(row%2?-.14:.12):0);
+      }
       box(trim,arrayX,4.5,z-.2,.045,4.25,.025);
     }
   }

@@ -19,8 +19,16 @@ import type {
   ReactiveGateConfig,
   RollingApertureConfig,
   ScissorGateConfig,
+  GroundCutLasersConfig,
   SpeedFieldConfig,
   SplitShutterConfig,
+  BillboardFlipConfig,
+  DockingCollarConfig,
+  ShearLaneConfig,
+  RotatingGateConfig,
+  EnergyFieldConfig,
+  PhaseGateConfig,
+  RepulsorConfig,
 } from '../config/ObstacleConfig';
 import { GAME_TUNING } from '../game/gameTuning';
 import {
@@ -48,6 +56,10 @@ import {
   scissorGateStateAtTime,
 } from './ScissorGateState';
 import {
+  evaluateGroundCutLasersCollision,
+  groundCutLasersStateAtTime,
+} from './GroundCutLasersState';
+import {
   evaluateSpeedFieldCollision,
   speedFieldStateAtTime,
   speedMultiplierAt,
@@ -66,6 +78,35 @@ import {
   rollingApertureStateAtTime,
   splitShutterStateAtTime,
 } from './ExtendedLibraryState';
+import {
+  billboardFlipStateAtTime,
+  evaluateBillboardFlipCollision,
+} from './BillboardFlipState';
+import {
+  dockingCollarStateAtTime,
+  evaluateDockingCollarCollision,
+} from './DockingCollarState';
+import {
+  evaluateShearLaneCollision,
+  shearLaneBlocksAtTime,
+  shearLaneStateAtTime,
+} from './ShearLaneState';
+import {
+  evaluateRotatingGateCollision,
+  rotatingGateStateAtTime,
+} from './RotatingGateState';
+import {
+  energyFieldStateAtTime,
+  evaluateEnergyFieldCollision,
+} from './EnergyFieldState';
+import {
+  evaluatePhaseGateCollision,
+  phaseGateStateAtTime,
+} from './PhaseGateState';
+import {
+  evaluateRepulsorCollision,
+  repulsorStateAtTime,
+} from './RepulsorState';
 
 export type LibraryObstacleConfig =
   | PistonFieldConfig
@@ -73,13 +114,21 @@ export type LibraryObstacleConfig =
   | ElevatorBlocksConfig
   | PulseRingConfig
   | ScissorGateConfig
+  | GroundCutLasersConfig
   | SpeedFieldConfig
   | SplitShutterConfig
   | ReactiveGateConfig
   | ConveyorGateConfig
   | RollingApertureConfig
   | CorkscrewTunnelConfig
-  | CometCrossingConfig;
+  | CometCrossingConfig
+  | BillboardFlipConfig
+  | DockingCollarConfig
+  | ShearLaneConfig
+  | RotatingGateConfig
+  | EnergyFieldConfig
+  | PhaseGateConfig
+  | RepulsorConfig;
 
 export type LibraryObstacleType = LibraryObstacleConfig['type'];
 
@@ -89,6 +138,7 @@ const HIT_PART: Record<LibraryObstacleType, ObstacleCollisionResult['hit']> = {
   elevatorBlocks: 'gate',
   pulseRing: 'ring',
   scissorGate: 'gate',
+  groundCutLasers: 'laser',
   speedField: null,
   splitShutter: 'gate',
   reactiveGate: 'gate',
@@ -96,6 +146,13 @@ const HIT_PART: Record<LibraryObstacleType, ObstacleCollisionResult['hit']> = {
   rollingAperture: 'aperture',
   corkscrewTunnel: 'ring',
   cometCrossing: 'orbiter',
+  billboardFlip: 'gate',
+  dockingCollar: 'iris',
+  shearLane: 'drift',
+  rotatingGate: 'iris',
+  energyField: 'phase',
+  phaseGate: 'phase',
+  repulsor: 'orbiter',
 };
 
 function toResult(
@@ -218,6 +275,17 @@ export class LibraryObstacle {
         predicted.openingWidth = state.apertureWidth;
         break;
       }
+      case 'groundCutLasers': {
+        const state = groundCutLasersStateAtTime(this.config, simTime);
+        const mid = state.beams[Math.floor(state.beams.length / 2)];
+        predicted.x = mid ? (mid.ax + mid.bx) / 2 : this.config.centerX;
+        predicted.y = mid ? (mid.ay + mid.by) / 2 : 3;
+        predicted.openingX = this.config.aimX;
+        predicted.openingY = 3.1;
+        predicted.openingWidth = 0.55 + (1 - state.crossAmount) * 1.1;
+        predicted.angle = state.crossAmount;
+        break;
+      }
       case 'speedField': {
         const state = speedFieldStateAtTime(this.config, simTime);
         predicted.x = state.centerX;
@@ -273,6 +341,67 @@ export class LibraryObstacle {
         predicted.blockerRadius = state.radius;
         break;
       }
+      case 'billboardFlip': {
+        const state = billboardFlipStateAtTime(this.config, simTime);
+        predicted.x = state.centerX;
+        predicted.y = state.centerY;
+        predicted.angle = state.angle;
+        predicted.openingWidth = this.config.halfWidth * 2;
+        predicted.openingHeight = this.config.halfHeight * 2;
+        break;
+      }
+      case 'dockingCollar': {
+        const state = dockingCollarStateAtTime(this.config, simTime);
+        predicted.x = state.centerX;
+        predicted.y = state.centerY;
+        predicted.openingRadius = state.openingRadius;
+        predicted.blockerRadius = state.outerRadius;
+        break;
+      }
+      case 'shearLane': {
+        const blocks = shearLaneBlocksAtTime(this.config, simTime);
+        const mid = blocks[Math.floor(blocks.length / 2)];
+        predicted.x = mid?.x ?? this.config.centerX;
+        predicted.y = mid?.y ?? this.config.centerY;
+        predicted.blockerRadius = mid?.radius ?? this.config.blockRadius;
+        predicted.openingY = this.config.centerY;
+        predicted.openingHeight = this.config.gapHeight;
+        break;
+      }
+      case 'rotatingGate': {
+        const state = rotatingGateStateAtTime(this.config, simTime);
+        predicted.x = state.centerX;
+        predicted.y = state.centerY;
+        predicted.angle = state.gapAngle;
+        predicted.openingRadius = state.outerRadius;
+        predicted.openingWidth = state.gapWidth;
+        break;
+      }
+      case 'energyField': {
+        const state = energyFieldStateAtTime(this.config, simTime);
+        predicted.openingX = state.openingX;
+        predicted.openingY = state.openingY;
+        predicted.openingRadius = state.holeRadius;
+        predicted.x = state.openingX;
+        predicted.y = state.openingY;
+        break;
+      }
+      case 'phaseGate': {
+        const state = phaseGateStateAtTime(this.config, simTime);
+        predicted.x = state.centerX;
+        predicted.y = state.centerY;
+        predicted.openingRadius = state.open ? state.fieldRadius : 0;
+        predicted.blockerRadius = state.fieldRadius;
+        break;
+      }
+      case 'repulsor': {
+        const state = repulsorStateAtTime(this.config, simTime);
+        predicted.x = state.centerX;
+        predicted.y = state.centerY;
+        predicted.blockerRadius = state.coreRadius;
+        predicted.openingRadius = state.fieldRadius;
+        break;
+      }
     }
     return predicted;
   }
@@ -299,6 +428,8 @@ export class LibraryObstacle {
         return toResult(this.type, evaluatePulseRingCollision(this.config, t, x, y, projectileRadius));
       case 'scissorGate':
         return toResult(this.type, evaluateScissorGateCollision(this.config, t, x, y, projectileRadius));
+      case 'groundCutLasers':
+        return toResult(this.type, evaluateGroundCutLasersCollision(this.config, t, x, y, projectileRadius));
       case 'speedField':
         return toResult(this.type, evaluateSpeedFieldCollision(this.config, t, x, y, projectileRadius));
       case 'splitShutter':
@@ -313,6 +444,20 @@ export class LibraryObstacle {
         return toResult(this.type, evaluateCorkscrewCollision(this.config, t, x, y, projectileRadius));
       case 'cometCrossing':
         return toResult(this.type, evaluateCometCrossingCollision(this.config, t, x, y, projectileRadius));
+      case 'billboardFlip':
+        return toResult(this.type, evaluateBillboardFlipCollision(this.config, t, x, y, projectileRadius));
+      case 'dockingCollar':
+        return toResult(this.type, evaluateDockingCollarCollision(this.config, t, x, y, projectileRadius));
+      case 'shearLane':
+        return toResult(this.type, evaluateShearLaneCollision(this.config, t, x, y, projectileRadius));
+      case 'rotatingGate':
+        return toResult(this.type, evaluateRotatingGateCollision(this.config, t, x, y, projectileRadius));
+      case 'energyField':
+        return toResult(this.type, evaluateEnergyFieldCollision(this.config, t, x, y, projectileRadius));
+      case 'phaseGate':
+        return toResult(this.type, evaluatePhaseGateCollision(this.config, t, x, y, projectileRadius));
+      case 'repulsor':
+        return toResult(this.type, evaluateRepulsorCollision(this.config, t, x, y, projectileRadius));
     }
   }
 
@@ -327,15 +472,21 @@ export class LibraryObstacle {
     let extra = this.type as string;
     if (this.config?.type === 'speedField') {
       extra = `speed×${this.config.speedMultiplier.toFixed(2)}`;
+    } else if (this.config?.type === 'clockHands') {
+      const state = clockHandsStateAtTime(this.config, this.elapsed);
+      extra = state.phase ?? `θ=${(state.hands[0]?.angle ?? 0).toFixed(2)}`;
     } else if (this.config?.type === 'pulseRing') {
       const state = pulseRingStateAtTime(this.config, this.elapsed);
       extra = `r=${state.radius.toFixed(2)}`;
     } else if (this.config?.type === 'scissorGate') {
       const state = scissorGateStateAtTime(this.config, this.elapsed);
       extra = `gap=${state.apertureWidth.toFixed(2)}`;
+    } else if (this.config?.type === 'groundCutLasers') {
+      const state = groundCutLasersStateAtTime(this.config, this.elapsed);
+      extra = state.crossAmount > 0.45 ? 'cross' : 'fan';
     } else if (this.config?.type === 'splitShutter') {
       const state = splitShutterStateAtTime(this.config, this.elapsed);
-      extra = `gap=${state.gap.toFixed(2)}`;
+      extra = state.phase;
     } else if (this.config?.type === 'reactiveGate') {
       const state = reactiveGateStateAtTime(this.config, this.elapsed);
       extra = state.phase;
@@ -348,6 +499,27 @@ export class LibraryObstacle {
     } else if (this.config?.type === 'cometCrossing') {
       const state = cometCrossingStateAtTime(this.config, this.elapsed);
       extra = `(${state.x.toFixed(1)},${state.y.toFixed(1)})`;
+    } else if (this.config?.type === 'billboardFlip') {
+      const state = billboardFlipStateAtTime(this.config, this.elapsed);
+      extra = state.open ? 'open' : state.warning ? 'warn' : `θ=${state.angle.toFixed(2)}`;
+    } else if (this.config?.type === 'dockingCollar') {
+      const state = dockingCollarStateAtTime(this.config, this.elapsed);
+      extra = `${state.phase} r=${state.openingRadius.toFixed(2)}`;
+    } else if (this.config?.type === 'shearLane') {
+      const state = shearLaneStateAtTime(this.config, this.elapsed);
+      extra = `gap=${state.gapHeight.toFixed(2)} n=${state.blocks.length}`;
+    } else if (this.config?.type === 'rotatingGate') {
+      const state = rotatingGateStateAtTime(this.config, this.elapsed);
+      extra = `θ=${state.gapAngle.toFixed(2)}`;
+    } else if (this.config?.type === 'energyField') {
+      const state = energyFieldStateAtTime(this.config, this.elapsed);
+      extra = `hole@${state.openingX.toFixed(2)} r=${state.holeRadius.toFixed(2)}`;
+    } else if (this.config?.type === 'phaseGate') {
+      const state = phaseGateStateAtTime(this.config, this.elapsed);
+      extra = state.phase;
+    } else if (this.config?.type === 'repulsor') {
+      const state = repulsorStateAtTime(this.config, this.elapsed);
+      extra = `push=${state.strength.toFixed(1)}`;
     }
     return { ...predicted, speed: 0, extra };
   }

@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import type { EnvironmentId } from '../config/ChallengeConfig';
 import { GAME_TUNING } from '../game/gameTuning';
 import { disposeObject3D } from './RotorGeometry';
+import { FacilityArtKit } from './FacilityArtKit';
 
 /** Ring-driven security sweep: all solid detailing stays within the collision silhouette. */
 export function defaultRotorVariant(environment: EnvironmentId): RotorVisualVariant {
@@ -14,25 +15,31 @@ export function defaultRotorVariant(environment: EnvironmentId): RotorVisualVari
 export function createRotorVisual(environment: EnvironmentId, bladeCount: number, variant = defaultRotorVariant(environment)): THREE.Group {
   if (variant !== 'containmentSecurity') return createVariantRotor(variant, bladeCount);
   const group = new THREE.Group();
+  const kit = new FacilityArtKit({ cinematic: true });
+  group.userData.kit = kit;
   const housing = new THREE.Group();
   housing.name = 'stationary-housing';
   group.add(housing);
   const t = GAME_TUNING.rotor;
-  const metal = new THREE.MeshPhongMaterial({ color: environment === 'rooftop' ? 0x627686 : 0x334859, shininess: 85 });
-  const dark = new THREE.MeshPhongMaterial({ color: 0x101c29, shininess: 55 });
-  const silver = new THREE.MeshPhongMaterial({ color: 0xb3cad4, shininess: 110 });
-  const warning = new THREE.MeshPhongMaterial({ color: 0xffb83e, emissive: 0xff650a, emissiveIntensity: 0.45 });
-  const light = new THREE.MeshBasicMaterial({ color: environment === 'space' ? 0xa5a4ff : 0x77ebff });
-  const box = new THREE.BoxGeometry(1, 1, 1);
+  const metal = kit.metal(environment === 'rooftop' ? 0x627686 : 0x334859, 0.32);
+  const dark = kit.metal(0x101c29, 0.55, false);
+  const silver = kit.metal(0xb3cad4, 0.2);
+  const warning = kit.lamp();
+  warning.color.setHex(0xffb83e);
+  warning.emissive.setHex(0xff650a);
+  warning.emissiveIntensity = 0.55;
+  const light = kit.lampCore();
+  light.color.setHex(environment === 'space' ? 0xa5a4ff : 0x77ebff);
+  light.emissive.setHex(environment === 'space' ? 0x6a69cc : 0x4aa7c9);
   const bolt = new THREE.CylinderGeometry(0.018, 0.018, 0.012, 6);
+  const unit = new THREE.BoxGeometry(1, 1, 1);
   const addBox = (parent: THREE.Group, material: THREE.Material, x: number, y: number, z: number, w: number, h: number, d: number) => {
-    const mesh = new THREE.Mesh(box, material);
+    const mesh = new THREE.Mesh(unit, material);
     mesh.position.set(x, y, z);
     mesh.scale.set(w, h, d);
     parent.add(mesh);
     return mesh;
   };
-  // A machined annular casing, with raised front/rear lips and recessed raceway.
   const casing = new THREE.Shape();
   casing.absarc(0, 0, t.radius + t.ringThickness, 0, Math.PI * 2, false);
   const hole = new THREE.Path();
@@ -42,15 +49,15 @@ export function createRotorVisual(environment: EnvironmentId, bladeCount: number
   frame.position.z = -0.12;
   housing.add(frame);
   for (const radius of [t.radius - 0.09, t.radius + 0.09]) {
-    const lip = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.022, 6, 64), silver);
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.022, 8, 64), silver);
     lip.position.z = -0.13;
     housing.add(lip);
   }
-  const raceway = new THREE.Mesh(new THREE.TorusGeometry(t.radius, 0.033, 6, 64), dark);
+  const raceway = new THREE.Mesh(new THREE.TorusGeometry(t.radius, 0.033, 8, 64), dark);
   raceway.position.z = -0.128;
   housing.add(raceway);
   for (let i = 0; i < 12; i += 1) {
-    const a = i * Math.PI / 6;
+    const a = (i * Math.PI) / 6;
     const plate = new THREE.Group();
     plate.position.set(Math.cos(a) * t.radius, Math.sin(a) * t.radius, -0.15);
     plate.rotation.z = a;
@@ -71,13 +78,12 @@ export function createRotorVisual(environment: EnvironmentId, bladeCount: number
   for (let i = 0; i < bladeCount; i += 1) {
     const arm = new THREE.Group();
     arm.name = 'security-arm';
-    arm.rotation.z = i / bladeCount * Math.PI * 2;
+    arm.rotation.z = (i / bladeCount) * Math.PI * 2;
     group.add(arm);
     const center = t.hubRadius + t.bladeLength / 2;
     const body = addBox(arm, metal, center, 0, 0, t.bladeLength, t.bladeWidth, t.bladeDepth);
     body.name = 'collision-arm';
     addBox(arm, dark, center, 0, -0.078, t.bladeLength - 0.12, 0.15, 0.012);
-    // Segmented amber hazard inserts communicate a solid moving barrier.
     for (let j = 0; j < 7; j += 1) {
       const x = t.hubRadius + 0.15 + j * 0.22;
       addBox(arm, warning, x, 0, -0.09, 0.13, 0.095, 0.015);
@@ -94,6 +100,10 @@ export function createRotorVisual(environment: EnvironmentId, bladeCount: number
     addBox(arm, dark, t.hubRadius + t.bladeLength - 0.06, 0, 0, 0.12, t.bladeWidth, t.bladeDepth);
     addBox(arm, light, t.hubRadius + t.bladeLength - 0.06, 0, -0.083, 0.045, 0.16, 0.012);
   }
+  const accent = new THREE.PointLight(0xffb83e, 8, 8, 2);
+  accent.name = 'rotor-accent';
+  accent.position.set(0, 0, -1.1);
+  group.add(accent);
   return group;
 }
 
@@ -111,6 +121,8 @@ export function replaceRotorVisual(
   variant?: RotorVisualVariant,
 ): THREE.Group {
   if (previous) {
+    const kit = previous.userData.kit as { dispose?: () => void } | undefined;
+    kit?.dispose?.();
     parent.remove(previous);
     disposeObject3D(previous);
   }

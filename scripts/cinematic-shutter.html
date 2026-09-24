@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cinematic Split Shutter — Look Dev</title>
+<style>
+  :root {
+    --ink: #040910; --panel: rgba(8, 18, 28, 0.92); --line: rgba(126, 240, 255, 0.28);
+    --cream: #eef6fa; --muted: #8eafc0; --cyan: #7ef0ff; --amber: #ffb454;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--ink); color: var(--cream);
+    font-family: "Avenir Next", "Segoe UI", sans-serif; overflow: hidden; }
+  #viewport { position: absolute; inset: 0; }
+  #viewport canvas { display: block; width: 100% !important; height: 100% !important; }
+  header {
+    position: absolute; z-index: 2; left: 16px; right: 16px; top: 14px;
+    display: flex; flex-wrap: wrap; gap: 10px; pointer-events: none;
+  }
+  .card {
+    pointer-events: auto; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 12px 14px; max-width: 440px; backdrop-filter: blur(12px);
+  }
+  h1 { margin: 0; font-size: 15px; letter-spacing: 0.12em; font-weight: 800; }
+  .sub { margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+  a, button, select, label {
+    background: #0c1a26; color: var(--cream); border: 1px solid var(--line);
+    border-radius: 10px; padding: 7px 10px; font: inherit; font-size: 12px; text-decoration: none;
+  }
+  button, a { cursor: pointer; }
+  a:hover, button:hover { border-color: var(--cyan); color: var(--cyan); }
+  label { display: inline-flex; gap: 6px; align-items: center; }
+  #status {
+    position: absolute; z-index: 2; left: 16px; bottom: 14px; right: 16px;
+    color: var(--amber); font-size: 11px; letter-spacing: 0.04em;
+    text-shadow: 0 1px 8px #000; pointer-events: none;
+  }
+  .badge { color: var(--cyan); font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="viewport"></div>
+<header>
+  <div class="card">
+    <h1>CINEMATIC SPLIT SHUTTER</h1>
+    <div class="sub">
+      Gameplay <span class="badge">FacilityShutterArt</span> + slam cycle
+      (coral closed · cyan open · amber warning/slam). Short open window, then snap shut.
+      Revert with <code>SHUTTER_VISUAL_VARIANT</code>.
+    </div>
+    <div class="controls">
+      <a href="/piston">Piston</a>
+      <a href="/gate">Gate</a>
+      <a href="/elevator">Elevator</a>
+      <a href="/obstacles">Obstacles</a>
+      <a href="/">Assets</a>
+      <button type="button" id="pause">Pause</button>
+      <label><input id="bloom" type="checkbox" checked /> Bloom</label>
+      <select id="speed">
+        <option value="0.45">Slow</option>
+        <option value="1" selected>Normal</option>
+        <option value="1.6">Fast</option>
+      </select>
+    </div>
+  </div>
+</header>
+<div id="status">Loading…</div>
+<script src="/cinematic-shutter.js"></script>
+</body>
+</html>

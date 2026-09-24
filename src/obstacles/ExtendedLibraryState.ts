@@ -32,7 +32,9 @@ function aabbClearance(
   return Math.hypot(Math.max(0, dx), Math.max(0, dy)) + Math.min(Math.max(dx, dy), 0) - radius;
 }
 
-/** Split Shutter — two halves part / meet on a shared phase. */
+/** Split Shutter — sealed → open window → amber warning → slam shut. */
+export type SplitShutterPhase = 'closed' | 'opening' | 'open' | 'warning' | 'slamming';
+
 export type SplitShutterState = {
   leftX: number;
   rightX: number;
@@ -40,11 +42,36 @@ export type SplitShutterState = {
   halfWidth: number;
   height: number;
   gap: number;
+  phase: SplitShutterPhase;
+  warning: boolean;
 };
 
+function splitShutterOpenFraction(config: SplitShutterConfig, time: number): {
+  fraction: number;
+  phase: SplitShutterPhase;
+} {
+  const closed = Math.max(0.15, config.closedHold ?? 0.55);
+  const opening = Math.max(0.08, config.openingDuration ?? 0.28);
+  const open = Math.max(0.18, config.openHold ?? 0.42);
+  const warning = Math.max(0.12, config.warningHold ?? 0.22);
+  const slam = Math.max(0.08, config.slamDuration ?? 0.18);
+  const cycle = closed + opening + open + warning + slam;
+  const local = ((time * config.speed + (config.phase ?? 0)) % cycle + cycle) % cycle;
+
+  if (local < closed) return { fraction: 0, phase: 'closed' };
+  if (local < closed + opening) {
+    const p = (local - closed) / opening;
+    return { fraction: 1 - (1 - p) ** 3, phase: 'opening' };
+  }
+  if (local < closed + opening + open) return { fraction: 1, phase: 'open' };
+  if (local < closed + opening + open + warning) return { fraction: 1, phase: 'warning' };
+  const p = (local - closed - opening - open - warning) / slam;
+  return { fraction: 1 - p ** 3, phase: 'slamming' };
+}
+
 export function splitShutterStateAtTime(config: SplitShutterConfig, time: number): SplitShutterState {
-  const wave = 0.5 + 0.5 * Math.sin(time * config.speed + (config.phase ?? 0));
-  const gap = config.minGap + (config.maxGap - config.minGap) * wave;
+  const { fraction, phase } = splitShutterOpenFraction(config, time);
+  const gap = config.minGap + (config.maxGap - config.minGap) * fraction;
   const half = config.panelWidth / 2;
   const y = config.centerY ?? 3;
   return {
@@ -54,6 +81,8 @@ export function splitShutterStateAtTime(config: SplitShutterConfig, time: number
     halfWidth: half,
     height: config.panelHeight,
     gap,
+    phase,
+    warning: phase === 'warning' || phase === 'slamming',
   };
 }
 
@@ -189,11 +218,12 @@ export function evaluateRollingApertureCollision(
   return near(state.radius - Math.hypot(x - state.x, y - state.y) - radius);
 }
 
-/** Corkscrew Tunnel — annular ring with one rotating open sector (not blade arms). */
+/** Corkscrew Tunnel — solid disk with one rotating open sector (not blade arms). */
 export type CorkscrewState = {
   gapAngle: number;
   gapWidth: number;
   radius: number;
+  /** Decorative hub collar radius (art); plate is solid through the center. */
   innerRadius: number;
   centerX: number;
   centerY: number;
@@ -205,12 +235,12 @@ export function corkscrewStateAtTime(config: CorkscrewTunnelConfig, time: number
     time * config.speed + (config.phase ?? 0) + segment * (config.helixStep ?? 0.55);
   const radius = config.radius;
   const innerRadius = Math.max(
-    0.35,
-    Math.min(config.innerRadius ?? radius * 0.45, radius - 0.25),
+    0.12,
+    Math.min(config.innerRadius ?? radius * 0.18, radius - 0.35),
   );
   return {
     gapAngle,
-    gapWidth: config.gapWidth,
+    gapWidth: Math.max(0.35, config.gapWidth),
     radius,
     innerRadius,
     centerX: config.centerX,
@@ -226,9 +256,8 @@ function wrapPi(delta: number): number {
 }
 
 /**
- * Ring wall is solid except for a rotating angular gap.
- * Unlike a 2-blade rotor (thin radial arms + large open sectors), this is a continuous
- * tunnel mouth with one portal sector — fly through the gap or the open hub.
+ * Solid tunnel mouth with one portal sector — only the timed gap is safe.
+ * Hub is blocked (same lesson as rotatingGate); fly through the cyan sector.
  */
 export function evaluateCorkscrewCollision(
   config: CorkscrewTunnelConfig,
@@ -242,25 +271,22 @@ export function evaluateCorkscrewCollision(
   const dy = y - state.centerY;
   const dist = Math.hypot(dx, dy);
 
-  // Missed the ring entirely.
-  if (dist > state.radius + radius) {
+  // Outside the disk: clear.
+  if (dist - radius > state.radius) {
     return near(dist - state.radius - radius);
   }
 
-  // Open hub — always passable (angle is undefined at the center).
-  if (dist + radius <= state.innerRadius) {
-    return near(state.innerRadius - dist - radius);
-  }
-
   const ang = Math.atan2(dy, dx);
-  const inGap = Math.abs(wrapPi(ang - state.gapAngle)) <= state.gapWidth / 2;
-  if (inGap) {
-    // Through the missing arc of the ring band.
-    return near(Math.max(0.08, state.gapWidth * 0.2 - radius * 0.1));
+  const half = state.gapWidth / 2;
+  const delta = Math.abs(wrapPi(ang - state.gapAngle));
+  if (delta <= half) {
+    const edge = (half - delta) * Math.max(dist, 0.01);
+    const radialOut = state.radius - dist;
+    return near(Math.min(edge, radialOut) - radius);
   }
 
-  // Solid ring band (continuous wall — not thin rotor blades).
-  return near(-0.2);
+  // Solid plate including hub.
+  return near(-(state.radius - (dist - radius)));
 }
 
 /** Comet Crossing — compact blocker on a diagonal loop. */

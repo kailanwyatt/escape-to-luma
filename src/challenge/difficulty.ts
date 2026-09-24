@@ -129,6 +129,7 @@ export function estimateDifficulty(challenge: ChallengeConfig): number {
       type === 'elevatorBlocks' ||
       type === 'pulseRing' ||
       type === 'scissorGate' ||
+      type === 'groundCutLasers' ||
       type === 'speedField' ||
       type === 'splitShutter' ||
       type === 'reactiveGate' ||
@@ -136,6 +137,15 @@ export function estimateDifficulty(challenge: ChallengeConfig): number {
       type === 'rollingAperture' ||
       type === 'corkscrewTunnel' ||
       type === 'cometCrossing' ||
+      type === 'billboardFlip' ||
+      type === 'dockingCollar' ||
+      type === 'shearLane' ||
+      type === 'rotatingGate' ||
+      type === 'energyField' ||
+      type === 'phaseGate' ||
+      type === 'repulsor' ||
+      type === 'nullTendril' ||
+      type === 'nullLash' ||
       type === 'orbitingMoons' ||
       type === 'sequentialTunnel' ||
       type === 'movingSafeZone' ||

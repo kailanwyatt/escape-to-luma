@@ -25,6 +25,8 @@ describe('airborne gate collision readability',()=>{
       expect(evaluateRingCollision(radius-0.21,0,0.22,0,0,radius).hit).toBe('ring');
     }
     disposeObject3D(visual);
+    const kit = (visual as THREE.Group).userData?.kit;
+    kit?.dispose?.();
   });
   it('resizes without allocating new geometry or materials',()=>{
     const visual=createAirborneGate('space');
@@ -35,5 +37,6 @@ describe('airborne gate collision readability',()=>{
     visual.traverse(o=>{if(o instanceof THREE.Mesh)after.push(o.geometry,o.material);});
     expect(after).toEqual(resources);
     disposeObject3D(visual);
+    visual.userData.kit?.dispose?.();
   });
 });

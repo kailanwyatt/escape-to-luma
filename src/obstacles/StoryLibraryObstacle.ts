@@ -18,6 +18,8 @@ import type {
   SolarSailConfig,
   TeleportPortalConfig,
   TheNullConfig,
+  NullTendrilConfig,
+  NullLashConfig,
 } from '../config/ObstacleConfig';
 import { GAME_TUNING } from '../game/gameTuning';
 import {
@@ -30,6 +32,10 @@ import { interpolateAtZ } from './SlidingGateObstacle';
 import {
   accretionDebrisAtTime,
   entryExitWarpTarget,
+  entryExitWarpAt,
+  entryExitCrossingAt,
+  entryExitIsMulti,
+  entryExitStateAtTime,
   evaluateAccretionCollision,
   evaluateEntryExitCollision,
   evaluateLagrangeNullCollision,
@@ -50,6 +56,14 @@ import {
   teleportPortalPoseAtTime,
   theNullSafeAtTime,
 } from './StoryLibraryState';
+import {
+  evaluateNullTendrilCollision,
+  nullTendrilStateAtTime,
+} from './NullTendrilState';
+import {
+  evaluateNullLashCollision,
+  nullLashStateAtTime,
+} from './NullLashState';
 
 export type StoryLibraryConfig =
   | OrbitingMoonsConfig
@@ -62,7 +76,9 @@ export type StoryLibraryConfig =
   | LagrangeNullConfig
   | TeleportPortalConfig
   | EntryExitPortalConfig
-  | TheNullConfig;
+  | TheNullConfig
+  | NullTendrilConfig
+  | NullLashConfig;
 
 export type StoryLibraryType = StoryLibraryConfig['type'];
 
@@ -78,6 +94,8 @@ const HIT: Record<StoryLibraryType, ObstacleCollisionResult['hit']> = {
   teleportPortal: 'iris',
   entryExitPortal: 'iris',
   theNull: 'phase',
+  nullTendril: 'phase',
+  nullLash: 'pendulum',
 };
 
 function toResult(
@@ -155,6 +173,27 @@ export class StoryLibraryObstacle {
     return entryExitWarpTarget(this.config);
   }
 
+  /** Resolve true vs decoy warp from a crossing on the portal plane. */
+  warpAtCrossing(x: number, y: number, time = this.elapsed): { x: number; y: number; kind: 'true' | 'false' } | null {
+    if (!this.config || this.config.type !== 'entryExitPortal') return null;
+    return entryExitWarpAt(this.config, time, x, y);
+  }
+
+  /** Classify multi-disk relay crossing for distinct fail/success VFX. */
+  entryCrossingAt(
+    x: number,
+    y: number,
+    time = this.elapsed,
+    projectileRadius = 0.22,
+  ): 'true' | 'false' | 'wall' | null {
+    if (!this.config || this.config.type !== 'entryExitPortal') return null;
+    return entryExitCrossingAt(this.config, time, x, y, projectileRadius);
+  }
+
+  isMultiEntryRelay(): boolean {
+    return this.config?.type === 'entryExitPortal' && entryExitIsMulti(this.config);
+  }
+
   predictState(_deltaSeconds: number, simTime: number): ObstaclePredictedState {
     this.evalTime = simTime;
     const predicted = emptyPredictedState(this.type, this.z);
@@ -199,15 +238,18 @@ export class StoryLibraryObstacle {
         predicted.openingY = this.config.centerY;
         break;
       }
-      case 'magnetopause':
-      case 'lagrangeNull':
       case 'theNull': {
+        const safe = theNullSafeAtTime(this.config, simTime);
+        predicted.openingX = safe.x;
+        predicted.openingY = safe.y;
+        predicted.openingRadius = safe.radius;
+        break;
+      }
+      case 'magnetopause':
+      case 'lagrangeNull': {
         predicted.x = this.config.centerX;
         predicted.y = this.config.centerY;
-        if (this.config.type === 'theNull') {
-          const safe = theNullSafeAtTime(this.config, simTime);
-          predicted.openingRadius = safe.radius;
-        } else if (this.config.type === 'lagrangeNull') {
+        if (this.config.type === 'lagrangeNull') {
           predicted.openingRadius = this.config.radius;
         } else {
           predicted.openingRadius = this.config.outerRadius;
@@ -218,13 +260,33 @@ export class StoryLibraryObstacle {
         const pose = teleportPortalPoseAtTime(this.config, simTime);
         predicted.openingX = pose.x;
         predicted.openingY = pose.y;
-        predicted.openingRadius = pose.radius;
+        predicted.openingRadius = pose.present ? pose.radius : 0;
         break;
       }
       case 'entryExitPortal': {
-        predicted.openingX = this.config.entryX;
-        predicted.openingY = this.config.entryY;
-        predicted.openingRadius = this.config.radius;
+        const state = entryExitStateAtTime(this.config, simTime);
+        const trueDisk = state.disks[state.trueIndex] ?? state.disks[0];
+        predicted.openingX = trueDisk?.x ?? this.config.entryX;
+        predicted.openingY = trueDisk?.y ?? this.config.entryY;
+        predicted.openingRadius = state.radius;
+        break;
+      }
+      case 'nullTendril': {
+        const state = nullTendrilStateAtTime(this.config, simTime);
+        predicted.x = state.centerX;
+        predicted.y = state.centerY;
+        predicted.angle = state.gapAngle;
+        predicted.openingRadius = state.outerRadius;
+        predicted.openingWidth = state.gapWidth;
+        break;
+      }
+      case 'nullLash': {
+        const state = nullLashStateAtTime(this.config, simTime);
+        predicted.x = state.tipX;
+        predicted.y = state.tipY;
+        predicted.angle = state.angle;
+        predicted.length = state.length;
+        predicted.blockerRadius = state.thickness;
         break;
       }
     }
@@ -262,6 +324,10 @@ export class StoryLibraryObstacle {
         return toResult(this.type, evaluateEntryExitCollision(this.config, t, x, y, projectileRadius));
       case 'theNull':
         return toResult(this.type, evaluateTheNullCollision(this.config, t, x, y, projectileRadius));
+      case 'nullTendril':
+        return toResult(this.type, evaluateNullTendrilCollision(this.config, t, x, y, projectileRadius));
+      case 'nullLash':
+        return toResult(this.type, evaluateNullLashCollision(this.config, t, x, y, projectileRadius));
     }
   }
 
@@ -271,7 +337,16 @@ export class StoryLibraryObstacle {
     if (this.config?.type === 'pulsarBeam') {
       extra = pulsarBeamOn(this.config, this.elapsed) ? 'ON' : 'off';
     } else if (this.config?.type === 'teleportPortal') {
-      extra = teleportPortalPoseAtTime(this.config, this.elapsed).warning ? 'warn' : 'hold';
+      extra = teleportPortalPoseAtTime(this.config, this.elapsed).present ? 'hold' : 'gone';
+    } else if (this.config?.type === 'nullTendril') {
+      const state = nullTendrilStateAtTime(this.config, this.elapsed);
+      extra = `θ=${state.gapAngle.toFixed(2)}`;
+    } else if (this.config?.type === 'nullLash') {
+      const state = nullLashStateAtTime(this.config, this.elapsed);
+      extra = state.phase;
+    } else if (this.config?.type === 'entryExitPortal') {
+      const state = entryExitStateAtTime(this.config, this.elapsed);
+      extra = state.disks.length > 1 ? `blue=${state.trueIndex}` : 'entry';
     }
     return { ...predicted, speed: 0, extra };
   }

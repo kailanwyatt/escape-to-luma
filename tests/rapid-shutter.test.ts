@@ -29,6 +29,12 @@ describe('rapid security shutter',()=>{
    expect(o.group.getObjectByName('ShutterRight')!.position.x-.5).toBeCloseTo(state.width/2);
   }
  });
+ it('plants a floor sill so the doors read as seated on the ground',()=>{
+  const o=new SlidingGateObstacle('s');o.applyConfig(config,'rooftop');o.group.updateMatrixWorld(true);
+  const sill=o.group.getObjectByName('floor-sill')!;
+  expect(new THREE.Box3().setFromObject(sill).min.y).toBeLessThan(0.25);
+  expect(o.group.getObjectByName('GroundMount')).toBeTruthy();
+ });
  it('supports every preset and vertical/asymmetric opening bounds',()=>{
   for(const pattern of ['standard','quickWindow','longTease','doublePulse','fakeout','asymmetric'] as const){
    const r:RapidShutterConfig={pattern,orientation:'vertical',maxOpeningWidth:2.5};

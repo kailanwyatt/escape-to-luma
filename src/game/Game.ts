@@ -15,6 +15,8 @@ import { AuthoredRunTracker } from '../challenge/AuthoredRunTracker';
 import { RunDirector } from '../challenge/RunDirector';
 import type { ChallengeConfig, EnvironmentId } from '../config/ChallengeConfig';
 import { obstacleTypeOf } from '../config/ObstacleConfig';
+import type { ObstacleConfig } from '../config/ObstacleConfig';
+import { repulsorAsWell } from '../obstacles/RepulsorState';
 import { AudioManager } from '../feedback/AudioManager';
 import { GameHaptics } from '../feedback/Haptics';
 import { Analytics, ANALYTICS_EVENTS } from '../services/analytics/Analytics';
@@ -42,6 +44,7 @@ import {
   applyLevelSuccess,
   consumeBoosts,
   canStartLevel,
+  isEnergyFreePracticeLevel,
   syncCampaignEnergy,
 } from '../campaign/CampaignPlay';
 import { getCampaignLevel, getPlayableCampaignLevels, WORLD1_LEVELS } from '../campaign/levels';
@@ -822,10 +825,13 @@ export class Game {
     this.campaignGravityScale = def.gravityScale ?? 1;
     this.projectileSystem.windX = this.campaignWindX;
     this.projectileSystem.gravityScale = this.campaignGravityScale;
-    this.projectileSystem.wells = def.gravityWells ?? [];
+    this.projectileSystem.wells = [
+      ...(def.gravityWells ?? []),
+      ...wellsFromRepulsors(def.challenge.obstacles),
+    ];
     this.syncSpeedFields(def.challenge.obstacles);
     this.syncLagrangeNulls(def.challenge.obstacles);
-    this.gravityWellField.setWells(def.gravityWells ?? [], {
+    this.gravityWellField.setWells(this.projectileSystem.wells, {
       showForceVectors: this.sparkPassive.showForceVectors,
     });
     this.syncTrajectoryDebugFull();
@@ -1998,10 +2004,29 @@ export class Game {
           this.projectile.position,
         );
         this.projectile.position.copy(at);
-        this.projectile.velocity.z = -2;
-        this.projectile.velocity.y += 1.5;
-        this.projectile.velocity.x += signOr(at.x - item.rotor.getDebugInfo().x, 1) * 2;
-        this.particles.spawnSparks(this.projectile.position, 14);
+        const crossing =
+          item.rotor.type === 'entryExitPortal'
+            ? item.rotor.entryCrossingAt(
+                at.x,
+                at.y,
+                this.obstacleTime,
+                GAME_TUNING.projectile.radius,
+              )
+            : null;
+        if (crossing === 'false') {
+          // Amber false entry — energetic redirection off course.
+          this.projectile.velocity.z = -1.2;
+          this.projectile.velocity.y += signOr(at.y - 3, 1) * 2.2;
+          this.projectile.velocity.x += signOr(at.x, 1) * 2.6;
+          this.particles.spawnFalsePortalSuck(at);
+          this.particles.spawnHit(at.clone(), 8, 0xffb449, 2.0);
+        } else {
+          // Sealed wall (or other obstacle) — physical deflection.
+          this.projectile.velocity.z = -2;
+          this.projectile.velocity.y += 1.5;
+          this.projectile.velocity.x += signOr(at.x - item.rotor.getDebugInfo().x, 1) * 2;
+          this.particles.spawnSparks(this.projectile.position, 14);
+        }
         this.camera.collisionImpulse();
         GameHaptics.forResult('ROTOR_HIT');
         AudioManager.play(collisionEvent(item.rotor.type));
@@ -2016,18 +2041,28 @@ export class Game {
       }
       this.obstacleCleared[item.index] = true;
       if (item.rotor.type === 'entryExitPortal') {
-        const warp = item.rotor.warpTarget();
+        const at = item.rotor.interpolateCrossing(
+          this.projectile.previousPosition,
+          this.projectile.position,
+        );
+        const warp =
+          item.rotor.warpAtCrossing(at.x, at.y, this.obstacleTime) ??
+          (() => {
+            const legacy = item.rotor.warpTarget();
+            return legacy ? { ...legacy, kind: 'true' as const } : null;
+          })();
         if (warp) {
+          const from = this.projectile.position.clone();
+          // Redirect onto the destination portal path, then keep flying in Z into it.
           this.projectile.position.x = warp.x;
           this.projectile.position.y = warp.y;
           this.projectile.previousPosition.x = warp.x;
           this.projectile.previousPosition.y = warp.y;
-          this.particles.spawnHit(
-            this.projectile.position.clone(),
-            8,
-            0x85f5ff,
-            1.2,
-          );
+          this.projectile.velocity.x *= 0.25;
+          this.projectile.velocity.y *= 0.25;
+          if (this.projectile.velocity.z < 6) this.projectile.velocity.z = 6;
+          this.particles.spawnHit(at.clone(), 10, 0x7ef0ff, 1.8);
+          this.particles.spawnPortalFlow(from, this.projectile.position.clone());
         }
       }
       this.lastCloseCallClearance = result.clearance;
@@ -2055,7 +2090,9 @@ export class Game {
 
     const atPlane = this.projectileSystem.interpolateAtZ(this.projectile, this.target.z);
     const distance = distanceToTarget(atPlane.x, atPlane.y, this.target.x, this.target.y);
-    const scored = scoreTarget(distance, this.target.radius);
+    const scored = this.target.present
+      ? scoreTarget(distance, this.target.radius)
+      : { kind: 'MISS' as const, points: 0 };
     this.targetResolved = true;
     this.debugVisuals.recordTargetCrossing(atPlane);
     this.projectile.position.set(atPlane.x, atPlane.y, atPlane.z);
@@ -2310,7 +2347,7 @@ export class Game {
     }
 
     this.save = applyLevelFailure(this.save, def, {
-      consumeEnergy: true,
+      consumeEnergy: !isEnergyFreePracticeLevel(def.levelNumber),
       usedSecondChance: false,
     });
     this.syncCampaignEnergyOnSave();
@@ -2534,24 +2571,72 @@ export class Game {
     this.emitHud();
   }
 
+  /**
+   * False Entries: destination portal sits high and swaps left/center/right each play
+   * so Spark's cyan redirect visibly flies into a new landing each attempt.
+   */
+  private resolveFalseEntryLayout(config: ChallengeConfig): ChallengeConfig {
+    const hasMulti = config.obstacles.some(
+      (obs) =>
+        obs.type === 'entryExitPortal' &&
+        Array.isArray(obs.disks) &&
+        obs.disks.length > 1,
+    );
+    if (!hasMulti) return config;
+    const lanes = [-1.2, 0, 1.2] as const;
+    const exitX = lanes[Math.floor(Math.random() * lanes.length)]!;
+    const exitY = 4.9;
+    const obstacles = config.obstacles.map((obs) => {
+      if (obs.type !== 'entryExitPortal' || !Array.isArray(obs.disks) || obs.disks.length < 2) {
+        return obs;
+      }
+      return { ...obs, exitX, exitY };
+    });
+    const portal = obstacles.find((obs) => obs.type === 'entryExitPortal');
+    const destZ =
+      portal && portal.type === 'entryExitPortal'
+        ? portal.z + (portal.destinationDepth ?? 5.6)
+        : config.target.z;
+    return {
+      ...config,
+      obstacles,
+      target: { ...config.target, x: exitX, y: exitY, z: destZ },
+    };
+  }
+
   private applyChallenge(config: ChallengeConfig, immediateEnv: boolean): void {
+    const resolved = this.resolveFalseEntryLayout(config);
+    if (
+      this.sessionMode === 'campaign' &&
+      this.campaignDef &&
+      resolved !== config
+    ) {
+      this.campaignDef = {
+        ...this.campaignDef,
+        challenge: {
+          ...this.campaignDef.challenge,
+          obstacles: resolved.obstacles,
+          target: resolved.target,
+        },
+      };
+    }
     const encounter = this.sessionMode === 'campaign'
-      ? campaignEncounterStart(config)
-      : {offset: this.obstacleTime, obstacles: config.obstacles};
+      ? campaignEncounterStart(resolved)
+      : {offset: this.obstacleTime, obstacles: resolved.obstacles};
     this.obstacleTime = encounter.offset;
     AudioManager.syncOpening(null);
     this.openingScene.hide();
     this.scene.environment.group.visible = true;
-    this.scene.environment.setEnvironment(config.environment, this.scene.scene, immediateEnv);
-    this.scene.environment.setSpaceWorld(this.sessionMode === 'campaign' ? this.campaignDef?.worldId ?? null : null);
+    this.scene.environment.setEnvironment(resolved.environment, this.scene.scene, immediateEnv);
+    this.scene.environment.setSpaceWorld(this.sessionMode === 'campaign' ? this.campaignDef?.worldId ?? null : null, this.campaignDef?.levelNumber);
     this.scene.environment.setCampaignLevel(this.sessionMode === 'campaign' && (this.campaignDef?.worldId === 'containment' || this.campaignDef?.worldId === 'lockdown') ? this.campaignDef.levelNumber : null);
-    const showBreachPlate = config.obstacles.some(
+    const showBreachPlate = resolved.obstacles.some(
       (obstacle) =>
         obstacle.type === 'slidingGate' && obstacle.appearance === 'containmentGlass',
     );
     this.scene.environment.setBreachPlateVisible(showBreachPlate);
     if (showBreachPlate) {
-      const glass = config.obstacles.find(obstacle => obstacle.type === 'slidingGate' && obstacle.appearance === 'containmentGlass');
+      const glass = resolved.obstacles.find(obstacle => obstacle.type === 'slidingGate' && obstacle.appearance === 'containmentGlass');
       if (glass?.type === 'slidingGate') {
         this.openingScene.setBreach({x: glass.baseX, y: glass.baseY ?? GAME_TUNING.gate.baseY, z: glass.z, width: glass.openingWidth, height: glass.openingHeight});
       }
@@ -2560,7 +2645,7 @@ export class Game {
     for (let i = 0; i < this.obstacles.length; i += 1) {
       const rotorConfig = encounter.obstacles[i];
       if (rotorConfig) {
-        this.obstacles[i].applyConfig(rotorConfig, config.environment);
+        this.obstacles[i].applyConfig(rotorConfig, resolved.environment);
         this.obstacles[i].update(0, this.obstacleTime);
       } else {
         this.obstacles[i].hide();
@@ -2568,10 +2653,24 @@ export class Game {
     }
     this.syncSpeedFields(encounter.obstacles);
     this.syncLagrangeNulls(encounter.obstacles);
+    if (this.sessionMode !== 'campaign') {
+      this.projectileSystem.wells = wellsFromRepulsors(encounter.obstacles);
+      this.gravityWellField.setWells(this.projectileSystem.wells, {
+        showForceVectors: this.sparkPassive.showForceVectors,
+      });
+    } else if (this.campaignDef) {
+      this.projectileSystem.wells = [
+        ...(this.campaignDef.gravityWells ?? []),
+        ...wellsFromRepulsors(encounter.obstacles),
+      ];
+      this.gravityWellField.setWells(this.projectileSystem.wells, {
+        showForceVectors: this.sparkPassive.showForceVectors,
+      });
+    }
     this.debugVisuals.recordTargetCrossing(null);
-    this.target.applyConfig(config.target);
+    this.target.applyConfig(resolved.target);
     this.applyBloom();
-    this.target.setWorld(this.sessionMode === 'campaign' ? this.campaignDef?.worldId ?? 'containment' : config.environment === 'rooftop' ? 'city' : config.environment === 'space' ? 'orbit' : 'containment');
+    this.target.setWorld(this.sessionMode === 'campaign' ? this.campaignDef?.worldId ?? 'containment' : resolved.environment === 'rooftop' ? 'city' : resolved.environment === 'space' ? 'orbit' : 'containment');
     this.target.setBreachPresentation(showBreachPlate);
     this.obstacleCleared = [false, false, false];
   }
@@ -2892,40 +2991,56 @@ function failLabel(type: string, index: number): string {
   const names: Record<string, string> = {
     rotor: 'ROTOR',
     slidingGate: 'GATE',
-    iris: 'IRIS',
-    pendulum: 'PENDULUM',
+    iris: 'AIRLOCK',
+    pendulum: 'BOOM',
     movingRing: 'RING',
-    orbiter: 'ORBITER',
+    orbiter: 'ROCK',
     driftingBlocker: 'DRIFT',
-    phaseField: 'PHASE',
+    phaseField: 'MEMBRANE',
     shiftingAperture: 'APERTURE',
     laserGrid: 'LASER',
     formation: 'OBSTACLE',
     pistonField: 'PISTON',
-    clockHands: 'CLOCK',
+    clockHands: 'SCANNER',
     elevatorBlocks: 'ELEVATOR',
     pulseRing: 'PULSE',
     scissorGate: 'SCISSOR',
-    speedField: 'SPEED',
+    groundCutLasers: 'GROUND CUT',
+    speedField: 'CURRENT',
     splitShutter: 'SHUTTER',
     reactiveGate: 'REACT',
-    conveyorGate: 'CONVEYOR',
+    conveyorGate: 'DRONES',
+    billboardFlip: 'BOARD',
+    dockingCollar: 'COLLAR',
+    shearLane: 'SHEAR',
+    rotatingGate: 'ROTATE',
+    energyField: 'ENERGY',
+    phaseGate: 'PHASE',
+    repulsor: 'PUSH',
+    nullTendril: 'TENDRIL',
+    nullLash: 'LASH',
     rollingAperture: 'ROLL',
-    corkscrewTunnel: 'CORKSCREW',
+    corkscrewTunnel: 'CONDUIT',
     cometCrossing: 'COMET',
-    orbitingMoons: 'MOONS',
+    orbitingMoons: 'BEACONS',
     sequentialTunnel: 'SEQ',
-    movingSafeZone: 'SAFEZONE',
-    accretionShredder: 'ACCRETION',
-    pulsarBeam: 'PULSAR',
-    solarSail: 'SAIL',
-    magnetopause: 'SHEATH',
+    movingSafeZone: 'WRECK',
+    accretionShredder: 'DEBRIS',
+    pulsarBeam: 'BEAM',
+    solarSail: 'VANE',
+    magnetopause: 'DISH',
     lagrangeNull: 'NULL',
     teleportPortal: 'TELEPORT',
-    entryExitPortal: 'PORTAL',
+    entryExitPortal: 'FALSE',
     theNull: 'THE NULL',
   };
   return `${names[type] ?? type.toUpperCase()} ${String.fromCharCode(65 + index)}`;
+}
+
+function wellsFromRepulsors(obstacles: ObstacleConfig[]) {
+  return obstacles
+    .filter((o): o is Extract<ObstacleConfig, { type: 'repulsor' }> => o.type === 'repulsor')
+    .map(repulsorAsWell);
 }
 
 function collisionEvent(

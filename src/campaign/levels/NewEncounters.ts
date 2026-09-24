@@ -13,11 +13,11 @@ export const ENCOUNTER_LESSONS:Record<number,{name:string;body:string;hint:strin
  96:{name:t("newencounters.expanding_debris"),body:t("newencounters.fragments_spread_outward_then_converge_again_around_the_route"),hint:t("newencounters.launch_through_the_center_while_the_rocks_spread_their_return_clo")},
  102:{name:t("newencounters.expanding_debris"),body:t("newencounters.two_debris_clusters_breathe_at_different_rates"),hint:t("newencounters.read_the_near_cluster_then_the_far_one_time_the_whole_flight_rath")},
  108:{name:t("newencounters.phase_columns"),body:t("newencounters.columns_of_condensed_energy_emerge_from_the_nebula_then_fade_back"),hint:t("newencounters.bright_filled_columns_are_solid_dim_outlines_are_passable_amber_w")},
- 113:{name:t("newencounters.phase_columns"),body:t("newencounters.a_second_row_of_energy_columns_follows_a_different_rhythm"),hint:t("newencounters.find_a_route_through_both_rows_a_quiet_column_may_be_solid_again_")},
+ 113:{name:'False Membranes',body:'Two glowing membranes bar the false-home approach — each fades open, then solidifies again.',hint:'Wait for cyan on both membranes, then throw through the whole corridor while the passage is open.'},
  123:{name:t("newencounters.rotating_maze"),body:t("newencounters.an_ancient_plate_turns_an_off_center_opening_around_its_axis"),hint:t("newencounters.follow_the_amber_aperture_aim_where_the_opening_will_be_when_spar")},
  127:{name:t("newencounters.rotating_maze"),body:t("newencounters.two_ancient_plates_rotate_in_opposite_directions"),hint:t("newencounters.wait_for_a_route_through_both_amber_openings_then_commit_to_the_s")},
- 129:{name:t("newencounters.sequential_tunnel"),body:t("newencounters.three_mechanisms_form_one_timed_passage_through_the_network"),hint:t("newencounters.pass_all_three_apertures_in_one_flight_each_opens_in_sequence_pow")},
- 142:{name:t("newencounters.sequential_tunnel"),body:t("newencounters.luma_s_approach_repeats_the_sequence_at_a_quicker_rhythm"),hint:t("newencounters.watch_all_three_gates_aim_through_the_entire_passage_and_adjust_p")},
+ 129:{name:t("newencounters.sequential_tunnel"),body:t("newencounters.three_mechanisms_form_one_timed_passage_through_the_network"),hint:'Wait for the membranes to fade — throw through the whole corridor while the passage is open.'},
+ 142:{name:t("newencounters.sequential_tunnel"),body:t("newencounters.luma_s_approach_repeats_the_sequence_at_a_quicker_rhythm"),hint:'Same timed corridor, quicker cycle — commit when cyan opens and hold the line through all three.'},
 };
 
 /** Deliberate playtest courses; preserve level IDs, rewards, world exits and save progress. */
@@ -45,18 +45,51 @@ export function applyNewEncounters(source:CampaignLevelDefinition):CampaignLevel
  }else if(n===96||n===102){
   obstacles=[formation('expandingDebris',6,n===96?1.15:1.4)];
   if(n===102)obstacles.push(formation('expandingDebris',8.6,1.1,1.25));
- }else if(n===108||n===113){
-  obstacles=[formation('phaseColumns',5.8,n===108?.32:.4)];
-  if(n===113)obstacles.push(formation('phaseColumns',8.4,.35,.4));
-  target.x=n===108?.85:-.8;
+ }else if(n===108){
+  obstacles=[formation('phaseColumns',5.8,.32)];
+  target.x=.85;
+ }else if(n===113){
+  // Dual membranes (not panel columns) — base for false_home progressions 116/118/137.
+  // Library remaps campaign L113 to theNull; these obstacles only feed EncounterProgression.
+  const speed=0.58;
+  const refVz=8.5;
+  obstacles=[5.6,8.2].map((z,i)=>({
+   type:'phaseGate' as const,
+   sequenceIndex:i,
+   z,
+   centerX:0,
+   centerY:[2.95,3.15][i]!,
+   fieldRadius:1.18,
+   speed,
+   phase:(-z/refVz)*speed,
+   openRatio:0.46,
+   warningRatio:0.12,
+  }));
+  target.x=-.55;
+  target.y=3.1;
  }else if(n===123||n===127){
   obstacles=[{...formation('rotatingMaze',5.8,.65),centerY:2.7,openingRadius:1}];
   if(n===127)obstacles.push({...formation('rotatingMaze',8.4,.48,.6,-1),centerY:3.15,openingRadius:1.08});
   target.x=n===123?.6:-.4;
  }else{
-  const speed=n===129?2:2.5;
-  obstacles=[4.6,7,9.4].map((z,i)=>({type:'iris',sequenceIndex:i,z,centerX:0,centerY:[2.4,2.95,3.25][i],minRadius:.3,maxRadius:n===129?1.35:1.18,speed,phase:-z/9*speed}));
-  level.gravityScale=.8;target.y=3.35;
+  // Depth-stacked phase membranes: phase ≈ -z/vz*speed so each gate shares
+  // the same cycle local at its crossing (~vz 8.5 mid-power throw).
+  const speed = n === 129 ? 0.72 : 0.92;
+  const refVz = 8.5;
+  obstacles = [4.6, 7, 9.4].map((z, i) => ({
+    type: 'phaseGate' as const,
+    sequenceIndex: i,
+    z,
+    centerX: 0,
+    centerY: [2.85, 3.05, 3.2][i]!,
+    fieldRadius: n === 129 ? 1.12 : 1.02,
+    speed,
+    phase: (-z / refVz) * speed,
+    openRatio: n === 129 ? 0.48 : 0.44,
+    warningRatio: 0.12,
+  }));
+  level.gravityScale = 0.8;
+  target.y = 3.15;
  }
  level.tutorialHint=lesson.hint;
  level.challenge={...level.challenge,template:'COMBINED_HAZARD',obstacles,target,ricochet:undefined,tags:[...(level.challenge.tags??[]),'new-encounter',lesson.name]};

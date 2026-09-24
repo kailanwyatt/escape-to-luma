@@ -5,6 +5,7 @@ import type {EnvironmentId} from '../config/ChallengeConfig';
 import {emptyPredictedState,type ObstaclePredictedState} from './GameplayObstacle';
 import {formationParts,evaluateFormation} from './FormationState';
 import {createReadableBlocker} from './ReadableBlockerVisual';
+import {createConveyorAsteroid} from './ConveyorAsteroidArt';
 import {disposeThreeObject} from '../utils/disposeThree';
 
 /** Bounded reusable meshes; every solid surface samples the same state as collision. */
@@ -34,8 +35,8 @@ export class FormationObstacle {
    for(let i=0;i<20;i++){const a=i*Math.PI/10;const mark=new THREE.Mesh(new THREE.BoxGeometry(.13,.27,.025),metal.clone());mark.position.set(Math.cos(a)*2.32,Math.sin(a)*2.32,-.14);mark.rotation.z=a;this.plate.add(mark);}
   }else{
    for(const p of formationParts(c,0)){
-    const mesh=p.radius?createReadableBlocker('debris'):new THREE.Mesh(new THREE.BoxGeometry(1,1,.2),metal.clone());
-    if(p.radius)dressDebris(mesh,this.pieces.length+ (c.variant==='conveyor'?20:40));
+    const mesh=p.radius?(c.variant==='conveyor'?createConveyorAsteroid(this.pieces.length+20):createReadableBlocker('debris')):new THREE.Mesh(new THREE.BoxGeometry(1,1,.2),metal.clone());
+    if(p.radius&&c.variant!=='conveyor')dressDebris(mesh,this.pieces.length+40);
     if(c.variant==='alternatingDoors')dressSecurityPanel(mesh,this.pieces.length>=5);
     this.pieces.push(mesh);this.group.add(mesh);
     if(!p.radius){

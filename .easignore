@@ -45,9 +45,8 @@ yarn-error.*
 aperture-web-test.zip
 *.zip
 
-# Local planning, tests, previews and asset-production sources (not runtime).
-/docs/
-/dev/
+# Local planning, tests and tooling (not runtime). Non-runtime archives
+# live in sibling ../escape-to-lume-unused/
 /tests/
 /scripts/
 /.github/
@@ -57,10 +56,7 @@ aperture-web-test.zip
 /coverage/
 /output/
 /tmp/
-/assets/reference/
-/assets/brand/
 **/*.md
-/specs.md
 
 # Local credentials, reports and build artifacts.
 .env

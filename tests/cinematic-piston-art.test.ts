@@ -16,7 +16,7 @@ describe('cinematic piston presentation', () => {
     expect(shadow.material.transparent).toBe(true);
     expect(shadow.material.depthWrite).toBe(false);
     const shaft = art.group.getObjectByName('brushed-sliding-face') as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
-    expect(shaft.material.customProgramCacheKey()).toBe('piston-finish-v1-steel');
+    expect(shaft.material.customProgramCacheKey()).toBe('piston-finish-v2-steel');
     const env = shaft.material.envMap!;
     const brush = shaft.material.bumpMap!;
     let count = 0;
@@ -41,7 +41,7 @@ describe('cinematic piston presentation', () => {
       expect(bounds.max.z - bounds.min.z).toBeGreaterThan(.5);
       expect(body.geometry).toBe(geometry);
       art.group.traverse(o => {
-        if (!(o instanceof THREE.Mesh) || o.name.startsWith('socket') || o.name.startsWith('floor-')) return;
+        if (!(o instanceof THREE.Mesh) || o.name.startsWith('socket') || o.name.startsWith('floor-') || o.name === 'floor-contact-shadow') return;
         const b = new THREE.Box3().setFromObject(o);
         expect(b.max.y).toBeLessThanOrEqual(s.top + .0001);
         expect(b.min.x).toBeGreaterThanOrEqual(s.x - s.width / 2 - .0001);
@@ -50,5 +50,12 @@ describe('cinematic piston presentation', () => {
     }
     let disposed = false; geometry.addEventListener('dispose', () => { disposed = true; });
     art.dispose(); expect(disposed).toBe(true); expect(art.group.children).toHaveLength(0);
+  });
+
+  it('keeps archived V1 importable for revert', async () => {
+    const { CinematicPistonArtV1 } = await import('../src/obstacles/legacy/CinematicPistonArtV1');
+    const art = new CinematicPistonArtV1();
+    expect(art.group.name).toBe('cinematic-piston-v1');
+    art.dispose();
   });
 });

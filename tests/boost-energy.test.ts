@@ -22,4 +22,19 @@ describe('consumable economy',()=>{
   expect(canStartLevel(s.campaign,1).ok).toBe(true);
   expect(applyLevelFailure(s,def,{consumeEnergy:true,usedSecondChance:false}).campaign.currentEnergy).toBe(0);
  });
+ it('does not spend energy during Containment practice (L1–5)',()=>{
+  const s=emptySave();s.campaign.currentEnergy=15;s.campaign.highestUnlockedLevel=5;
+  for(const n of [1,3,5]){
+   const def=getCampaignLevel(n)!;
+   const next=applyLevelFailure(s,def,{consumeEnergy:true,usedSecondChance:false});
+   expect(next.campaign.currentEnergy).toBe(15);
+   expect(canStartLevel({...s.campaign,currentEnergy:0},n).ok).toBe(true);
+  }
+ });
+ it('spends energy after practice completes (L6+)',()=>{
+  const s=emptySave();s.campaign.currentEnergy=15;s.campaign.highestUnlockedLevel=6;
+  const def=getCampaignLevel(6)!;
+  expect(applyLevelFailure(s,def,{consumeEnergy:true,usedSecondChance:false}).campaign.currentEnergy).toBe(14);
+  expect(canStartLevel({...s.campaign,currentEnergy:0,highestUnlockedLevel:6},6).ok).toBe(false);
+ });
 });

@@ -12,7 +12,9 @@ export function validateChallenge(
   forces: PhysicsForces = {},
 ): string | null {
   const obstacles = challenge.obstacles;
-  const allowsOpenFinale = challenge.template === 'HOME_FINALE' || Boolean(challenge.ricochet);
+  const teleportTarget = challenge.target.movement?.type === 'teleport';
+  const allowsOpenFinale =
+    challenge.template === 'HOME_FINALE' || Boolean(challenge.ricochet) || teleportTarget;
   if ((obstacles.length < 1 && !allowsOpenFinale) || obstacles.length > 3) {
     return 'obstacle-count';
   }
@@ -43,7 +45,17 @@ export function validateChallenge(
   if (Math.abs(target.x) > GAME_TUNING.target.playableX) {
     return 'target-x';
   }
-  if (target.y < GAME_TUNING.target.playableY.min || target.y > GAME_TUNING.target.playableY.max) {
+  // False Entries warp Spark to a high destination portal above the aperture band.
+  const falseEntryDestination = obstacles.some(
+    (obstacle) =>
+      obstacle.type === 'entryExitPortal' &&
+      Array.isArray(obstacle.disks) &&
+      obstacle.disks.length > 1,
+  );
+  const maxPlayableY = falseEntryDestination
+    ? Math.max(GAME_TUNING.target.playableY.max, 5.2)
+    : GAME_TUNING.target.playableY.max;
+  if (target.y < GAME_TUNING.target.playableY.min || target.y > maxPlayableY) {
     return 'target-y';
   }
 
@@ -57,6 +69,16 @@ export function validateChallenge(
     }
     if (target.y + targetAmp > GAME_TUNING.target.playableY.max) {
       return 'target-move-y';
+    }
+  }
+  if (target.movement?.type === 'teleport') {
+    const anchors = target.movement.anchors ?? [];
+    if (anchors.length < 2) return 'target-teleport-anchors';
+    for (const anchor of anchors) {
+      if (Math.abs(anchor.x) > GAME_TUNING.target.playableX) return 'target-move-x';
+      if (anchor.y < GAME_TUNING.target.playableY.min || anchor.y > GAME_TUNING.target.playableY.max) {
+        return 'target-move-y';
+      }
     }
   }
 
@@ -172,6 +194,7 @@ export function validateChallenge(
       type === 'elevatorBlocks' ||
       type === 'pulseRing' ||
       type === 'scissorGate' ||
+      type === 'groundCutLasers' ||
       type === 'speedField' ||
       type === 'splitShutter' ||
       type === 'reactiveGate' ||
@@ -179,6 +202,15 @@ export function validateChallenge(
       type === 'rollingAperture' ||
       type === 'corkscrewTunnel' ||
       type === 'cometCrossing' ||
+      type === 'billboardFlip' ||
+      type === 'dockingCollar' ||
+      type === 'shearLane' ||
+      type === 'rotatingGate' ||
+      type === 'energyField' ||
+      type === 'phaseGate' ||
+      type === 'repulsor' ||
+      type === 'nullTendril' ||
+      type === 'nullLash' ||
       type === 'orbitingMoons' ||
       type === 'sequentialTunnel' ||
       type === 'movingSafeZone' ||

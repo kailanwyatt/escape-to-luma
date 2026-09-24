@@ -22,6 +22,11 @@ export function syncCampaignEnergy(campaign: CampaignSave, now = Date.now()): Ca
   };
 }
 
+/** Containment practice (L1–energyFreeThroughLevel): failures do not spend energy. */
+export function isEnergyFreePracticeLevel(levelNumber: number): boolean {
+  return levelNumber >= 1 && levelNumber <= ECONOMY.energyFreeThroughLevel;
+}
+
 export function canStartLevel(campaign: CampaignSave, levelNumber: number, now = Date.now()): {
   ok: boolean;
   reason?: 'locked' | 'missing' | 'energy' | 'stub';
@@ -45,6 +50,7 @@ export function canStartLevel(campaign: CampaignSave, levelNumber: number, now =
   if (
     !RELEASE_POLICY.freeRetries &&
     !replay &&
+    !isEnergyFreePracticeLevel(levelNumber) &&
     !hasUnlimitedEnergy(synced, now) &&
     synced.currentEnergy <= 0
   ) {
@@ -158,6 +164,7 @@ export function applyLevelFailure(
   if (
     !RELEASE_POLICY.freeRetries &&
     options.consumeEnergy &&
+    !isEnergyFreePracticeLevel(definition.levelNumber) &&
     !hasUnlimitedEnergy(campaign) &&
     !options.usedSecondChance
   ) {

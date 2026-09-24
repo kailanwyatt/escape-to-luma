@@ -2,6 +2,7 @@
   "expo": {
     "name": "SPARK",
     "slug": "escape-to-luma",
+    "owner": "suiteplugins",
     "version": "0.1.0",
     "scheme": "spark",
     "orientation": "portrait",
@@ -10,7 +11,7 @@
     "backgroundColor": "#050B15",
     "ios": {
       "bundleIdentifier": "com.kurt.sparkescapetoluma",
-      "buildNumber": "2",
+      "buildNumber": "4",
       "supportsTablet": true,
       "requireFullScreen": true,
       "config": {
@@ -76,7 +77,19 @@
     "extra": {
       "eas": {
         "projectId": "06bd8d18-81fe-4e5a-bcfe-c7f46d834c98"
+      },
+      "admob": {
+        "iosAppId": "ca-app-pub-1715335515944327~5238132731",
+        "androidAppId": "ca-app-pub-1715335515944327~9693302939",
+        "iosRewardedUnitId": "ca-app-pub-1715335515944327/4154035794",
+        "androidRewardedUnitId": "ca-app-pub-1715335515944327/1914974559",
+        "iosInterstitialUnitId": "ca-app-pub-1715335515944327/5038822187",
+        "androidInterstitialUnitId": "ca-app-pub-1715335515944327/8380221265"
       }
     }
+  },
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-1715335515944327~9693302939",
+    "ios_app_id": "ca-app-pub-1715335515944327~5238132731"
   }
 }

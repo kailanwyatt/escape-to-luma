@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Escape to Luma — App Assets</title>
+<style>
+  :root {
+    --ink: #061018;
+    --panel: #0c1a26;
+    --line: rgba(126, 240, 255, 0.22);
+    --cream: #eef6fa;
+    --muted: #8eafc0;
+    --cyan: #7ef0ff;
+    --amber: #ffd54a;
+    --coral: #ff7a6e;
+    --good: #6dffb0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Avenir Next", "Segoe UI", sans-serif;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #12324a 0%, transparent 55%),
+      radial-gradient(900px 500px at 100% 0%, #2a1830 0%, transparent 45%),
+      var(--ink);
+    color: var(--cream);
+  }
+  header {
+    position: sticky; top: 0; z-index: 20;
+    backdrop-filter: blur(14px);
+    background: rgba(6, 16, 24, 0.88);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 18px 12px;
+  }
+  h1 { margin: 0; font-size: 18px; letter-spacing: 0.08em; font-weight: 800; }
+  .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center;
+  }
+  input, select, button {
+    background: var(--panel); color: var(--cream);
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 8px 10px; font: inherit; font-size: 13px;
+  }
+  input[type="search"] { min-width: 220px; flex: 1; }
+  button { cursor: pointer; }
+  .stats { margin-left: auto; color: var(--muted); font-size: 12px; }
+  main { padding: 18px; max-width: 1400px; margin: 0 auto; }
+  section { margin-bottom: 28px; }
+  section h2 {
+    margin: 0 0 12px; font-size: 13px; letter-spacing: 0.16em;
+    color: var(--cyan); text-transform: uppercase;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: linear-gradient(180deg, rgba(18, 36, 52, 0.95), rgba(10, 20, 30, 0.98));
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .frame {
+    aspect-ratio: 4 / 3;
+    background:
+      linear-gradient(45deg, #182430 25%, transparent 25%) -8px 0 / 16px 16px,
+      linear-gradient(-45deg, #182430 25%, transparent 25%) -8px 0 / 16px 16px,
+      linear-gradient(45deg, transparent 75%, #182430 75%) 0 0 / 16px 16px,
+      linear-gradient(-45deg, transparent 75%, #182430 75%) 0 -8px / 16px 16px,
+      #0a141c;
+    display: grid; place-items: center;
+  }
+  .frame img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; cursor: zoom-in; }
+  .frame.audio { padding: 16px; }
+  .frame audio { width: 100%; }
+  .meta { padding: 12px 12px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .title { font-weight: 800; font-size: 14px; line-height: 1.25; }
+  .path { color: var(--muted); font-size: 10px; word-break: break-all; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .badge {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
+    border-radius: 999px; padding: 4px 8px;
+    background: rgba(255,255,255,0.06); color: var(--muted);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .decisions button {
+    flex: 1; padding: 7px 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  }
+  .decisions button.picked-keep { border-color: var(--good); color: var(--good); }
+  .decisions button.picked-revise { border-color: var(--amber); color: var(--amber); }
+  .decisions button.picked-reject { border-color: var(--coral); color: var(--coral); }
+  footer {
+    padding: 10px 18px 28px; color: var(--muted); font-size: 12px; text-align: center;
+  }
+  .error { color: var(--coral); padding: 24px; }
+  dialog {
+    border: 1px solid var(--line); border-radius: 16px; background: #07131d; color: var(--cream);
+    width: min(1100px, 94vw); max-height: 90vh; padding: 0;
+  }
+  dialog::backdrop { background: rgba(0,0,0,0.72); }
+  dialog .frame { aspect-ratio: auto; max-height: 70vh; }
+  dialog .meta { padding: 16px; }
+  dialog .close { position: absolute; top: 10px; right: 10px; z-index: 2; }
+  .lightbox-wrap { position: relative; }
+</style>
+</head>
+<body>
+<header>
+  <h1>APP ASSETS</h1>
+  <div class="sub">Live scan of <code>assets/</code> — images &amp; audio. Obstacles are procedural Three.js → <a href="/obstacles" style="color:var(--cyan)">open obstacle gallery</a>.</div>
+  <div class="controls">
+    <a href="/obstacles" style="background:var(--panel);color:var(--cyan);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;font-size:13px;text-decoration:none">Obstacle gallery</a>
+    <a href="/piston" style="background:var(--panel);color:var(--amber);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;font-size:13px;text-decoration:none">Cinematic piston</a>
+    <a href="/gate" style="background:var(--panel);color:var(--amber);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;font-size:13px;text-decoration:none">Cinematic gate</a>
+    <input id="q" type="search" placeholder="Search label or path…" />
+    <select id="category">
+      <option value="all">All categories</option>
+    </select>
+    <select id="kind">
+      <option value="all">Images + audio</option>
+      <option value="image">Images only</option>
+      <option value="audio">Audio only</option>
+    </select>
+    <select id="decision">
+      <option value="all">All decisions</option>
+      <option value="unset">Unset</option>
+      <option value="keep">Keep</option>
+      <option value="revise">Revise</option>
+      <option value="reject">Reject</option>
+    </select>
+    <button type="button" id="export">Export decisions JSON</button>
+    <button type="button" id="clear">Clear decisions</button>
+    <div class="stats" id="stats"></div>
+  </div>
+</header>
+<main id="main"><div class="sub" style="padding:24px">Loading catalog…</div></main>
+<footer>Served by <code>npm run review:assets</code> → <code>http://127.0.0.1:8765/</code>
+  · <a href="/obstacles" style="color:var(--cyan)">obstacle gallery</a></footer>
+<dialog id="lightbox"><div class="lightbox-wrap"><button class="close" type="button" id="lb-close">Close</button><div class="frame" id="lb-frame"></div><div class="meta" id="lb-meta"></div></div></dialog>
+<script>
+const STORE_KEY = 'etl-app-asset-decisions-v1';
+const CAT_TITLES = {
+  background: 'Backgrounds & worlds',
+  spark: 'Sparks',
+  story: 'Story',
+  ui: 'Shop / UI',
+  world1: 'World 1',
+  brand: 'Icons & splash',
+  audio: 'SFX',
+  other: 'Other',
+};
+const ORDER = ['background', 'spark', 'story', 'ui', 'world1', 'brand', 'audio', 'other'];
+
+/** @type {{id:string,path:string,label:string,category:string,kind:string,bytes:number,folder:string}[]} */
+let ASSETS = [];
+const decisions = loadDecisions();
+
+function loadDecisions() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); }
+  catch { return {}; }
+}
+function saveDecisions() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(decisions));
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+async function boot() {
+  try {
+    const res = await fetch('/api/catalog');
+    const data = await res.json();
+    ASSETS = data.assets || [];
+    const cats = [...new Set(ASSETS.map(a => a.category))];
+    const select = document.getElementById('category');
+    for (const c of ORDER.filter(k => cats.includes(k))) {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = CAT_TITLES[c] || c;
+      select.appendChild(opt);
+    }
+    render();
+  } catch (err) {
+    document.getElementById('main').innerHTML =
+      `<div class="error">Could not load /api/catalog. Run via <code>npm run review:assets</code>.<br>${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function render() {
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const cat = document.getElementById('category').value;
+  const kind = document.getElementById('kind').value;
+  const dec = document.getElementById('decision').value;
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+  let shown = 0;
+
+  for (const key of ORDER) {
+    const items = ASSETS.filter(a => a.category === key);
+    if (!items.length) continue;
+    const section = document.createElement('section');
+    section.innerHTML = `<h2>${CAT_TITLES[key] || key}</h2>`;
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    let sectionShown = 0;
+    for (const asset of items) {
+      const d = decisions[asset.id] || 'unset';
+      const hay = `${asset.label} ${asset.path} ${asset.folder} ${d}`.toLowerCase();
+      const hide =
+        (cat !== 'all' && asset.category !== cat) ||
+        (kind !== 'all' && asset.kind !== kind) ||
+        (dec !== 'all' && d !== dec) ||
+        (q && !hay.includes(q));
+      if (hide) continue;
+      sectionShown++; shown++;
+      grid.appendChild(cardEl(asset, d));
+    }
+    if (sectionShown) {
+      section.appendChild(grid);
+      main.appendChild(section);
+    }
+  }
+  document.getElementById('stats').textContent =
+    `${shown} / ${ASSETS.length} shown · ${Object.keys(decisions).length} decisions`;
+}
+
+function cardEl(asset, d) {
+  const card = document.createElement('article');
+  card.className = 'card';
+  const frame = document.createElement('div');
+  frame.className = 'frame' + (asset.kind === 'audio' ? ' audio' : '');
+  if (asset.kind === 'image') {
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.alt = asset.label;
+    img.src = '/' + asset.path;
+    img.onerror = () => { frame.textContent = 'Missing file'; };
+    img.onclick = () => openLightbox(asset);
+    frame.appendChild(img);
+  } else {
+    const audio = document.createElement('audio');
+    audio.controls = true;
+    audio.preload = 'none';
+    audio.src = '/' + asset.path;
+    frame.appendChild(audio);
+  }
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.innerHTML = `
+    <div class="title">${escapeHtml(asset.label)}</div>
+    <div class="row">
+      <span class="badge">${escapeHtml(asset.kind)}</span>
+      <span class="badge">${escapeHtml(formatBytes(asset.bytes))}</span>
+    </div>
+    <div class="path">${escapeHtml(asset.path)}</div>
+    <div class="row decisions"></div>`;
+  const decRow = meta.querySelector('.decisions');
+  for (const opt of ['keep', 'revise', 'reject']) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = opt.toUpperCase();
+    if (d === opt) b.classList.add('picked-' + opt);
+    b.onclick = () => {
+      if (decisions[asset.id] === opt) delete decisions[asset.id];
+      else decisions[asset.id] = opt;
+      saveDecisions();
+      render();
+    };
+    decRow.appendChild(b);
+  }
+  card.append(frame, meta);
+  return card;
+}
+
+function openLightbox(asset) {
+  const dlg = document.getElementById('lightbox');
+  document.getElementById('lb-frame').innerHTML = `<img src="/${escapeHtml(asset.path)}" alt="">`;
+  document.getElementById('lb-meta').innerHTML =
+    `<div class="title">${escapeHtml(asset.label)}</div><div class="path">${escapeHtml(asset.path)}</div>`;
+  dlg.showModal();
+}
+
+document.getElementById('lb-close').onclick = () => document.getElementById('lightbox').close();
+document.getElementById('q').oninput = render;
+document.getElementById('category').onchange = render;
+document.getElementById('kind').onchange = render;
+document.getElementById('decision').onchange = render;
+document.getElementById('export').onclick = () => {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    decisions,
+    catalog: ASSETS.map(a => ({ path: a.path, category: a.category, decision: decisions[a.id] || null })),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'etl-app-asset-decisions.json';
+  a.click();
+};
+document.getElementById('clear').onclick = () => {
+  if (confirm('Clear all keep/revise/reject decisions?')) {
+    for (const k of Object.keys(decisions)) delete decisions[k];
+    saveDecisions();
+    render();
+  }
+};
+
+boot();
+</script>
+</body>
+</html>

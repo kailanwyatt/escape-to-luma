@@ -3,7 +3,7 @@ import {containmentMetal} from '../graphics/ContainmentMaterials';
 
 /** Rooftop objects built from shared, instanced parts. The central flight lane
  * stays clear; equipment occupies service strips outside x ±3.1. */
-export function createRooftopScene(): THREE.Group {
+export function createRooftopScene(distantBuildings=true): THREE.Group {
   const root=new THREE.Group();root.name='rooftop';
   const steel=containmentMetal();steel.color.setHex(0xadb9bb);
   const concrete=new THREE.MeshPhongMaterial({color:0x657784,shininess:8});
@@ -84,7 +84,7 @@ export function createRooftopScene(): THREE.Group {
   const dish=mesh(new THREE.LatheGeometry(dishProfile,24),dishMat,4.45,2.35,14.95);dish.rotation.x=-Math.PI/2;
   box(coping,4.45,2.35,14.74,.045,.045,.42);
   // Distant buildings have different heights, roof crowns and window grids.
-  for(let i=0;i<15;i++) {
+  for(let i=0;i<(distantBuildings?15:0);i++) {
     const x=-24+i*3.45,z=25+(i%3)*5,height=8+(i*7%11),width=2.4+(i%3)*.35;
     box(concrete,x,height/2-4,z,width,height,3.2);
     box(coping,x,height-3.9,z,width+.15,.2,3.35);

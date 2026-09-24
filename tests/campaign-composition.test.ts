@@ -44,10 +44,23 @@ describe('authored campaign compositions',()=>{
   });
   it('keeps Ascent library remaps isolated before paired timing encounters', () => {
     expect(getCampaignLevel(32)!.challenge.obstacles).toHaveLength(1);
-    expect(getCampaignLevel(32)!.challenge.obstacles[0].type).toBe('scissorGate');
+    expect(getCampaignLevel(32)!.challenge.obstacles[0].type).toBe('groundCutLasers');
     expect(getCampaignLevel(33)!.challenge.obstacles).toHaveLength(1);
-    expect(getCampaignLevel(33)!.challenge.obstacles[0].type).toBe('solarSail');
+    expect(getCampaignLevel(33)!.challenge.obstacles[0].type).toBe('movingRing');
     expect(getCampaignLevel(40)!.challenge.obstacles[0].type).toBe('pulseRing');
     expect(Math.abs(getCampaignLevel(45)!.windX!)).toBeGreaterThan(Math.abs(getCampaignLevel(31)!.windX!));
+  });
+  it('keeps Upper Atmosphere mastery on iris and climb rings, not city gates', () => {
+    const mastery = [57, 59, 60].map((n) => getCampaignLevel(n)!);
+    for (const level of mastery) {
+      expect(level.worldId).toBe('upper_atmosphere');
+      const types = level.challenge.obstacles.map((o) => o.type);
+      expect(types).toContain('iris');
+      expect(types).toContain('movingRing');
+      expect(types).not.toContain('slidingGate');
+      expect(types).not.toContain('driftingBlocker');
+      expect(types).not.toContain('solarSail');
+    }
+    expect(getCampaignLevel(47)!.challenge.obstacles[0].type).toBe('rollingAperture');
   });
 });

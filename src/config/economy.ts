@@ -5,6 +5,8 @@ export const ECONOMY = {
   energyRegenMinutes: 10,
   rewardedAdEnergyAmount: 5,
   energyRefillCost: 60,
+  /** Containment onboarding / practice: no energy cost through this level (inclusive). */
+  energyFreeThroughLevel: 5,
   portalBloomMultiplier: 1.25,
 
   score: {

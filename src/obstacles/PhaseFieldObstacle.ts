@@ -50,8 +50,10 @@ export class PhaseFieldObstacle {
       );
       this.group.add(this.mesh);
       this.warning=new THREE.Group();
-      const warningMat=new THREE.MeshBasicMaterial({color:0xffa28c});
-      for(const sign of [-1,1]){const bar=new THREE.Mesh(new THREE.BoxGeometry(1.1,.045,.01),warningMat);bar.rotation.z=sign*Math.PI/4;bar.position.z=-.025;this.warning.add(bar);}
+      // Soft membrane rim — no HUD-style X bars.
+      const warningMat=new THREE.MeshBasicMaterial({color:0xff8a7a,transparent:true,opacity:.55,depthWrite:false});
+      const warnRing=new THREE.Mesh(new THREE.TorusGeometry(0.92,.03,6,48),warningMat);
+      warnRing.position.z=-.02;this.warning.add(warnRing);
       this.group.add(this.warning);
       this.boundary=new THREE.Mesh(new THREE.TorusGeometry(1,.012,6,64),new THREE.MeshBasicMaterial({color:0x98efdc,transparent:true,opacity:.65,depthWrite:false}));this.group.add(this.boundary);
 

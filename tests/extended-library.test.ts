@@ -16,7 +16,7 @@ import {
 } from '../src/obstacles/ExtendedLibraryState';
 
 describe('extended library obstacle state', () => {
-  it('split shutter is deterministic and clears the center when open', () => {
+  it('split shutter seals, opens a short window, warns, then slams', () => {
     const config = {
       type: 'splitShutter' as const,
       z: 6,
@@ -24,17 +24,29 @@ describe('extended library obstacle state', () => {
       centerY: 3,
       panelWidth: 1.5,
       panelHeight: 2.4,
-      minGap: 0.5,
+      minGap: 0.1,
       maxGap: 2.2,
       speed: 1,
-      phase: Math.PI / 2,
+      closedHold: 0.5,
+      openingDuration: 0.25,
+      openHold: 0.4,
+      warningHold: 0.2,
+      slamDuration: 0.15,
     };
-    const a = splitShutterStateAtTime(config, 1.25);
-    const b = splitShutterStateAtTime(config, 1.25);
-    expect(a).toEqual(b);
-    expect(a.gap).toBeGreaterThan(1.5);
-    const clear = evaluateSplitShutterCollision(config, 1.25, 0, 3, 0.18);
-    expect(clear.hit).toBe(false);
+    expect(splitShutterStateAtTime(config, 0.1).phase).toBe('closed');
+    expect(splitShutterStateAtTime(config, 0.1).gap).toBeCloseTo(0.1, 5);
+    expect(evaluateSplitShutterCollision(config, 0.1, 0, 3, 0.22).hit).toBe(true);
+
+    expect(splitShutterStateAtTime(config, 0.6).phase).toBe('opening');
+    expect(splitShutterStateAtTime(config, 0.9).phase).toBe('open');
+    expect(splitShutterStateAtTime(config, 0.9).gap).toBeCloseTo(2.2, 5);
+    expect(evaluateSplitShutterCollision(config, 0.9, 0, 3, 0.22).hit).toBe(false);
+
+    expect(splitShutterStateAtTime(config, 1.2).phase).toBe('warning');
+    expect(splitShutterStateAtTime(config, 1.2).warning).toBe(true);
+    expect(splitShutterStateAtTime(config, 1.4).phase).toBe('slamming');
+    expect(splitShutterStateAtTime(config, 1.4).gap).toBeLessThan(2.2);
+    expect(splitShutterStateAtTime(config, 0.1)).toEqual(splitShutterStateAtTime(config, 0.1));
   });
 
   it('reactive gate cycles closed → warning → open', () => {
@@ -102,26 +114,26 @@ describe('extended library obstacle state', () => {
     expect(evaluateRollingApertureCollision(config, 1, a.x + 3, a.y, 0.22).hit).toBe(true);
   });
 
-  it('corkscrew clears the hub and rotating gap, blocks the ring band', () => {
+  it('corkscrew hits the hub and solid plate; clears only the timed sector', () => {
     const config = {
       type: 'corkscrewTunnel' as const,
       z: 6,
       centerX: 0,
       centerY: 3,
-      radius: 1.7,
-      gapWidth: 2.1,
-      innerRadius: 0.75,
+      radius: 1.85,
+      gapWidth: 0.82,
+      innerRadius: 0.28,
       speed: 0,
       phase: 0,
     };
     const state = corkscrewStateAtTime(config, 0);
-    // Open hub always clear (unlike the old solid-disk model).
-    expect(evaluateCorkscrewCollision(config, 0, 0, 3, 0.22).hit).toBe(false);
-    // Through the gap in the ring band.
+    // Hub is solid — no free pass through the middle.
+    expect(evaluateCorkscrewCollision(config, 0, 0, 3, 0.22).hit).toBe(true);
+    // Through the gap sector.
     const gx = state.centerX + Math.cos(state.gapAngle) * 1.2;
     const gy = state.centerY + Math.sin(state.gapAngle) * 1.2;
     expect(evaluateCorkscrewCollision(config, 0, gx, gy, 0.22).hit).toBe(false);
-    // Opposite side of the ring is solid.
+    // Opposite side of the disk is solid.
     const bx = state.centerX + Math.cos(state.gapAngle + Math.PI) * 1.2;
     const by = state.centerY + Math.sin(state.gapAngle + Math.PI) * 1.2;
     expect(evaluateCorkscrewCollision(config, 0, bx, by, 0.22).hit).toBe(true);

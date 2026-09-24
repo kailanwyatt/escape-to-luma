@@ -32,9 +32,9 @@ function cloudTexture():THREE.DataTexture {
  }
  const t=new THREE.DataTexture(data,size,size);t.colorSpace=THREE.SRGBColorSpace;t.magFilter=THREE.LinearFilter;t.minFilter=THREE.LinearFilter;t.needsUpdate=true;return t;
 }
-export function createSkyClouds():THREE.Group {
+export function createSkyClouds(storm=false):THREE.Group {
  const root=new THREE.Group();root.name='layered-cloud-banks';
- const map=cloudTexture(),mat=new THREE.MeshBasicMaterial({map,transparent:true,depthWrite:false,side:THREE.DoubleSide,fog:true,opacity:.85});
+ const map=cloudTexture(),mat=new THREE.MeshBasicMaterial({map,color:storm?0x536778:0xffffff,transparent:true,depthWrite:false,side:THREE.DoubleSide,fog:true,opacity:storm?.95:.85});
  const geo=new THREE.PlaneGeometry(1,1);
  for(let i=0;i<14;i++){
   const o=new THREE.Mesh(geo,mat);o.name='soft-cloud-bank';
@@ -46,9 +46,9 @@ export function createSkyClouds():THREE.Group {
  for(let i=0;i<3;i++){const o=new THREE.Mesh(geo,mat);o.position.set((i-1)*24,-5,56);o.scale.set(34,10,1);root.add(o);}
  return root;
 }
-export function createMoonArt():THREE.Group {
+export function createMoonArt(showEarth=true):THREE.Group {
  const root=new THREE.Group();root.name='lunar-survey-outpost';
- const earth=createEarth();earth.children.forEach(o=>{o.position.set(-6,12,52);o.scale.setScalar(.115);});root.add(earth);
+ if(showEarth){const earth=createEarth();earth.children.forEach(o=>{o.position.set(-6,12,52);o.scale.setScalar(.115);});root.add(earth);}
  const grain=mineralTexture();grain.repeat.set(18,18);
  const soil=new THREE.MeshPhongMaterial({color:0x747c84,map:grain,bumpMap:grain,bumpScale:.035,shininess:2,specular:0x15191d});
  const geo=new THREE.PlaneGeometry(70,78,140,156);geo.rotateX(-Math.PI/2);geo.translate(0,-.65,25);

@@ -29,6 +29,7 @@ const LIBRARY_TYPES = new Set<ObstacleType>([
   'elevatorBlocks',
   'pulseRing',
   'scissorGate',
+  'groundCutLasers',
   'speedField',
   'splitShutter',
   'reactiveGate',
@@ -36,6 +37,13 @@ const LIBRARY_TYPES = new Set<ObstacleType>([
   'rollingAperture',
   'corkscrewTunnel',
   'cometCrossing',
+  'billboardFlip',
+  'dockingCollar',
+  'shearLane',
+  'rotatingGate',
+  'energyField',
+  'phaseGate',
+  'repulsor',
 ]);
 
 const STORY_TYPES = new Set<ObstacleType>([
@@ -50,6 +58,8 @@ const STORY_TYPES = new Set<ObstacleType>([
   'teleportPortal',
   'entryExitPortal',
   'theNull',
+  'nullTendril',
+  'nullLash',
 ]);
 
 type ObstacleImpl =
@@ -160,6 +170,26 @@ export class ObstacleSlot {
     return this.impl instanceof StoryLibraryObstacle ? this.impl.warpTarget() : null;
   }
 
+  /** True vs decoy warp from crossing XY (legacy single-disk). */
+  warpAtCrossing(x: number, y: number, time?: number): { x: number; y: number; kind: 'true' | 'false' } | null {
+    return this.impl instanceof StoryLibraryObstacle ? this.impl.warpAtCrossing(x, y, time) : null;
+  }
+
+  entryCrossingAt(
+    x: number,
+    y: number,
+    time?: number,
+    projectileRadius?: number,
+  ): 'true' | 'false' | 'wall' | null {
+    return this.impl instanceof StoryLibraryObstacle
+      ? this.impl.entryCrossingAt(x, y, time, projectileRadius)
+      : null;
+  }
+
+  isMultiEntryRelay(): boolean {
+    return this.impl instanceof StoryLibraryObstacle ? this.impl.isMultiEntryRelay() : false;
+  }
+
   laserBeamsAtTime(elapsedTime: number) {
     return this.impl instanceof LaserGridObstacle
       ? this.impl.beamsAtTime(elapsedTime)
@@ -245,6 +275,7 @@ function createImpl(id: string, type: ObstacleType): ObstacleImpl {
     case 'elevatorBlocks':
     case 'pulseRing':
     case 'scissorGate':
+    case 'groundCutLasers':
     case 'speedField':
     case 'splitShutter':
     case 'reactiveGate':
@@ -252,6 +283,13 @@ function createImpl(id: string, type: ObstacleType): ObstacleImpl {
     case 'rollingAperture':
     case 'corkscrewTunnel':
     case 'cometCrossing':
+    case 'billboardFlip':
+    case 'dockingCollar':
+    case 'shearLane':
+    case 'rotatingGate':
+    case 'energyField':
+    case 'phaseGate':
+    case 'repulsor':
       return new LibraryObstacle(id);
     case 'orbitingMoons':
     case 'sequentialTunnel':
@@ -264,6 +302,8 @@ function createImpl(id: string, type: ObstacleType): ObstacleImpl {
     case 'teleportPortal':
     case 'entryExitPortal':
     case 'theNull':
+    case 'nullTendril':
+    case 'nullLash':
       return new StoryLibraryObstacle(id);
     default:
       return new RotorObstacle(id);

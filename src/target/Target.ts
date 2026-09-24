@@ -2,7 +2,7 @@ import {JumpGateVisual} from './JumpGateVisual';
 import * as THREE from 'three';
 
 import type { ChallengeConfig } from '../config/ChallengeConfig';
-import { sampleMovement } from '../config/MovementConfig';
+import { sampleMovement, teleportTargetPoseAtTime } from '../config/MovementConfig';
 import { GAME_TUNING } from '../game/gameTuning';
 
 export class Target {
@@ -13,6 +13,8 @@ export class Target {
   radius = GAME_TUNING.target.defaultRadius;
   baseX = 0;
   baseY = 3;
+  /** False while a teleporting portal is vanished between anchors. */
+  present = true;
   private readonly visual = new JumpGateVisual();
   private breach = false;
   private movement?: ChallengeConfig['target']['movement'];
@@ -32,15 +34,21 @@ export class Target {
     this.z = config.z ?? GAME_TUNING.target.z;
     this.radius = config.radius;
     this.movement = config.movement;
+    this.present = true;
     this.visual.reset();
     this.syncScale();
     this.group.position.set(this.x, this.y, this.z);
+    if (this.movement?.type === 'teleport') {
+      this.applyTeleportPose(0);
+    }
   }
 
   /** The breach is the destination in the opening; retain scoring without a bullseye prop. */
   setBreachPresentation(breach: boolean): void {
     this.breach = breach;
     this.visual.group.visible = !breach;
+    if (breach) this.group.visible = true;
+    else this.group.visible = this.present;
   }
 
   setWorld(world:string):void {this.visual.setWorld(world);}
@@ -50,6 +58,11 @@ export class Target {
   updateVisual(dt: number, reduceMotion: boolean): void {this.visual.update(dt,reduceMotion);}
 
   update(dt: number, elapsedTime: number): void {
+    if (this.movement?.type === 'teleport') {
+      this.applyTeleportPose(elapsedTime);
+      return;
+    }
+    this.present = true;
     if (this.movement?.type === 'horizontal') {
       this.x = sampleMovement(this.movement, this.baseX, elapsedTime);
     } else if (this.movement?.type === 'vertical') {
@@ -58,18 +71,30 @@ export class Target {
       this.x = this.baseX;
       this.y = this.baseY;
     }
+    this.group.visible = !this.breach;
     this.group.position.set(this.x, this.y, this.z);
-
   }
 
-  predictPosition(atTime: number): { x: number; y: number } {
+  predictPosition(atTime: number): { x: number; y: number; present: boolean } {
+    if (this.movement?.type === 'teleport') {
+      return teleportTargetPoseAtTime(this.movement, atTime);
+    }
     if (this.movement?.type === 'horizontal') {
-      return { x: sampleMovement(this.movement, this.baseX, atTime), y: this.baseY };
+      return { x: sampleMovement(this.movement, this.baseX, atTime), y: this.baseY, present: true };
     }
     if (this.movement?.type === 'vertical') {
-      return { x: this.baseX, y: sampleMovement(this.movement, this.baseY, atTime) };
+      return { x: this.baseX, y: sampleMovement(this.movement, this.baseY, atTime), present: true };
     }
-    return { x: this.baseX, y: this.baseY };
+    return { x: this.baseX, y: this.baseY, present: true };
+  }
+
+  private applyTeleportPose(elapsedTime: number): void {
+    const pose = teleportTargetPoseAtTime(this.movement!, elapsedTime);
+    this.x = pose.x;
+    this.y = pose.y;
+    this.present = pose.present;
+    this.group.visible = pose.present && !this.breach;
+    this.group.position.set(this.x, this.y, this.z);
   }
 
   private syncScale(): void {

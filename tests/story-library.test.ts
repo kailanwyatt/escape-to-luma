@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   evaluateAccretionCollision,
   evaluateEntryExitCollision,
+  entryExitCrossingAt,
+  entryExitWarpAt,
+  entryExitWarpTarget,
   evaluateLagrangeNullCollision,
   evaluateMagnetopauseCollision,
   evaluateMovingSafeZoneCollision,
@@ -12,7 +15,6 @@ import {
   evaluateSolarSailCollision,
   evaluateTeleportPortalCollision,
   evaluateTheNullCollision,
-  entryExitWarpTarget,
   pulsarBeamOn,
   solarSailAngle,
   solarSailOpen,
@@ -42,6 +44,53 @@ describe('story library obstacle math', () => {
       if (!evaluateOrbitingMoonsCollision(config, t, 0, 3, BALL).hit) clear = true;
     }
     expect(clear).toBe(true);
+  });
+
+  it('blocks the center when a relay hub is authored', () => {
+    const config = {
+      type: 'orbitingMoons' as const,
+      z: 6,
+      centerX: 0,
+      centerY: 3,
+      orbitRadius: 1.35,
+      moonRadius: 0.4,
+      moonCount: 3,
+      speed: 0.68,
+      hubRadius: 0.52,
+    };
+    expect(evaluateOrbitingMoonsCollision(config, 0, 0, 3, BALL).hit).toBe(true);
+    expect(evaluateOrbitingMoonsCollision(config, 2, 0, 3, BALL).hit).toBe(true);
+  });
+
+  it('fires beacon lasers that threaten the lane then clear', () => {
+    const config = {
+      type: 'orbitingMoons' as const,
+      z: 6,
+      centerX: 0,
+      centerY: 3,
+      orbitRadius: 1.35,
+      moonRadius: 0.38,
+      moonCount: 3,
+      speed: 0.68,
+      beaconPulse: {
+        kind: 'laser' as const,
+        range: 1.35,
+        speed: 0.9,
+        offHold: 0.7,
+        warningHold: 0.35,
+        onHold: 0.55,
+        thickness: 0.09,
+      },
+    };
+    let clear = false;
+    let hit = false;
+    for (let t = 0; t < 10; t += 0.05) {
+      const sample = evaluateOrbitingMoonsCollision(config, t, 0, 3, BALL);
+      if (!sample.hit) clear = true;
+      if (sample.hit) hit = true;
+    }
+    expect(clear).toBe(true);
+    expect(hit).toBe(true);
   });
 
   it('opens only one sequential aperture at a time', () => {
@@ -95,6 +144,65 @@ describe('story library obstacle math', () => {
     expect(entryExitWarpTarget(config)).toEqual({ x: 0.85, y: 3.25 });
   });
 
+  it('cycles cyan true aperture among amber false entries', () => {
+    const config = {
+      type: 'entryExitPortal' as const,
+      z: 6,
+      entryX: 0,
+      entryY: 3.05,
+      exitX: 0,
+      exitY: 3.05,
+      radius: 0.62,
+      disks: [
+        { x: -1.35, y: 3.05 },
+        { x: 0, y: 3.05 },
+        { x: 1.35, y: 3.05 },
+      ],
+      speed: 0.5,
+      phase: 0,
+      warningHold: 0.3,
+    };
+    // Cyan clears; amber and seal hit.
+    expect(evaluateEntryExitCollision(config, 0, -1.35, 3.05, BALL).hit).toBe(false);
+    expect(evaluateEntryExitCollision(config, 0, 0, 3.05, BALL).hit).toBe(true);
+    expect(evaluateEntryExitCollision(config, 0, 1.35, 3.05, BALL).hit).toBe(true);
+    expect(evaluateEntryExitCollision(config, 0, -0.65, 3.05, BALL).hit).toBe(true);
+    expect(entryExitCrossingAt(config, 0, -1.35, 3.05, BALL)).toBe('true');
+    expect(entryExitCrossingAt(config, 0, 0, 3.05, BALL)).toBe('false');
+    expect(entryExitCrossingAt(config, 0, -0.65, 3.05, BALL)).toBe('wall');
+    // Multi-disk cyan redirects Spark toward the destination portal.
+    expect(entryExitWarpAt(config, 0, -1.35, 3.05)).toEqual({
+      x: 0,
+      y: 3.05,
+      kind: 'true',
+    });
+    // t=2.1 → disk 1 cyan
+    expect(entryExitCrossingAt(config, 2.1, 0, 3.05, BALL)).toBe('true');
+    expect(entryExitCrossingAt(config, 2.1, -1.35, 3.05, BALL)).toBe('false');
+  });
+
+  it('disposes cinematic False Entries relay wall', async () => {
+    const { FalseEntryArt } = await import('../src/obstacles/FalseEntryArt');
+    const art = new FalseEntryArt({
+      type: 'entryExitPortal',
+      z: 6,
+      entryX: 0,
+      entryY: 3.05,
+      exitX: 0,
+      exitY: 3.05,
+      radius: 0.62,
+      disks: [
+        { x: -1.35, y: 3.05 },
+        { x: 0, y: 3.05 },
+        { x: 1.35, y: 3.05 },
+      ],
+      speed: 0.48,
+    });
+    art.update(1.2);
+    art.dispose();
+    expect(art.group.children).toHaveLength(0);
+  });
+
   it('predicts target arrival after an Entry/Exit warp', () => {
     const slot = new ObstacleSlot('portal');
     slot.applyConfig(
@@ -122,7 +230,7 @@ describe('story library obstacle math', () => {
     expect(Math.abs(prediction.target.simulated.x - 0.85)).toBeLessThan(0.45);
   });
 
-  it('jumps teleport portals among fixed anchors', () => {
+  it('vanishes and reappears teleport portals among fixed anchors', () => {
     const config = {
       type: 'teleportPortal' as const,
       z: 6,
@@ -133,12 +241,16 @@ describe('story library obstacle math', () => {
       radius: 0.95,
       speed: 1,
       dwell: 1.1,
-      warning: 0.35,
+      warning: 0.55,
     };
     const a = teleportPortalPoseAtTime(config, 0.2);
     expect(a.x).toBe(0);
+    expect(a.present).toBe(true);
     expect(a.warning).toBe(false);
     expect(evaluateTeleportPortalCollision(config, 0.2, 0, 3, BALL).hit).toBe(false);
+    const gone = teleportPortalPoseAtTime(config, 1.2);
+    expect(gone.present).toBe(false);
+    expect(evaluateTeleportPortalCollision(config, 1.2, 0, 3, BALL).hit).toBe(true);
   });
 
   it('uses rotated OBB for closed Solar Sail and openAngle for clearance', () => {
@@ -249,10 +361,13 @@ describe('story library obstacle math', () => {
           z: 6,
           centerX: 0,
           centerY: 3,
-          fieldRadius: 2.15,
-          minSafeRadius: 0.85,
-          maxSafeRadius: 1.25,
-          speed: 0.65,
+          fieldRadius: 2.2,
+          holeRadius: 0.95,
+          baseX: 0,
+          baseY: 3,
+          driftSpeed: 0.55,
+          driftAmplitudeX: 0.55,
+          driftAmplitudeY: 0.35,
         },
         0.4,
         0,

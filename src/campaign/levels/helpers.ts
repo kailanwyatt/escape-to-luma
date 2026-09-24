@@ -93,7 +93,7 @@ export function gate(
   };
 }
 
-export function iris(minR: number, maxR: number, speed: number, z = Z_A): ObstacleConfig {
+export function iris(minR: number, maxR: number, speed: number, z = Z_A): Extract<ObstacleConfig, { type: 'iris' }> {
   return { type: 'iris', z, minRadius: minR, maxRadius: maxR, speed };
 }
 

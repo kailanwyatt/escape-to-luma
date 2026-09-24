@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Escape to Luma — Obstacle Gallery</title>
+<style>
+  :root {
+    --ink: #061018;
+    --panel: #0c1a26;
+    --line: rgba(126, 240, 255, 0.22);
+    --cream: #eef6fa;
+    --muted: #8eafc0;
+    --cyan: #7ef0ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Avenir Next", "Segoe UI", sans-serif;
+    background: var(--ink);
+    color: var(--cream);
+  }
+  header, #gallery, footer { position: relative; z-index: 1; }
+  header {
+    position: sticky; top: 0; z-index: 20;
+    backdrop-filter: blur(14px);
+    background: rgba(6, 16, 24, 0.9);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 18px 12px;
+  }
+  h1 { margin: 0; font-size: 18px; letter-spacing: 0.08em; font-weight: 800; }
+  .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center;
+  }
+  input, select, button, a.nav {
+    background: var(--panel); color: var(--cream);
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 8px 10px; font: inherit; font-size: 13px;
+    text-decoration: none;
+  }
+  input[type="search"] { min-width: 200px; flex: 1; }
+  button, a.nav { cursor: pointer; }
+  a.nav:hover { border-color: var(--cyan); color: var(--cyan); }
+  .stats { margin-left: auto; color: var(--muted); font-size: 12px; }
+  #gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+    padding: 18px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    background: rgba(12, 26, 38, 0.35);
+  }
+  .view { height: 280px; }
+  .meta { padding: 10px 12px 12px; background: rgba(6, 16, 24, 0.85); }
+  .title { font-weight: 800; font-size: 14px; }
+  .row { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .badge {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.06em;
+    border-radius: 999px; padding: 3px 8px;
+    background: rgba(255,255,255,0.06); color: var(--muted);
+  }
+  .badge.level {
+    color: var(--cyan);
+    border: 1px solid rgba(126, 240, 255, 0.35);
+    background: rgba(126, 240, 255, 0.08);
+  }
+  footer {
+    padding: 10px 18px 28px; color: var(--muted); font-size: 12px; text-align: center;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>OBSTACLE GALLERY</h1>
+  <div class="sub">Live Three.js art via <code>ObstacleSlot</code> — same visuals as the game. New cinematic sheet: rotating gate, energy field, phase gate, repulsor, null tendril, capture pincers.</div>
+  <div class="controls">
+      <a class="nav" href="/">← App assets</a>
+    <a class="nav" href="/piston">Cinematic piston</a>
+    <a class="nav" href="/gate">Cinematic gate</a>
+    <input id="q" type="search" placeholder="Search obstacle…" />
+    <select id="family">
+      <option value="all">All families</option>
+      <option value="library">Library</option>
+      <option value="story">Story</option>
+      <option value="classic">Classic</option>
+    </select>
+    <button type="button" id="pause">Pause</button>
+    <div class="stats" id="stats"></div>
+  </div>
+</header>
+<main id="gallery"></main>
+<footer>Open with <code>npm run review:assets</code> → <code>http://127.0.0.1:8765/obstacles</code></footer>
+<script src="/obstacle-gallery.js"></script>
+</body>
+</html>

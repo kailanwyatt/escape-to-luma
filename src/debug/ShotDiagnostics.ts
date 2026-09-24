@@ -207,7 +207,9 @@ export function predictShot(
   const at = simulated ?? { x: cursor.x, y: cursor.y, z: target.z, time: segmentTime, ...cursorVelocity };
   const futureTarget = target.predictPosition(targetTime + time);
   const distance = distanceToTarget(at.x, at.y, futureTarget.x, futureTarget.y);
-  const scored = scoreTarget(distance, target.radius);
+  const scored = futureTarget.present
+    ? scoreTarget(distance, target.radius)
+    : { kind: 'MISS' as const, points: 0 };
 
   const path: Vec3[] = [];
   const samples = 32;
@@ -306,6 +308,6 @@ function predictRicochetShot(start:Vec3,velocity:Velocity,obstacles:ObstacleSlot
  });
  const at=trace.arrival??{...trace.state,time:0};const future=target.predictPosition(targetTime+at.time);
  const distance=distanceToTarget(at.x,at.y,future.x,future.y);
- const valid=Boolean(trace.arrival)&&trace.bounces.length>=config.requiredBounces;
+ const valid=Boolean(trace.arrival)&&trace.bounces.length>=config.requiredBounces&&future.present;
  return {vz:velocity.vz,rotors,path:trace.path,bounces:trace.bounces,ricochetBlocked:!valid,analyticVsSimMaxY:0,target:{time:at.time,analytic:{x:at.x,y:at.y},simulated:{x:at.x,y:at.y},target:future,distance,radius:target.radius,projectileRadius:GAME_TUNING.projectile.radius,verdict:valid?scoreTarget(distance,target.radius).kind:'MISS',edgeWouldHit:valid&&distance<=target.radius+GAME_TUNING.projectile.radius}};
 }

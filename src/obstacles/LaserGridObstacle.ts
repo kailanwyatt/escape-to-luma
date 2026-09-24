@@ -229,8 +229,14 @@ export class LaserGridObstacle {
         const sign=j===0?-1:1;
         emitter.position.set(vertical?beam.position:beam.centerX+sign*(config.span/2+.08),vertical?beam.centerY+sign*(config.span/2+.08):beam.position,0);
         emitter.rotation.z=vertical?Math.PI/2:0;
-        const lens=emitter.getObjectByName('EmitterLens') as THREE.Mesh<THREE.SphereGeometry,THREE.MeshBasicMaterial>;
-        lens.material.color.setHex(on?0xffae8c:0x476b72);
+        const lens=emitter.getObjectByName('EmitterLens') as THREE.Mesh<THREE.SphereGeometry,THREE.MeshStandardMaterial>;
+        if(lens.material instanceof THREE.MeshStandardMaterial){
+          lens.material.color.setHex(on?0xffae8c:0x476b72);
+          lens.material.emissive.setHex(on?0xff6a40:0x1a3038);
+          lens.material.emissiveIntensity=on?1.15:.2;
+        }else{
+          (lens.material as THREE.MeshBasicMaterial).color.setHex(on?0xffae8c:0x476b72);
+        }
         emitter.getObjectByName('ContactFlare')!.visible=on;
       });
     }
@@ -238,15 +244,22 @@ export class LaserGridObstacle {
 
   private createEmitter():THREE.Group {
     const root=new THREE.Group();root.name='LaserEmitter';
-    const steel=new THREE.MeshPhongMaterial({color:0x536578,shininess:65});
-    const body=new THREE.Mesh(new THREE.BoxGeometry(.25,.31,.3),steel);root.add(body);
-    const face=new THREE.Mesh(new THREE.BoxGeometry(.2,.23,.04),new THREE.MeshPhongMaterial({color:0x121f2c}));face.position.z=-.17;root.add(face);
-    const lens=new THREE.Mesh(new THREE.SphereGeometry(.065,12,8),new THREE.MeshBasicMaterial({color:0xffae8c,toneMapped:false}));lens.name='EmitterLens';lens.position.z=-.2;root.add(lens);
+    const steel=new THREE.MeshStandardMaterial({color:0x536578,metalness:.78,roughness:.32});
+    const dark=new THREE.MeshStandardMaterial({color:0x0e1822,metalness:.55,roughness:.55});
+    const body=new THREE.Mesh(new THREE.BoxGeometry(.28,.34,.34),steel);root.add(body);
+    const collar=new THREE.Mesh(new THREE.BoxGeometry(.3,.08,.36),steel);collar.position.y=.16;root.add(collar);
+    const face=new THREE.Mesh(new THREE.BoxGeometry(.22,.26,.05),dark);face.position.z=-.19;root.add(face);
+    const lens=new THREE.Mesh(new THREE.SphereGeometry(.07,14,10),new THREE.MeshStandardMaterial({
+      color:0xffae8c,emissive:0xff6a40,emissiveIntensity:1.1,metalness:.05,roughness:.25,toneMapped:false,
+    }));lens.name='EmitterLens';lens.position.z=-.22;root.add(lens);
     const flare=new THREE.Mesh(new THREE.PlaneGeometry(.9,.9),new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,toneMapped:false,
       vertexShader:`varying vec2 v;void main(){v=uv-.5;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
       fragmentShader:`varying vec2 v;void main(){float r=length(v);float a=exp(-r*r*60.)*.65+exp(-abs(v.x)*95.-abs(v.y)*12.)*.2;gl_FragColor=vec4(1.,.13,.035,a*(1.-smoothstep(.3,.5,r)));}`
-    }));flare.name='ContactFlare';flare.position.z=-.22;root.add(flare);
-    for(const y of [-.11,.11]){const fin=new THREE.Mesh(new THREE.BoxGeometry(.32,.035,.22),steel);fin.position.set(0,y,.015);root.add(fin);}
+    }));flare.name='ContactFlare';flare.position.z=-.24;root.add(flare);
+    for(const y of [-.13,.13]){const fin=new THREE.Mesh(new THREE.BoxGeometry(.34,.04,.24),steel);fin.position.set(0,y,.02);root.add(fin);}
+    const status=new THREE.Mesh(new THREE.BoxGeometry(.12,.04,.03),new THREE.MeshStandardMaterial({
+      color:0xffb449,emissive:0xff9b32,emissiveIntensity:.9,metalness:.1,roughness:.3,
+    }));status.position.set(0,-.14,-.2);root.add(status);
     return root;
   }
 
@@ -258,14 +271,15 @@ export class LaserGridObstacle {
     const centerX = config.centerX ?? 0;
     const centerY = config.centerY ?? 3;
     const frameSpan = config.span + 0.32;
-    const postWidth = 0.24;
+    const postWidth = 0.28;
     const color =
       environment === 'space' ? 0x2a3c50 : environment === 'rooftop' ? 0x667b89 : 0x1c2836;
-    const material = new THREE.MeshPhongMaterial({
+    const material = new THREE.MeshStandardMaterial({
       color,
-      shininess: 65,
+      metalness: 0.72,
+      roughness: 0.38,
     });
-    const verticalGeometry = new THREE.BoxGeometry(postWidth, frameSpan, 0.3);
+    const verticalGeometry = new THREE.BoxGeometry(postWidth, frameSpan, 0.36);
     const half = frameSpan / 2;
 
     const left = new THREE.Mesh(verticalGeometry, material);
@@ -279,18 +293,18 @@ export class LaserGridObstacle {
     if(horizontal)this.fixedFrame.add(left,right);
     else {verticalGeometry.dispose();material.dispose();}
     if(vertical){
-      const railMaterial=new THREE.MeshPhongMaterial({color,shininess:65});
+      const railMaterial=new THREE.MeshStandardMaterial({color,metalness:.72,roughness:.38});
       for(const side of [-1,1]){
-        const rail=new THREE.Mesh(new THREE.BoxGeometry(frameSpan,postWidth,.3),railMaterial);
+        const rail=new THREE.Mesh(new THREE.BoxGeometry(frameSpan,postWidth,.36),railMaterial);
         rail.name=side<0?'FixedBottomPost':'FixedTopPost';rail.position.set(centerX,centerY+side*half,0);this.fixedFrame.add(rail);
       }
     }
     for(const rail of this.fixedFrame.children){
       const isVertical=rail.name==='FixedLeftPost'||rail.name==='FixedRightPost';
-      const channel=new THREE.Mesh(new THREE.BoxGeometry(isVertical?.055:frameSpan-.2,isVertical?frameSpan-.2:.055,.02),new THREE.MeshBasicMaterial({color:0x718494}));
-      channel.position.z=-.16;rail.add(channel);
+      const channel=new THREE.Mesh(new THREE.BoxGeometry(isVertical?.06:frameSpan-.2,isVertical?frameSpan-.2:.06,.025),new THREE.MeshStandardMaterial({color:0x7a8f9f,metalness:.55,roughness:.4}));
+      channel.position.z=-.18;rail.add(channel);
       for(const sign of [-1,1]){
-        const cap=new THREE.Mesh(new THREE.BoxGeometry(isVertical?.34:.24,isVertical?.24:.34,.38),new THREE.MeshPhongMaterial({color:0x263647}));
+        const cap=new THREE.Mesh(new THREE.BoxGeometry(isVertical?.38:.28,isVertical?.28:.38,.42),new THREE.MeshStandardMaterial({color:0x263647,metalness:.7,roughness:.4}));
         cap.position.set(isVertical?0:sign*(half-.12),isVertical?sign*(half-.12):0,0);rail.add(cap);
       }
     }

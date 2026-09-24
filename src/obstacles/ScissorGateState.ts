@@ -20,9 +20,37 @@ export type ScissorGateState = {
   bars: [ScissorBarPose, ScissorBarPose];
 };
 
+/** 0 = closed (minAngle), 1 = open (maxAngle). */
+function openAmount01(config: ScissorGateConfig, time: number): number {
+  const phase = config.phase ?? 0;
+  if (config.pattern !== 'flutter') {
+    return 0.5 + 0.5 * Math.sin(time * config.speed + phase);
+  }
+
+  // Butterfly phrase: rapid flaps, then a slow open glide, then flaps again.
+  const tempo = Math.max(0.35, config.speed);
+  const burst = Math.max(0.35, config.flutterBurst ?? 0.85);
+  const rest = Math.max(0.45, config.flutterRest ?? 1.2);
+  const flaps = Math.max(2, config.flutterFlaps ?? 3.25);
+  const cycle = burst + rest;
+  const local = (((time * tempo + phase) % cycle) + cycle) % cycle;
+
+  if (local < burst) {
+    const u = local / burst;
+    // Snappy flaps — hard seal at the troughs, brief flashes of open.
+    const s = Math.sin(u * flaps * Math.PI * 2);
+    return 0.5 + 0.5 * Math.sign(s) * Math.pow(Math.abs(s), 0.35);
+  }
+
+  const u = (local - burst) / rest;
+  // Slow rest: readable open window, then ease shut before the next burst.
+  return 0.08 + 0.9 * Math.sin(u * Math.PI);
+}
+
 export function scissorGateStateAtTime(config: ScissorGateConfig, time: number): ScissorGateState {
-  const wave = 0.5 + 0.5 * Math.sin(time * config.speed + (config.phase ?? 0));
-  const minAngle = Math.max(0.28, config.minAngle ?? 0.35);
+  const wave = openAmount01(config, time);
+  // Allow near-zero so flaps can seal; tiny floor only for numerical stability.
+  const minAngle = Math.max(0.02, config.minAngle ?? 0.08);
   const maxAngle = Math.max(minAngle + 0.05, config.maxAngle);
   const angle = minAngle + (maxAngle - minAngle) * wave;
   const L = config.barLength;

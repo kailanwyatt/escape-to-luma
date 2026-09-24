@@ -1,4 +1,8 @@
 import {AmbientLife} from './AmbientLife';
+import {cityLook} from './CityWorldArt';
+import {skyLook} from './SkyWorldArt';
+import {createJourneyChapterArt} from './JourneyChapterArt';
+import {NullPresenceArt} from './NullPresenceArt';
 import {createJourneyWorldScene,isJourneyWorld,JOURNEY_LOOKS} from './JourneyWorldScene';
 import {disposeThreeObject} from '../utils/disposeThree';
 import {createSpaceScene} from './SpaceScene';
@@ -16,6 +20,10 @@ export class EnvironmentManager {
   private readonly ambientLife = new AmbientLife();
   private journeyKit: THREE.Group | null = null;
   private journeyWorld: string | null = null;
+  private chapterDressing: THREE.Group | null = null;
+  private nullPresence: NullPresenceArt | null = null;
+  private asteroidArtLevel = 95;
+  private envTime = 0;
   setCampaignLevel(level: number | null): void {
     this.containmentKit.setLevel(level);
     this.alarm = level === null ? 0 : containmentProfile(level).alarm;
@@ -23,12 +31,26 @@ export class EnvironmentManager {
   }
 
   /** Earth belongs to the near-Earth leg; it must not follow Spark to Luma. */
-  setSpaceWorld(worldId: string | null): void {
+  setSpaceWorld(worldId: string | null, level = 95): void {
+    if(this.journeyWorld!==worldId&&this.chapterDressing){
+      this.group.remove(this.chapterDressing);disposeThreeObject(this.chapterDressing);this.chapterDressing=null;
+    }
+    if(this.journeyWorld!==worldId&&this.nullPresence){
+      this.nullPresence.dispose();this.nullPresence=null;
+    }
+    if(worldId&&!this.chapterDressing){this.chapterDressing=createJourneyChapterArt(worldId);this.group.add(this.chapterDressing);}
+    if(this.chapterDressing)this.chapterDressing.visible=worldId!==null&&!['city','ascent','sky','storm'].includes(worldId);
+    if(worldId==='the_null'&&!this.nullPresence){
+      this.nullPresence=new NullPresenceArt();
+      this.group.add(this.nullPresence.group);
+    }
+    if(this.nullPresence)this.nullPresence.group.visible=worldId==='the_null';
     if (this.journeyKit) this.journeyKit.visible=false;
-    if(this.journeyWorld!==worldId&&this.journeyKit){this.group.remove(this.journeyKit);disposeThreeObject(this.journeyKit);this.journeyKit=null;}
+    if((this.journeyWorld!==worldId||((worldId!==null&&['asteroid_belt','city','ascent','sky','storm'].includes(worldId))&&this.asteroidArtLevel!==level))&&this.journeyKit){this.group.remove(this.journeyKit);disposeThreeObject(this.journeyKit);this.journeyKit=null;}
+    this.asteroidArtLevel=level;
     this.journeyWorld=worldId;
     if(isJourneyWorld(worldId)){
-      if(!this.journeyKit){this.journeyKit=createJourneyWorldScene(worldId);this.group.add(this.journeyKit);}
+      if(!this.journeyKit){this.journeyKit=createJourneyWorldScene(worldId,level);this.group.add(this.journeyKit);}
       for(const skin of Object.values(this.skins))skin.visible=false;
       this.journeyKit.visible=true;
       const look=JOURNEY_LOOKS[worldId];this.scene.background=new THREE.Color(look.background);this.scene.fog=new THREE.Fog(look.background,worldId==='sky'||worldId==='ascent'||worldId==='storm'?28:38,78);
@@ -37,6 +59,23 @@ export class EnvironmentManager {
       this.fill.color.setHex(worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?0x9bcaff:0xffb060);
       this.fill.intensity=worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?.65:.18;
       this.fill.position.set(worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?5:4.2,3.4,worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?-6:5);
+      if(worldId==='asteroid_belt'||worldId==='asteroid'){
+        this.key.position.set(-14,7,20);this.key.color.setHex(0xffc58a);
+      }
+      if(worldId==='city'){
+        const look=cityLook(level);this.scene.background=new THREE.Color(look.background);
+        this.scene.fog=new THREE.Fog(look.background,28,78);
+        this.ambient.color.setHex(look.ambient);this.key.color.setHex(look.key);this.fill.color.setHex(look.fill);
+      }
+      if(worldId==='ascent'||worldId==='sky'||worldId==='storm'){
+        const look=skyLook(worldId==='storm',level);
+        this.scene.background=new THREE.Color(look.background);
+        this.scene.fog=new THREE.Fog(look.background,28,78);
+        this.ambient.color.setHex(look.ambient);
+        this.ambient.intensity=look.background < 0x204060 ? 0.55 : 0.8;
+        this.key.color.setHex(look.key);
+        this.key.intensity=look.background < 0x204060 ? 0.7 : 0.95;
+      }
     }
 
     this.ambientLife.setWorld(worldId ?? this.current, this.journeyKit ?? this.skins[this.current]);
@@ -47,7 +86,7 @@ export class EnvironmentManager {
       worldId === 'orbital_graveyard';
     const lunar = worldId === 'moon' || worldId === 'far_side';
     for (const name of ['earth-horizon', 'earth-atmosphere']) {
-      const object = this.skins.space.getObjectByName(name);
+      const object = this.journeyKit?.getObjectByName(name) ?? this.skins.space.getObjectByName(name);
       if (!object) continue;
       object.visible = nearEarth || lunar;
       object.scale.setScalar(lunar ? .18 : worldId === 'orbit' || worldId === 'orbital_graveyard' ? .85 : 1);
@@ -113,6 +152,9 @@ export class EnvironmentManager {
   }
 
   setEnvironment(id: EnvironmentId, scene: THREE.Scene, immediate = true): void {
+    if(this.chapterDressing)this.chapterDressing.visible=false;
+    if(this.nullPresence)this.nullPresence.group.visible=false;
+    this.key.position.set(-3.5,10,-4);
     this.current = id;
     this.ambientLife.group.visible=false;
     if(this.journeyKit)this.journeyKit.visible=false;
@@ -162,6 +204,8 @@ export class EnvironmentManager {
 
   update(dt: number): void {
     this.ambientLife.update(dt,this.reduceMotion);
+    this.envTime += dt;
+    this.nullPresence?.update(this.envTime, this.reduceMotion);
     if (this.current === 'workshop' && this.warningLamps.length > 0) {
       this.lampTime += dt;
       const pulse = this.reduceMotion
@@ -239,45 +283,48 @@ function createWorkshop(warningLamps: THREE.MeshPhongMaterial[]): THREE.Group {
     guide.position.set(0, .018, z); root.add(guide);
   }
 
-  const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x15202c });
-  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, 8, 26), wallMaterial);
+  const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x15202c, metalness: 0.45, roughness: 0.72 });
+  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.45, 8, 26), wallMaterial);
   leftWall.position.set(-5.2, 4, 6);
   root.add(leftWall);
-  const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, 8, 26), wallMaterial);
+  const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.45, 8, 26), wallMaterial);
   rightWall.position.set(5.2, 4, 6);
   root.add(rightWall);
 
   const backWall = new THREE.Mesh(
-    new THREE.BoxGeometry(11, 9, 0.4),
-    new THREE.MeshLambertMaterial({ color: 0x101820 }),
+    new THREE.BoxGeometry(11, 9, 0.45),
+    new THREE.MeshStandardMaterial({ color: 0x101820, metalness: 0.4, roughness: 0.75 }),
   );
   backWall.position.set(0, 4.2, 16.2);
   root.add(backWall);
 
   // Layered destination bulkhead, behind the scoring plane, frames the route.
   const bulkheadMaterial = containmentMetal();
-  const frameMaterial = new THREE.MeshPhongMaterial({color: 0x456073, shininess: 55});
-  const cyanMaterial = new THREE.MeshBasicMaterial({color: 0x49b5d0});
+  const frameMaterial = new THREE.MeshStandardMaterial({color: 0x456073, metalness: 0.78, roughness: 0.34});
+  const cyanMaterial = new THREE.MeshStandardMaterial({color: 0x49b5d0, emissive: 0x1a6a7a, emissiveIntensity: 0.55, metalness: 0.2, roughness: 0.35});
   const unitBox = new THREE.BoxGeometry(1, 1, 1);
   const block = (x: number, y: number, z: number, w: number, h: number, d: number, material: THREE.Material) => {
     const mesh = new THREE.Mesh(unitBox, material);
     mesh.position.set(x, y, z); mesh.scale.set(w, h, d); root.add(mesh);
   };
   for (const side of [-1, 1]) {
-    for (const y of [1.2, 3.6, 6]) block(side * 3.85, y, 15.8, 2.3, 2.25, .35, bulkheadMaterial);
-    block(side * 2.55, 3.1, 15.2, .3, 6.1, .6, frameMaterial);
-    block(side * 2.34, 3.1, 14.85, .06, 5.8, .06, cyanMaterial);
+    for (const y of [1.2, 3.6, 6]) block(side * 3.85, y, 15.8, 2.3, 2.25, .4, bulkheadMaterial);
+    block(side * 2.55, 3.1, 15.2, .36, 6.1, .65, frameMaterial);
+    block(side * 2.34, 3.1, 14.85, .07, 5.8, .07, cyanMaterial);
     for (const z of [5, 9, 13]) {
-      block(side * 4.75, 3.4, z, .32, 6.6, .4, frameMaterial);
-      block(side * 4.54, 3.6, z - .23, .06, 3.2, .06, cyanMaterial);
+      block(side * 4.75, 3.4, z, .36, 6.6, .45, frameMaterial);
+      block(side * 4.54, 3.6, z - .23, .07, 3.2, .07, cyanMaterial);
     }
   }
-  // A recessed observation bay is visible through the shattered vessel.
-  const baySteel = new THREE.MeshPhongMaterial({color: 0x466477, emissive: 0x132635, emissiveIntensity: .5});
-  const bayDark = new THREE.MeshBasicMaterial({color: 0x102b3a});
-  block(0, 3.2, 15.85, 4.6, 5.8, .12, baySteel);
-  block(0, 3.4, 15.7, 3.1, 4.5, .12, bayDark);
-  block(0, 3.5, 15.6, .75, 3.7, .03, new THREE.MeshBasicMaterial({color: 0x234758}));
+  // Recessed observation bay — cooler steel to match cinematic facility doors.
+  const baySteel = new THREE.MeshStandardMaterial({color: 0x466477, metalness: 0.75, roughness: 0.36, emissive: 0x132635, emissiveIntensity: .35});
+  const bayDark = new THREE.MeshStandardMaterial({color: 0x0c141c, metalness: 0.55, roughness: 0.6});
+  block(0, 3.2, 15.85, 4.6, 5.8, .14, baySteel);
+  block(0, 3.4, 15.7, 3.1, 4.5, .14, bayDark);
+  block(0, 3.5, 15.6, .75, 3.7, .04, new THREE.MeshStandardMaterial({color: 0x234758, metalness: 0.5, roughness: 0.5}));
+  // Floor sill lip under the bay — same language as shutter/gate frames.
+  block(0, 0.12, 14.2, 8.5, 0.18, 0.55, bayDark);
+  block(0, 0.22, 14.0, 7.8, 0.05, 0.12, cyanMaterial);
   for (const x of [-1.65, 1.65]) {
     block(x, 3.6, 15.55, .035, 2.6, .08, cyanMaterial);
     block(x, 1.3, 15.3, 1.2, 1.8, .7, bulkheadMaterial);
@@ -386,4 +433,3 @@ function createPortal(): THREE.Group {
 
   return group;
 }
-

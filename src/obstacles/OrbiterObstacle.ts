@@ -22,6 +22,7 @@ export class OrbiterObstacle {
   blockerY = 3;
   private config: OrbiterConfig | null = null;
   private mesh: THREE.Mesh | null = null;
+  private environment: EnvironmentId = 'workshop';
 
   constructor(id: string) {
     this.id = id;
@@ -33,8 +34,17 @@ export class OrbiterObstacle {
     this.active = true;
     this.group.visible = true;
     this.z = config.z;
-    if (!this.mesh) {
-      this.mesh = createReadableBlocker('drone');
+    if (!this.mesh || environment !== this.environment) {
+      if (this.mesh) {
+        this.group.remove(this.mesh);
+        this.mesh.geometry.dispose();
+        const mat = this.mesh.material;
+        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+        else mat.dispose();
+        this.mesh = null;
+      }
+      this.environment = environment;
+      this.mesh = createReadableBlocker(environment === 'space' ? 'debris' : 'drone');
       this.group.add(this.mesh);
     }
     this.mesh.scale.setScalar(config.blockerRadius);

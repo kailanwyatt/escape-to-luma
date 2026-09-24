@@ -15,7 +15,7 @@ export class GravityWellField {
         const ring = new THREE.Mesh(
           new THREE.TorusGeometry(well.radius * (0.28 + index * 0.18), enhanced ? 0.028 : 0.018, 6, 42),
           new THREE.MeshBasicMaterial({
-            color: index === 2 ? 0xb889ff : 0x57cfff,
+            color: well.strength < 0 ? (index === 2 ? 0xffb070 : 0xff8a40) : index === 2 ? 0xb889ff : 0x57cfff,
             transparent: true,
             opacity: (enhanced ? 0.42 : 0.28) - index * 0.045,
             blending: THREE.AdditiveBlending,
