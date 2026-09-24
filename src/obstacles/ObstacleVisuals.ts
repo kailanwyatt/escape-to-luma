@@ -3,7 +3,7 @@ import {createOrbitalGate, layoutOrbitalGate} from './OrbitalGateVisual';
 import {createOrbitalIris, layoutOrbitalIris} from './OrbitalIrisVisual';
 import { createAirborneGate, layoutAirborneGate } from './AirborneGateVisual';
 import {createBreachVisual, layoutBreachVisual} from './BreachVisual';
-import { containmentMetal } from '../graphics/ContainmentMaterials';
+import {createSecurityGate, layoutSecurityGate} from './SecurityGateVisual';
 import { FacilityArtKit } from './FacilityArtKit';
 import { IRIS_VISUAL_VARIANT } from './IrisVisualVariant';
 import * as THREE from 'three';
@@ -30,36 +30,7 @@ export function createGateVisual(
 ): THREE.Group {
   if (appearance === 'containmentGlass') return createBreachVisual();
   if (environment === 'space') return createOrbitalGate();
-  const group = new THREE.Group();
-  const colors = palette(environment);
-  const t = GAME_TUNING.gate;
-  const depth = 0.12;
-  const panelMaterial = containmentMetal();
-  const edgeMaterial = containmentMetal();
-  const left = new THREE.Mesh(
-    new THREE.BoxGeometry(1, t.panelHeight, depth),
-    panelMaterial,
-  );
-  left.name = 'left';
-  const right = left.clone();
-  right.name = 'right';
-  const top = new THREE.Mesh(
-    new THREE.BoxGeometry(t.panelWidth, 1, depth),
-    edgeMaterial,
-  );
-  top.name = 'top';
-  const bottom = top.clone();
-  bottom.name = 'bottom';
-  {
-    const borderMaterial = new THREE.MeshBasicMaterial({ color: 0x8bdde7 });
-    for (const name of ['edgeLeft', 'edgeRight', 'edgeTop', 'edgeBottom']) {
-      const edge = new THREE.Mesh(new THREE.BoxGeometry(1, 1, .025), borderMaterial);
-      edge.name = name; group.add(edge);
-    }
-
-  }
-  group.add(left, right, top, bottom);
-  return group;
+  return createSecurityGate(environment);
 }
 
 export function layoutGateVisual(
@@ -70,14 +41,15 @@ export function layoutGateVisual(
   openingHeight: number,
 ): void {
   if (group.userData.orbitalGate) { layoutOrbitalGate(group, openingX, openingY, openingWidth, openingHeight); return; }
+  if (group.userData.securityGate) { layoutSecurityGate(group, openingX, openingY, openingWidth, openingHeight); return; }
   if (group.name === 'containment-glass') {
     layoutBreachVisual(group, openingX, openingY, openingWidth, openingHeight); return;
   }
   const t = GAME_TUNING.gate;
-  const left = group.getObjectByName('left') as THREE.Mesh;
-  const right = group.getObjectByName('right') as THREE.Mesh;
-  const top = group.getObjectByName('top') as THREE.Mesh;
-  const bottom = group.getObjectByName('bottom') as THREE.Mesh;
+  const left = group.getObjectByName('left') as THREE.Object3D;
+  const right = group.getObjectByName('right') as THREE.Object3D;
+  const top = group.getObjectByName('top') as THREE.Object3D;
+  const bottom = group.getObjectByName('bottom') as THREE.Object3D;
   const leftWidth = Math.max(0.2, openingX - openingWidth / 2 + t.panelWidth / 2);
   const rightWidth = Math.max(0.2, t.panelWidth / 2 - (openingX + openingWidth / 2));
   left.scale.set(leftWidth, 1, 1);
@@ -162,9 +134,22 @@ export function createIrisVisual(environment: EnvironmentId): THREE.Group {
     const petal = new THREE.Group();
     petal.name = `petal-${i}`;
     group.add(petal);
-    kit.box(petal, 'petal-body', outer - 0.4, 0.22, 0.08, 0, 0, 0, armor, 0.012);
-    kit.box(petal, 'petal-edge', outer - 0.55, 0.06, 0.03, 0, 0, -0.05, steel, 0.004);
-    kit.box(petal, 'petal-lamp', (outer - 0.4) * 0.55, 0.08, 0.02, 0, 0, -0.06, lamp, 0.003);
+    // Trapezoid petal: wider at rim, narrow toward aperture — camera-iris silhouette.
+    const shape = new THREE.Shape();
+    shape.moveTo(-0.55, -0.14);
+    shape.lineTo(0.55, -0.09);
+    shape.lineTo(0.55, 0.09);
+    shape.lineTo(-0.55, 0.14);
+    shape.closePath();
+    const petalBody = new THREE.Mesh(
+      new THREE.ExtrudeGeometry(shape, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.01, bevelSegments: 1 }),
+      armor,
+    );
+    petalBody.name = 'petal-body';
+    petalBody.position.z = -0.035;
+    petal.add(petalBody);
+    kit.box(petal, 'petal-edge', 0.95, 0.05, 0.025, 0.08, 0, -0.05, steel, 0.004);
+    kit.box(petal, 'petal-lamp', 0.55, 0.07, 0.018, -0.12, 0, -0.055, lamp, 0.003);
   }
   const accent = new THREE.PointLight(colors.energy, 8, 8, 2);
   accent.name = 'iris-accent';

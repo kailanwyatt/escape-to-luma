@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {containmentMetal} from '../graphics/ContainmentMaterials';
+import {createWorldBackdrop} from '../graphics/WorldBackdrop';
 
 /** Static orbital set. All dressing is outside the flight lane; no collision ownership.
  * Shared instanced hardware and procedural planet materials need no texture downloads. */
@@ -67,6 +68,13 @@ export function createSpaceScene(chapter:'upper_atmosphere'|'orbit'|'orbital_gra
     vertexShader:`varying vec3 c; void main(){c=color;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_PointSize=1.2+color.b*1.5;}`,
     fragmentShader:`varying vec3 c; void main(){float a=1.-smoothstep(.1,.5,length(gl_PointCoord-.5));if(a<.01)discard;gl_FragColor=vec4(c,a);}`,
     transparent:true}));stars.name='stars';root.add(stars);
+  const matteId =
+    chapter==='upper_atmosphere' ? 'sky-golden' as const :
+    chapter==='orbital_graveyard' ? 'space-drift' as const :
+    'space-orbit' as const;
+  const matte=createWorldBackdrop(matteId);
+  (matte.material as THREE.MeshBasicMaterial).color.setHex(chapter==='upper_atmosphere'?0xe8d4b8:chapter==='orbital_graveyard'?0x8a9bb0:0xb8c4d8);
+  root.add(matte);
   root.add(createEarth());
   return root;
 }

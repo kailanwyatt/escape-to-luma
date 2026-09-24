@@ -44,15 +44,26 @@ describe('rotatingGate', () => {
     centerX: 0,
     centerY: 3,
     outerRadius: 1.9,
-    innerRadius: 0.28,
-    gapWidth: 0.78,
-    speed: 0.85,
+    innerRadius: 0.32,
+    gapWidth: 1.45,
+    speed: 0.62,
   };
 
   it('hits the hub and solid plate; clears only the timed sector', () => {
     const state = rotatingGateStateAtTime(config, 0);
     // Center hub is solid — no free pass through the middle.
     expect(evaluateRotatingGateCollision(config, 0, 0, 3, BALL).hit).toBe(true);
+    // Just outside the hub, centered in the cyan sector, must be clear.
+    const clearR = state.innerRadius + BALL + 0.08;
+    expect(
+      evaluateRotatingGateCollision(
+        config,
+        0,
+        Math.cos(state.gapAngle) * clearR,
+        3 + Math.sin(state.gapAngle) * clearR,
+        BALL,
+      ).hit,
+    ).toBe(false);
     const gapX = Math.cos(state.gapAngle) * 1.2;
     const gapY = 3 + Math.sin(state.gapAngle) * 1.2;
     expect(evaluateRotatingGateCollision(config, 0, gapX, gapY, BALL).hit).toBe(false);
@@ -62,9 +73,55 @@ describe('rotatingGate', () => {
     expect(evaluateRotatingGateCollision(config, 0, solidX, solidY, BALL).hit).toBe(true);
   });
 
+  it('keeps the open pie and cyan lips aligned with the collision sector', () => {
+    const art = new RotatingGateArt(config);
+    art.update(0);
+    const half = config.gapWidth / 2;
+    const solid = Math.PI * 2 - config.gapWidth;
+    const wall = art.group.getObjectByName('gate-wall') as THREE.Mesh;
+    // Annulus must start at +gap/2 and span only the solid — empty pie at local 0.
+    expect(wall.userData.thetaStart).toBeCloseTo(half, 5);
+    expect(wall.userData.thetaLength).toBeCloseTo(solid, 5);
+
+    const lipA = art.group.getObjectByName('gap-lip-a')!;
+    const lipAng = Math.atan2(lipA.position.y, lipA.position.x);
+    expect(Math.abs(lipAng)).toBeCloseTo(half, 5);
+
+    // Mid-gap points between hub and rim must be collision-clear (the playable pie).
+    const clearR = rotatingGateStateAtTime(config, 0).innerRadius + BALL + 0.05;
+    for (const r of [clearR, 1.0, 1.2, 1.5]) {
+      const x = Math.cos(0) * r;
+      const y = 3 + Math.sin(0) * r;
+      expect(evaluateRotatingGateCollision(config, 0, x, y, BALL).hit).toBe(false);
+    }
+    art.dispose();
+  });
+
+  it('keeps a Spark-sized flyable chord through the cyan pie', () => {
+    const state = rotatingGateStateAtTime(config, 0);
+    const half = state.gapWidth / 2;
+    const r = (state.innerRadius + state.outerRadius) / 2;
+    // Visual chord across the pie at mid-radius must clear Spark with real margin.
+    const chord = 2 * r * Math.sin(half);
+    expect(chord).toBeGreaterThan(BALL * 2 * 2.4);
+    // Centered throw at mid-radius stays clear even with modest angular lead error.
+    const lead = half * 0.45;
+    expect(
+      evaluateRotatingGateCollision(
+        config,
+        0,
+        Math.cos(lead) * r,
+        3 + Math.sin(lead) * r,
+        BALL,
+      ).hit,
+    ).toBe(false);
+  });
+
   it('ships on Ascent L33', () => {
     const level = getCampaignLevel(33)!;
     expect(level.challenge.obstacles[0]?.type).toBe('rotatingGate');
+    const gate = level.challenge.obstacles[0] as { gapWidth: number };
+    expect(gate.gapWidth).toBeGreaterThanOrEqual(1.3);
   });
 
   it('disposes cinematic art', () => {

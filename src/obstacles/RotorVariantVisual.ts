@@ -44,6 +44,9 @@ export function createVariantRotor(variant: RotorVisualVariant, count: number): 
     const arm=new THREE.Group();arm.name='security-arm';arm.rotation.z=i/count*Math.PI*2;root.add(arm);
     const c=t.hubRadius+t.bladeLength/2;
     const body=add(arm,metal,c,0,0,t.bladeLength,t.bladeWidth,t.bladeDepth);body.name='collision-arm';
+    // Shared tip paddle + leading edge — every variant reads as a blade, not a bar.
+    add(arm,dark,c,-t.bladeWidth*.36,-.04,t.bladeLength-.1,.032,t.bladeDepth*.65);
+    add(arm,edge,t.hubRadius+t.bladeLength-.07,0,-.08,.12,t.bladeWidth*.85,.014);
     const line=(x:number,y:number,w:number,h:number,m:THREE.Material=light)=>add(arm,m,x,y,-.09,w,h,.015);
     if(variant==='cityVentilation'||variant==='skyTurbine'){
       // Raised blade spine and offset panel seam give depth without widening the collider.

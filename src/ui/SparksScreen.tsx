@@ -8,8 +8,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {SPARK_CATALOG,sparkById,type SparkDefinition} from '../customization/sparks';
 import {abilityDefinitionForSpark} from '../customization/sparkAbilities';
 import {worldById} from '../campaign/worlds';
-import {color} from '../design';
-import {HOME_BRAND} from '../config/branding';
+import {color,BrandWordmark} from '../design';
 import {SPARK_DESCRIPTIONS} from './sparkPresentation';
 import type {PersistentGameData} from '../persistence/GameSave';
 type Props={save:PersistentGameData;onEquip:(id:string)=>void;onBuy:(id:string)=>void;onBack:()=>void;reduceMotion?:boolean};
@@ -41,7 +40,7 @@ export function SparksScreen({save,onEquip,onBuy,onBack,reduceMotion=false}:Prop
  return <View style={s.root}><LinearGradient colors={['#031322','#071e30','#020a12']} style={StyleSheet.absoluteFill}/>
  <MenuBackBar onBack={onBack} label={t("journeyscreen.back_to_home")}/>
  <ScrollView style={{flex:1}} ref={scroll} contentContainerStyle={{paddingTop:12,paddingBottom:Math.max(insets.bottom,20),paddingLeft:Math.max(insets.left,16),paddingRight:Math.max(insets.right,16),alignItems:'center'}}>
- <View style={s.column}><View style={s.top}><View><Text style={s.wordmark}>{HOME_BRAND.title}</Text><Text style={s.brandSub}>{HOME_BRAND.subtitle}</Text></View><View accessible accessibilityLabel={t("sparksscreen.shards_available", {value1: c.shards.toLocaleString()})} style={s.wallet}><View style={{flexDirection:"row",alignItems:"center",gap:5}}><CurrencyIcon kind="shard" size={27}/><Text style={s.balance}>{c.shards.toLocaleString()}</Text></View><Text style={s.walletLabel}>{t("statuspanel.shards")}</Text></View></View>
+ <View style={s.column}><View style={s.top}><BrandWordmark size="header"/><View accessible accessibilityLabel={t("sparksscreen.shards_available", {value1: c.shards.toLocaleString()})} style={s.wallet}><View style={{flexDirection:"row",alignItems:"center",gap:5}}><CurrencyIcon kind="shard" size={27}/><Text style={s.balance}>{c.shards.toLocaleString()}</Text></View><Text style={s.walletLabel}>{t("statuspanel.shards")}</Text></View></View>
  <View style={s.heading}><Text accessibilityRole="header" style={s.title}>{t("homescreen.sparks")}</Text><Text style={s.subtitle}>{t("sparksscreen.same_physics_a_brighter_journey")}</Text></View>
  <View style={[s.hero,contentWidth<580&&{flexDirection:'column-reverse'}]}>
  <View style={s.heroCopy}><Text style={s.badge}>{equipped?t("sparksscreen.equipped"):owned?t('labels.OWNED'):buyable?t("sparksscreen.shard_collection"):t('labels.LOCKED')}</Text><Text accessibilityRole="header" style={s.heroName}>{preview.name.toUpperCase()}</Text><Text style={s.description}>{SPARK_DESCRIPTIONS[preview.id]}</Text><Text style={s.heroNote}>{t("sparksscreen.passive_label")}: {abilityDefinitionForSpark(preview.id).summary}</Text><Text style={s.heroNote}>{owned?t("sparksscreen.a_different_light_the_same_skill_timing_and_physics"):buyable?t("sparksscreen.unlock_for_shards", {value1: preview.shardCost!.toLocaleString()}):unlockText(preview)}</Text>

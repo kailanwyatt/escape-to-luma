@@ -50,8 +50,9 @@ export class NullTendrilArt {
     const inner = Math.max(0.15, Math.min(config.innerRadius, outer - 0.4));
 
     for (let i = 0; i < count; i++) {
-      const a0 = -solid / 2 + (i / count) * solid;
-      const a1 = -solid / 2 + ((i + 1) / count) * solid;
+      // Solid starts at ±gap/2 so the cyan corridor stays centered on gapAngle.
+      const a0 = gap / 2 + (i / count) * solid;
+      const a1 = gap / 2 + ((i + 1) / count) * solid;
       const mid = (a0 + a1) / 2;
       const arm = new THREE.Group();
       arm.name = `living-tendril-${i}`;

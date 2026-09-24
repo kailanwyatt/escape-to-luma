@@ -55,8 +55,8 @@ export const LIBRARY_LESSONS: Record<number, { name: string; body: string; hint:
   },
   33: {
     name: 'Rotating Gate',
-    body: 'A security aperture turns across the climb above the city.',
-    hint: 'Follow the cyan sector — aim where the opening will be when Spark arrives.',
+    body: 'A sealed security disk turns on the climb — only one glowing pie stays open.',
+    hint: 'Throw through the lit pie between the cyan edges. The hub is sealed; lead the opening.',
   },
   40: {
     name: 'Pulse Ring',
@@ -70,8 +70,8 @@ export const LIBRARY_LESSONS: Record<number, { name: string; body: string; hint:
   },
   48: {
     name: 'Docking Collar',
-    body: 'A transfer hatch clamps shut across the climb into orbit.',
-    hint: 'Cyan opens the hatch — amber means the jaws are about to slam.',
+    body: 'A transfer hatch clamps shut across the climb into orbit — red is sealed, cyan is the only window.',
+    hint: 'Wait for the cyan hole. Amber means it is about to slam — a sealed red plate will stop Spark.',
   },
   64: {
     name: 'Orbital Debris',
@@ -347,14 +347,15 @@ function dockingCollar(z: number): ObstacleConfig {
     centerX: 0,
     centerY: 3,
     outerRadius: 2.15,
-    openRadius: 1.15,
-    closedRadius: 0.12,
-    speed: 0.95,
-    closedHold: 0.5,
-    openingDuration: 0.35,
-    openHold: 0.85,
-    warningHold: 0.32,
-    slamDuration: 0.18,
+    // Teach hatch: sealed most of the cycle; cyan hole is only briefly Spark-sized.
+    openRadius: 0.95,
+    closedRadius: 0,
+    speed: 0.88,
+    closedHold: 1.15,
+    openingDuration: 0.3,
+    openHold: 0.42,
+    warningHold: 0.38,
+    slamDuration: 0.24,
   };
 }
 
@@ -492,10 +493,10 @@ function climbRing(z: number): ObstacleConfig {
     centerX: 0,
     centerY: 3.05,
     outerRadius: 1.9,
-    innerRadius: 0.28,
-    // Narrower cyan sector so timing matters — hub is no longer a free pass.
-    gapWidth: 0.78,
-    speed: 0.85,
+    innerRadius: 0.32,
+    // Teach-width pie: Spark fits with margin; hub stays sealed.
+    gapWidth: 1.45,
+    speed: 0.62,
   };
 }
 

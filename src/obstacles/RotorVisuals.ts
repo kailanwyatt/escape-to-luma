@@ -83,7 +83,15 @@ export function createRotorVisual(environment: EnvironmentId, bladeCount: number
     const center = t.hubRadius + t.bladeLength / 2;
     const body = addBox(arm, metal, center, 0, 0, t.bladeLength, t.bladeWidth, t.bladeDepth);
     body.name = 'collision-arm';
+    // Leading / trailing bevels stay inside bladeWidth — fan silhouette, not a flat slab.
+    addBox(arm, dark, center, -t.bladeWidth * 0.38, -0.04, t.bladeLength - 0.08, 0.035, t.bladeDepth * 0.7);
+    addBox(arm, silver, center, t.bladeWidth * 0.38, -0.05, t.bladeLength - 0.1, 0.028, 0.04);
     addBox(arm, dark, center, 0, -0.078, t.bladeLength - 0.12, 0.15, 0.012);
+    // Tip chevron reads as a shutter paddle end without extending past bladeLength.
+    const tipX = t.hubRadius + t.bladeLength - 0.08;
+    addBox(arm, dark, tipX, 0, 0.02, 0.14, t.bladeWidth * 0.92, t.bladeDepth * 0.85);
+    addBox(arm, light, tipX, 0, -0.085, 0.05, 0.14, 0.012);
+    addBox(arm, warning, tipX - 0.12, 0, -0.09, 0.1, t.bladeWidth * 0.7, 0.014);
     for (let j = 0; j < 7; j += 1) {
       const x = t.hubRadius + 0.15 + j * 0.22;
       addBox(arm, warning, x, 0, -0.09, 0.13, 0.095, 0.015);
@@ -97,8 +105,6 @@ export function createRotorVisual(environment: EnvironmentId, bladeCount: number
       fastener.rotation.x = Math.PI / 2;
       arm.add(fastener);
     }
-    addBox(arm, dark, t.hubRadius + t.bladeLength - 0.06, 0, 0, 0.12, t.bladeWidth, t.bladeDepth);
-    addBox(arm, light, t.hubRadius + t.bladeLength - 0.06, 0, -0.083, 0.045, 0.16, 0.012);
   }
   const accent = new THREE.PointLight(0xffb83e, 8, 8, 2);
   accent.name = 'rotor-accent';

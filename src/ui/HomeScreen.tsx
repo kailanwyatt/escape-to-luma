@@ -9,6 +9,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {TOTAL_CORE_LEVELS, worldForLevel} from '../campaign/worlds';
 import {getCampaignLevel} from '../campaign/levels';
 import {HOME_BRAND} from '../config/branding';
+import {BrandWordmark} from '../design';
 import {ECONOMY} from '../config/economy';
 import {devLevelsUnlocked} from '../config/devAccess';
 import {NavIcon} from '../design/components/NavIcon';
@@ -71,8 +72,7 @@ export function HomeScreen({reduceMotion=false,save, currentLevel, onContinue, o
         </View>
         <View style={[s.brand, tablet && {paddingTop:42}]}>
           <Text style={s.eyebrow}>{t("homescreen.predict_adapt_overcome")}</Text>
-          <Text numberOfLines={1} adjustsFontSizeToFit style={[s.title,{fontSize:tablet?82:compact?49:62}]}>{HOME_BRAND.title}</Text>
-          <Text style={s.subtitle}>{HOME_BRAND.subtitle}</Text>
+          <BrandWordmark size="hero" showSubtitle/>
         </View>
         <View style={[s.stage,tablet ? {flex:1,paddingHorizontal:32,paddingBottom:28} : {height:compact?265:310}]}>
           <View style={s.side}>{nav('stats',t("homescreen.stats"),onStats)}{nav('sparks',t("homescreen.sparks"),onSparks)}</View>

@@ -1,133 +1,178 @@
 import * as THREE from 'three';
 import type { RotatingGateConfig } from '../config/ObstacleConfig';
-import { rotatingGateStateAtTime } from './RotatingGateState';
+import { rotatingGateHubRadius, rotatingGateStateAtTime } from './RotatingGateState';
 import { FacilityArtKit } from './FacilityArtKit';
 
 const SEGMENTS = 48;
 
+/** Thick annular sector so the plate reads face-on (flat RingGeometry vanishes as a silhouette). */
+function extrudedAnnulus(
+  inner: number,
+  outer: number,
+  start: number,
+  span: number,
+  depth: number,
+): THREE.ExtrudeGeometry {
+  const shape = new THREE.Shape();
+  for (let i = 0; i <= SEGMENTS; i++) {
+    const a = start + (i / SEGMENTS) * span;
+    const x = Math.cos(a) * outer;
+    const y = Math.sin(a) * outer;
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  for (let i = SEGMENTS; i >= 0; i--) {
+    const a = start + (i / SEGMENTS) * span;
+    shape.lineTo(Math.cos(a) * inner, Math.sin(a) * inner);
+  }
+  shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: false,
+    curveSegments: 1,
+  });
+  geo.translate(0, 0, -depth / 2);
+  return geo;
+}
+
 /**
  * Cinematic rotating security gate — solid armored disk with one timed sector.
- * Gap angle samples RotatingGateState; panels fill from hub to rim outside the open sector.
+ * Gap angle samples RotatingGateState; plate is a thick annular sector so the
+ * empty pie stays mesh-free and readable (box panels used to fill the opening).
  */
 export class RotatingGateArt {
   readonly group = new THREE.Group();
   private readonly kit = new FacilityArtKit({ cinematic: true });
   private readonly plate = new THREE.Group();
   private readonly gapGlow: THREE.MeshStandardMaterial;
+  private readonly gapFill: THREE.MeshBasicMaterial;
   private readonly accent: THREE.PointLight;
   private readonly ownedMaterials: THREE.Material[] = [];
   private readonly geometries: THREE.BufferGeometry[] = [];
 
   constructor(private readonly config: RotatingGateConfig) {
     this.group.name = 'rotating-gate-art';
-    const armor = this.kit.metal(0x3a4552, 0.38);
-    const steel = this.kit.metal(0x9aa8b6, 0.22);
-    const dark = this.kit.metal(0x0c1218, 0.7, false);
+    // Mid-value armor so the missing sector reads as an empty pie against sky/backdrops.
+    const armor = this.kit.metal(0x4a5d6e, 0.34);
+    const steel = this.kit.metal(0xb0bec9, 0.2);
+    const dark = this.kit.metal(0x2a3848, 0.5, false);
+    dark.emissive.setHex(0x1a2836);
+    dark.emissiveIntensity = 0.28;
     this.gapGlow = this.kit.lamp();
     this.gapGlow.color.setHex(0x7ce8ff);
     this.gapGlow.emissive.setHex(0x3aa8c9);
+    this.gapFill = new THREE.MeshBasicMaterial({
+      color: 0x5ec8e8,
+      transparent: true,
+      opacity: 0.22,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    this.ownedMaterials.push(this.gapFill);
 
     this.plate.name = 'gate-plate';
     this.group.add(this.plate);
 
     const outer = config.outerRadius;
-    const hub = Math.max(0.12, Math.min(config.innerRadius, outer - 0.35));
+    const hub = rotatingGateHubRadius(config);
     const gap = Math.max(0.35, config.gapWidth);
     const solid = Math.PI * 2 - gap;
-    const panels = 12;
-    // Fill to the hub so the center is visibly solid (matches collision).
-    const plateInner = hub * 0.35;
-    for (let i = 0; i < panels; i++) {
-      const a0 = -solid / 2 + (i / panels) * solid;
-      const a1 = -solid / 2 + ((i + 1) / panels) * solid;
-      const mid = (a0 + a1) / 2;
-      const span = a1 - a0;
-      const rMid = (plateInner + outer) / 2;
-      const panel = new THREE.Group();
-      panel.rotation.z = mid;
-      this.plate.add(panel);
-      this.kit.box(
-        panel,
-        `panel-${i}`,
-        outer - plateInner - 0.04,
-        Math.max(0.08, rMid * span * 0.92),
-        0.14,
-        rMid,
-        0,
-        0,
-        dark,
-        0.012,
-      );
-      this.kit.box(
-        panel,
-        `armor-${i}`,
-        (outer - plateInner) * 0.55,
-        Math.max(0.06, rMid * span * 0.55),
-        0.08,
-        rMid + 0.02,
-        0,
-        -0.06,
-        armor,
-        0.008,
-      );
-      this.kit.box(
-        panel,
+    // Solid starts at +gap/2 so the empty pie is centered on local 0 (= collision gapAngle).
+    const solidStart = gap / 2;
+    const plateInner = hub * 0.96;
+
+    const wallGeo = extrudedAnnulus(plateInner, outer, solidStart, solid, 0.16);
+    this.geometries.push(wallGeo);
+    const wall = new THREE.Mesh(wallGeo, dark);
+    wall.name = 'gate-wall';
+    // Stash sector params for tests (ExtrudeGeometry has no RingGeometry.parameters).
+    wall.userData.thetaStart = solidStart;
+    wall.userData.thetaLength = solid;
+    this.plate.add(wall);
+
+    const armorGeo = extrudedAnnulus(
+      plateInner + (outer - plateInner) * 0.2,
+      outer - 0.05,
+      solidStart + 0.05,
+      solid - 0.1,
+      0.1,
+    );
+    this.geometries.push(armorGeo);
+    const armorRing = new THREE.Mesh(armorGeo, armor);
+    armorRing.name = 'gate-armor';
+    armorRing.position.z = -0.05;
+    this.plate.add(armorRing);
+
+    // Soft cyan wash fills the open pie so the throw lane reads Spark-sized.
+    const fillGeo = extrudedAnnulus(hub * 1.02, outer - 0.04, -gap / 2, gap, 0.04);
+    this.geometries.push(fillGeo);
+    const fill = new THREE.Mesh(fillGeo, this.gapFill);
+    fill.name = 'gap-fill';
+    fill.position.z = 0.06;
+    this.plate.add(fill);
+
+    // Ribs stay inset from the gap edges so they never read as blocking the pie.
+    const ribCount = 8;
+    const ribInset = 0.14;
+    for (let i = 0; i < ribCount; i++) {
+      const a = solidStart + ribInset + ((i + 0.5) / ribCount) * (solid - ribInset * 2);
+      const rib = this.kit.box(
+        this.plate,
         `rib-${i}`,
+        0.055,
+        Math.max(0.08, (outer - plateInner) * 0.55),
         0.06,
-        Math.max(0.05, rMid * span * 0.7),
-        0.05,
-        outer - 0.08,
-        0,
-        -0.1,
+        Math.cos(a) * ((plateInner + outer) / 2 + 0.04),
+        Math.sin(a) * ((plateInner + outer) / 2 + 0.04),
+        -0.11,
         steel,
         0.004,
       );
+      rib.rotation.z = a + Math.PI / 2;
     }
 
-    // Solid hub cap
-    const hubCapGeo = new THREE.CircleGeometry(hub, SEGMENTS);
+    // Solid hub cap (thick so it reads face-on)
+    const hubShape = new THREE.Shape();
+    hubShape.absarc(0, 0, hub, 0, Math.PI * 2, false);
+    const hubCapGeo = new THREE.ExtrudeGeometry(hubShape, { depth: 0.12, bevelEnabled: false });
+    hubCapGeo.translate(0, 0, -0.06);
     this.geometries.push(hubCapGeo);
     const hubCap = new THREE.Mesh(hubCapGeo, dark);
     hubCap.name = 'hub-cap';
-    hubCap.position.z = 0.02;
     this.plate.add(hubCap);
 
     // Hub collar
-    const hubGeo = new THREE.TorusGeometry(hub + 0.04, 0.05, 8, SEGMENTS);
+    const hubGeo = new THREE.TorusGeometry(hub + 0.04, 0.055, 8, SEGMENTS);
     this.geometries.push(hubGeo);
     const hubMesh = new THREE.Mesh(hubGeo, steel);
     hubMesh.name = 'hub-collar';
     hubMesh.position.z = -0.04;
     this.plate.add(hubMesh);
 
-    // Outer rim
-    const rimGeo = new THREE.TorusGeometry(outer + 0.02, 0.045, 8, SEGMENTS);
+    // Outer rim (full circle housing)
+    const rimGeo = new THREE.TorusGeometry(outer + 0.02, 0.05, 8, SEGMENTS);
     this.geometries.push(rimGeo);
     const rim = new THREE.Mesh(rimGeo, armor);
     rim.name = 'outer-rim';
     rim.position.z = -0.02;
     this.plate.add(rim);
 
-    // Gap lip lights (fixed to plate edges of the sector)
+    // Gap lip lights mark the safe sector edges (collision ±gap/2).
     for (const side of [-1, 1] as const) {
+      const a = side * (gap / 2);
       const lip = this.kit.box(
         this.plate,
         `gap-lip-${side > 0 ? 'a' : 'b'}`,
-        outer - plateInner - 0.1,
-        0.08,
-        0.04,
-        (plateInner + outer) / 2,
-        0,
-        -0.12,
+        0.1,
+        outer - plateInner - 0.08,
+        0.055,
+        Math.cos(a) * ((plateInner + outer) / 2),
+        Math.sin(a) * ((plateInner + outer) / 2),
+        -0.14,
         this.gapGlow,
         0.002,
       );
-      lip.position.set(
-        Math.cos(side * (gap / 2)) * ((plateInner + outer) / 2),
-        Math.sin(side * (gap / 2)) * ((plateInner + outer) / 2),
-        -0.12,
-      );
-      lip.rotation.z = side * (gap / 2) + Math.PI / 2;
+      lip.rotation.z = a + Math.PI / 2;
     }
 
     // Bearing bosses
@@ -147,7 +192,7 @@ export class RotatingGateArt {
       );
     }
 
-    this.accent = new THREE.PointLight(0x5ec8e8, 10, 12, 2);
+    this.accent = new THREE.PointLight(0x5ec8e8, 12, 14, 2);
     this.accent.name = 'gate-accent';
     this.group.add(this.accent);
     this.update(0);
@@ -157,8 +202,9 @@ export class RotatingGateArt {
     const state = rotatingGateStateAtTime(this.config, time);
     this.plate.rotation.z = state.gapAngle;
     const pulse = 0.5 + 0.5 * Math.sin(time * 2.4);
-    this.gapGlow.emissiveIntensity = 0.7 + pulse * 0.45;
-    this.accent.intensity = 8 + pulse * 5;
+    this.gapGlow.emissiveIntensity = 0.75 + pulse * 0.5;
+    this.gapFill.opacity = 0.16 + pulse * 0.12;
+    this.accent.intensity = 9 + pulse * 6;
     this.accent.position.set(state.centerX, state.centerY, -1.1);
     this.group.position.set(state.centerX, state.centerY, 0);
   }

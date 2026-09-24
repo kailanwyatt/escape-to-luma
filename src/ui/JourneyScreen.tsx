@@ -5,7 +5,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {LinearGradient} from 'expo-linear-gradient';
 import {WORLDS} from '../campaign/worlds';
 import {journeyProgress,type WorldCardState} from '../campaign/journeyProgress';
-import {HOME_BRAND} from '../config/branding';
+import {BrandWordmark} from '../design';
 import {getAssetSource} from '../graphics/assetRegistry';
 import type {PersistentGameData} from '../persistence/GameSave';
 import {journeyLookFor} from './journeyPresentation';
@@ -99,7 +99,7 @@ export function JourneyScreen({save,devUnlockAll=false,onSelectLevel,onBack,init
  <LinearGradient colors={['#020b14','#092237','#020b14']} style={StyleSheet.absoluteFill}/>
  <View style={[s.safe,{paddingTop:Math.max(insets.top,10),paddingBottom:Math.max(insets.bottom,12),paddingLeft:Math.max(insets.left,12),paddingRight:Math.max(insets.right,12)}]}>
  <View style={s.column}>
- <View style={s.top}><Pressable accessibilityRole="button" accessibilityLabel={selected?t("journeyscreen.back_to_worlds"):t("journeyscreen.back_to_home")} onPress={back} style={s.back}><Text style={s.backText}>{t("journeyscreen.back")}</Text></Pressable><View style={s.brand}><Text style={s.wordmark}>{HOME_BRAND.title}</Text><Text style={s.brandSub}>{HOME_BRAND.subtitle}</Text></View><View style={{width:64}}/></View>
+ <View style={s.top}><Pressable accessibilityRole="button" accessibilityLabel={selected?t("journeyscreen.back_to_worlds"):t("journeyscreen.back_to_home")} onPress={back} style={s.back}><Text style={s.backText}>{t("journeyscreen.back")}</Text></Pressable><BrandWordmark size="header"/><View style={{width:64}}/></View>
  <View style={s.heading}><Text accessibilityRole="header" style={[s.title,small&&{fontSize:23}]}>{active?active.world.name:allClear?t("journeyscreen.journey_complete"):<>{t("journeyscreen.your")}<Text style={{color:cyan}}>{t("journeyscreen.journey")}</Text></>}</Text>
  <Text style={s.meta}>{active?t("journeyscreen.levels_15_complete", {value1: active.world.firstLevel, value2: active.world.lastLevel, value3: active.cleared, value4: active.levels.length}):t("journeyscreen.complete_destination", {value1: data.cleared, value2: data.total, value3: displayLabel(data.destination)})}</Text>
  <Text style={s.caption}>{active?active.world.subtitle:homeFound?t("journeyscreen.home_found_replay_and_master_the_journey"):`${WORLDS.length} worlds · follow the signal home`}</Text>

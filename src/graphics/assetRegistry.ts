@@ -11,6 +11,12 @@ export type RuntimeAssetId =
   | 'world.lockdownBanner'
   | 'world.ascentBanner'
   | 'world.stormBanner'
+  | 'world.skyGoldBanner'
+  | 'world.orbitBanner'
+  | 'world.moonBanner'
+  | 'world.beltBanner'
+  | 'world.driftBanner'
+  | 'world.lumaBanner'
   | 'home.cityGateway'
   | 'brand.wordmark'
   | 'ui.energy.full'
@@ -55,14 +61,20 @@ const entries: RuntimeAssetEntry[] = [
   { id: 'world.lockdownBanner', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/worlds/city/construction-wide.png'), fallback: 'lockdown sky gradient', disposalOwner: 'react-native' },
   { id: 'world.ascentBanner', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/worlds/sky/sunlit-updraft-wide.png'), fallback: 'ascent sky gradient', disposalOwner: 'react-native' },
   { id: 'world.stormBanner', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/worlds/sky/stormfront-drift-wide.png'), fallback: 'storm sky gradient', disposalOwner: 'react-native' },
+  { id: 'world.skyGoldBanner', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/worlds/sky/golden-cloudfalls-wide.png'), fallback: 'upper atmosphere gradient', disposalOwner: 'react-native' },
+  { id: 'world.orbitBanner', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/worlds/space/orbit-wide.jpg'), fallback: 'orbit sky gradient', disposalOwner: 'react-native' },
+  { id: 'world.moonBanner', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/worlds/space/moon-wide.jpg'), fallback: 'moon sky gradient', disposalOwner: 'react-native' },
+  { id: 'world.beltBanner', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/worlds/space/belt-wide.jpg'), fallback: 'belt sky gradient', disposalOwner: 'react-native' },
+  { id: 'world.driftBanner', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/worlds/space/drift-wide.jpg'), fallback: 'drift sky gradient', disposalOwner: 'react-native' },
+  { id: 'world.lumaBanner', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/worlds/luma-celebration-v2.png'), fallback: 'homeward backdrop', disposalOwner: 'react-native' },
 
   { id: 'home.cityGateway', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/home/city-gateway.jpg'), fallback: 'navy home background', disposalOwner: 'react-native' },
   { id: 'story.openingScore', kind: 'audio', group: 'optional', version: 1,
     source: require('../../assets/sfx/opening-score.wav'), fallback: 'silent cinematic with captions', disposalOwner: 'audio-manager' },
-  { id: 'brand.wordmark', kind: 'image', group: 'boot', version: 1, source: null, fallback: 'BrandHero text', disposalOwner: 'react-native' },
-  { id: 'ui.energy.full', kind: 'image', group: 'boot', version: 1, source: null, fallback: 'energy glyph', disposalOwner: 'react-native' },
-  { id: 'ui.energy.empty', kind: 'image', group: 'boot', version: 1, source: null, fallback: 'energy outline glyph', disposalOwner: 'react-native' },
-  { id: 'ui.shard', kind: 'image', group: 'boot', version: 1, source: null, fallback: 'diamond glyph', disposalOwner: 'react-native' },
+  { id: 'brand.wordmark', kind: 'image', group: 'boot', version: 2, source: require('../../assets/art/brand/spark-wordmark.png'), fallback: 'BrandWordmark text', disposalOwner: 'react-native' },
+  { id: 'ui.energy.full', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/shop/currency-icons.png'), fallback: 'energy glyph', disposalOwner: 'react-native' },
+  { id: 'ui.energy.empty', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/shop/currency-icons.png'), fallback: 'energy outline glyph', disposalOwner: 'react-native' },
+  { id: 'ui.shard', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/shop/currency-icons.png'), fallback: 'diamond glyph', disposalOwner: 'react-native' },
   { id: 'ui.heart.full', kind: 'image', group: 'optional', version: 1, source: null, fallback: 'filled heart glyph', disposalOwner: 'react-native' },
   { id: 'ui.heart.empty', kind: 'image', group: 'optional', version: 1, source: null, fallback: 'empty heart glyph', disposalOwner: 'react-native' },
   {
@@ -137,7 +149,7 @@ const entries: RuntimeAssetEntry[] = [
     fallback: 'procedural Neon tint',
     disposalOwner: 'expo-asset',
   },
-  { id: 'target.jumpGate', kind: 'model', group: 'world1', version: 1, source: null, fallback: 'procedural scoring rings', disposalOwner: 'three-scene' },
+  { id: 'target.jumpGate', kind: 'model', group: 'world1', version: 2, source: null, fallback: 'procedural dimensional Jump Gate', disposalOwner: 'three-scene' },
   { id: 'world1.containment', kind: 'model', group: 'world1', version: 1, source: null, fallback: 'procedural workshop kit', disposalOwner: 'three-scene' },
   {
     id: 'world1.crackEscape',

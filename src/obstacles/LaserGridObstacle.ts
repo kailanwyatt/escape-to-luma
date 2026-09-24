@@ -76,7 +76,14 @@ export class LaserGridObstacle {
       glow.name='BeamHalo';glow.position.z=-.018;
       glow.scale.set(beam.orientation==='vertical'?10:1,beam.orientation==='vertical'?1:10,1);mesh.add(glow);
       const core=new THREE.Mesh(new THREE.BoxGeometry(1,1,.008),new THREE.MeshBasicMaterial({color:0xffece0,toneMapped:false}));
-      core.name='HotCore';core.scale.set(beam.orientation==='vertical'?.24:1,beam.orientation==='vertical'?1:.24,1);core.position.z=-.012;mesh.add(core);
+      core.name='HotCore';core.scale.set(beam.orientation==='vertical'?.28:1,beam.orientation==='vertical'?1:.28,1);core.position.z=-.012;mesh.add(core);
+      // Dim channel when pulsed off — gap stays readable without looking live.
+      const ghost=new THREE.Mesh(new THREE.BoxGeometry(1,1,.006),new THREE.MeshBasicMaterial({
+        color:0x3a6a78,transparent:true,opacity:0,depthWrite:false,toneMapped:false,
+      }));
+      ghost.name='SafeGhost';
+      ghost.scale.set(beam.orientation==='vertical'?.55:1,beam.orientation==='vertical'?1:.55,1);
+      ghost.position.z=-.01;ghost.visible=false;mesh.add(ghost);
       const pair=[this.createEmitter(),this.createEmitter()];
       this.emitters.push(pair);this.group.add(...pair);
       this.laserLayer.add(mesh);
@@ -222,9 +229,14 @@ export class LaserGridObstacle {
       mesh.scale.set(vertical?config.thickness*2:config.span,vertical?config.span:config.thickness*2,1);
       mesh.position.set(vertical?beam.position:beam.centerX,vertical?beam.centerY:beam.position,0);
       const material=mesh.material as THREE.MeshBasicMaterial;
-      material.color.setHex(on?LASER_ON:LASER_OFF);material.opacity=on?.12:.04;
+      material.color.setHex(on?LASER_ON:LASER_OFF);material.opacity=on?.55:.08;
       mesh.getObjectByName('HotCore')!.visible=on;
-      (mesh.getObjectByName('BeamHalo') as THREE.Mesh<THREE.PlaneGeometry,THREE.ShaderMaterial>).material.uniforms.strength.value=on?1:0;
+      (mesh.getObjectByName('BeamHalo') as THREE.Mesh<THREE.PlaneGeometry,THREE.ShaderMaterial>).material.uniforms.strength.value=on?1.35:0;
+      const ghost=mesh.getObjectByName('SafeGhost') as THREE.Mesh|undefined;
+      if(ghost){
+        ghost.visible=!on;
+        (ghost.material as THREE.MeshBasicMaterial).opacity=on?0:.22;
+      }
       this.emitters[index].forEach((emitter,j)=>{
         const sign=j===0?-1:1;
         emitter.position.set(vertical?beam.position:beam.centerX+sign*(config.span/2+.08),vertical?beam.centerY+sign*(config.span/2+.08):beam.position,0);
@@ -306,6 +318,17 @@ export class LaserGridObstacle {
       for(const sign of [-1,1]){
         const cap=new THREE.Mesh(new THREE.BoxGeometry(isVertical?.38:.28,isVertical?.28:.38,.42),new THREE.MeshStandardMaterial({color:0x263647,metalness:.7,roughness:.4}));
         cap.position.set(isVertical?0:sign*(half-.12),isVertical?sign*(half-.12):0,0);rail.add(cap);
+      }
+    }
+    // Corner brackets mark the playable gap through the frame without changing beam collision.
+    if(horizontal&&vertical){
+      const bracketMat=new THREE.MeshStandardMaterial({color:0x8bdde7,emissive:0x1a4a55,emissiveIntensity:.35,metalness:.4,roughness:.45});
+      const gap=config.spacing*0.45;
+      for(const sx of [-1,1])for(const sy of [-1,1]){
+        const bracket=new THREE.Mesh(new THREE.BoxGeometry(.14,.14,.05),bracketMat);
+        bracket.name='GapBracket';
+        bracket.position.set(centerX+sx*gap,centerY+sy*gap,-.2);
+        this.fixedFrame.add(bracket);
       }
     }
   }

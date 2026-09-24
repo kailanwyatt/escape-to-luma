@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { HOME_BRAND } from '../../config/branding';
 import { textStyles } from '../typography';
 import { color, space } from '../tokens';
+import { BrandWordmark } from './BrandWordmark';
 
 type Props = {
   kicker?: string;
@@ -17,10 +18,13 @@ export function BrandHero({
   productLine = HOME_BRAND.subtitle,
   tagline = HOME_BRAND.tagline,
 }: Props) {
+  const useWordmark = title === HOME_BRAND.title;
   return (
     <View style={styles.root}>
       {kicker ? <Text style={textStyles.kicker}>{kicker}</Text> : null}
-      <Text numberOfLines={1} adjustsFontSizeToFit style={[textStyles.brand, styles.title]}>{title}</Text>
+      {useWordmark
+        ? <BrandWordmark size="hero" showSubtitle={false}/>
+        : <Text numberOfLines={1} adjustsFontSizeToFit style={[textStyles.brand, styles.title]}>{title}</Text>}
       <View style={styles.flare} />
       {productLine ? <Text style={textStyles.productLine}>{productLine}</Text> : null}
       {tagline ? <Text style={[textStyles.tagline, styles.tagline]}>{tagline}</Text> : null}

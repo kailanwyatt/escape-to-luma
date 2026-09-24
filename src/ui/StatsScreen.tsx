@@ -4,8 +4,7 @@ import type {ReactNode} from 'react';
 import {Pressable,ScrollView,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {color} from '../design';
-import {HOME_BRAND} from '../config/branding';
+import {color,BrandWordmark} from '../design';
 import {statsSummary,formatStat} from '../campaign/statsSummary';
 import type {PersistentGameData} from '../persistence/GameSave';
 type Props={save:PersistentGameData;onBack:()=>void};
@@ -22,7 +21,7 @@ export function StatsScreen({save,onBack}:Props){
  <MenuBackBar onBack={onBack} label={t("journeyscreen.back_to_home")}/>
  <ScrollView style={{flex:1}} contentContainerStyle={{paddingTop:12,paddingBottom:Math.max(insets.bottom,20),paddingLeft:Math.max(insets.left,16),paddingRight:Math.max(insets.right,16),alignItems:'center'}}>
  <View style={s.column}>
- <View style={s.brand}><Text style={s.wordmark}>{HOME_BRAND.title}</Text><Text style={s.brandSub}>{HOME_BRAND.subtitle}</Text></View>
+ <BrandWordmark size="header" style={s.brand}/>
  <View style={s.heading}><Text style={s.eyebrow}>{t("statsscreen.your_journey")}</Text><Text accessibilityRole="header" style={s.title}>{t("homescreen.stats")}</Text><Text style={s.caption}>{t("statsscreen.numbers_tell_a_story_this_one_is_yours")}</Text></View>
  <View style={s.hero}>
  <View style={s.heroTop}><View style={{flex:1,minWidth:140}}><Text accessibilityRole="header" style={s.sectionTitle}>{t("statsscreen.journey_progress")}</Text><Text style={s.sectionSub}>{data.journey.cleared===150?t("statsscreen.home_found_keep_exploring"):t("statsscreen.every_level_brings_spark_closer")}</Text></View><View style={s.worldTotal}><Text style={s.bigValue}>{data.worldsCleared} / 10</Text><Text style={s.tiny}>{t("statsscreen.worlds_cleared")}</Text></View></View>

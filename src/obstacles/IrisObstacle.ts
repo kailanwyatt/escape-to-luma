@@ -68,6 +68,19 @@ export class IrisObstacle {
     this.group.position.set(this.centerX, this.centerY, this.z);
     if (this.visual) {
       layoutIrisVisual(this.visual, this.openingRadius);
+      // Cyan = throw window; amber = closing; red = sealed vs Spark.
+      const aperture = this.visual.getObjectByName('aperture') as THREE.Mesh | undefined;
+      const mat = aperture?.material;
+      if (mat && 'color' in mat) {
+        const sealed = this.openingRadius < GAME_TUNING.projectile.radius + 0.06;
+        const tight = this.openingRadius < GAME_TUNING.projectile.radius + 0.35;
+        const color = sealed ? 0xff7562 : tight ? 0xffb449 : 0x70e5ed;
+        (mat as THREE.MeshBasicMaterial | THREE.MeshStandardMaterial).color.setHex(color);
+        if ('emissive' in mat) {
+          (mat as THREE.MeshStandardMaterial).emissive.setHex(color);
+          (mat as THREE.MeshStandardMaterial).emissiveIntensity = sealed ? 1.15 : tight ? 1.05 : 0.75;
+        }
+      }
     }
   }
 
@@ -129,6 +142,8 @@ export class IrisObstacle {
 }
 
 export function irisRadiusAt(config: IrisConfig, elapsedTime: number): number {
-  const t = (Math.sin(elapsedTime * config.speed + (config.phase ?? 0)) + 1) / 2;
+  const wave = (Math.sin(elapsedTime * config.speed + (config.phase ?? 0)) + 1) / 2;
+  // Square the envelope so the sealed end of travel holds longer (readable shutter).
+  const t = wave * wave;
   return lerp(config.minRadius, config.maxRadius, t);
 }

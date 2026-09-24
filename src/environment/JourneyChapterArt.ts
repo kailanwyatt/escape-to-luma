@@ -86,7 +86,7 @@ export function createJourneyChapterArt(world:string):THREE.Group {
     }
     if(world==='far_side')for(let i=0;i<4;i++)mast(10+i*2,0,38+i*5,2+i*.7);
   }else if(world==='drift'){
-    const matte=createWorldBackdrop('nebula');(matte.material as THREE.MeshBasicMaterial).color.setHex(0x303e58);root.add(matte);
+    const matte=createWorldBackdrop('space-drift');(matte.material as THREE.MeshBasicMaterial).color.setHex(0x303e58);root.add(matte);
     // Sparse distant icy comet; its dust fan is well above the active target.
     put(rock,metal,-11,13,50,.8,.6,.7);
     for(let i=0;i<12;i++)box(dark,-12-i*.7,13+i*.18,51+i*.4,1.5,.04+i*.035,.03,-.2);

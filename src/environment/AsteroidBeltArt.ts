@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {createAsteroidGeometry} from './AsteroidGeometry';
+import {createWorldBackdrop} from '../graphics/WorldBackdrop';
 
 const fract = (n: number) => n - Math.floor(n);
 function noise(x: number, y: number, seed: number): number {
@@ -38,7 +39,11 @@ export function createAsteroidBeltArt(level=95): THREE.Group {
   const root=new THREE.Group();root.name='asteroid-belt-depth-environment';
   let seed=(7919+level*104729)>>>0;
   const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
-  const backdrop=new THREE.Mesh(new THREE.PlaneGeometry(120,100),new THREE.MeshBasicMaterial({map:nebulaTexture(level),side:THREE.DoubleSide,fog:false,depthWrite:false}));
+  const matte=createWorldBackdrop('space-belt');
+  (matte.material as THREE.MeshBasicMaterial).color.setHex(0xb9a890);
+  root.add(matte);
+  // Soft procedural wash sits behind rocks if the plate load is slow.
+  const backdrop=new THREE.Mesh(new THREE.PlaneGeometry(120,100),new THREE.MeshBasicMaterial({map:nebulaTexture(level),side:THREE.DoubleSide,fog:false,depthWrite:false,transparent:true,opacity:0.35}));
   backdrop.name='belt-nebula';backdrop.position.set(0,4,68);root.add(backdrop);
 
   const stars:number[]=[],colors:number[]=[];

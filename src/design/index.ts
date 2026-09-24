@@ -3,6 +3,7 @@ export { textStyles, textRole } from './typography';
 export { Screen } from './components/Screen';
 export { Button } from './components/Button';
 export { BrandHero } from './components/BrandHero';
+export { BrandWordmark } from './components/BrandWordmark';
 export { MetaStrip } from './components/MetaStrip';
 export { StatusPanel } from './components/StatusPanel';
 export { BottomNav } from './components/BottomNav';

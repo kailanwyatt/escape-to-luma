@@ -137,6 +137,15 @@ function createOrbitalIrisCinematic(): THREE.Group {
     root.getObjectByName(`iris-lamp-${i}`)!.rotation.z = angle;
   }
   ring(outer - 0.1, 0.018, cyan, -0.13);
+  // Depth collar makes the shutter read as a volume, not a sticker.
+  ring(outer - 0.02, 0.06, dark, 0.12);
+  for (let i = 0; i < 8; i++) {
+    const angle = (i * Math.PI) / 4;
+    const hinge = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.16), metal);
+    hinge.position.set(Math.cos(angle) * (outer - 0.18), Math.sin(angle) * (outer - 0.18), 0.08);
+    hinge.rotation.z = angle;
+    root.add(hinge);
+  }
 
   const accent = new THREE.PointLight(0xf0b657, 9, 9, 2);
   accent.name = 'iris-accent';

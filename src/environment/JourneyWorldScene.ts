@@ -11,7 +11,7 @@ import {containmentMetal} from '../graphics/ContainmentMaterials';
 
 export const JOURNEY_LOOKS = {
  city:{background:0x714f59,ambient:0xd8b7b3,key:0xffbd79},
- upper_atmosphere:{background:0x102844,ambient:0xb9d8ef,key:0xffedcf},
+ upper_atmosphere:{background:0x3a4a6a,ambient:0xc7b6cb,key:0xffcf93},
  orbit:{background:0x040b18,ambient:0x9eaec9,key:0xffe1b3},
  orbital_graveyard:{background:0x030810,ambient:0x7c8d9f,key:0xc3d3e0},
  sky:{background:0x071018,ambient:0x3d4f6e,key:0x8fa8d4},
@@ -65,8 +65,14 @@ export function createJourneyWorldScene(world:JourneyWorld,level=95):THREE.Group
   const art=createSkyWorldArt(world==='storm',level);root.add(art);
   root.userData.updateAtmosphere=art.userData.updateAtmosphere;
  }else if(moonish){
+  const matte=createWorldBackdrop('space-moon');
+  (matte.material as THREE.MeshBasicMaterial).color.setHex(world==='far_side'?0x7a858f:0xc5ced6);
+  root.add(matte);
   root.add(createMoonArt(world!=='far_side'));
  }else if(rockish){
+  const matte=createWorldBackdrop('space-drift');
+  (matte.material as THREE.MeshBasicMaterial).color.setHex(0xa8b4c4);
+  root.add(matte);
   const asteroidMaterial=new THREE.MeshPhongMaterial({color:0xc2b7b3,vertexColors:true,shininess:1,specular:0x141414});
   const variants=Array.from({length:6},(_,i)=>createAsteroidGeometry(7919+i*104729));
   for(let i=0;i<(world==='drift'?6:34);i++){

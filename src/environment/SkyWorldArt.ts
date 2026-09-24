@@ -23,7 +23,7 @@ export function skyLook(storm:boolean,level:number){
       background:0x527e9c,
     };
   }
-  // Early ascent / sky: night corridor so beam hazards read clearly (phone + tablet wide).
+  // Early ascent (incl. L32 ground cutters): night storm plate so beam hazards stay readable.
   return {
     portrait:'sky-storm' as const,
     wide:'sky-storm-wide' as const,

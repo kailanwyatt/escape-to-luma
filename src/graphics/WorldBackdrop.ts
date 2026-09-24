@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-export type BackdropWorld = 'nebula'|'network'|'homeward'|'opening'|'city-sunset'|'city-construction'|'city-neon-night'|'city-rainy'|'city-sunset-wide'|'city-construction-wide'|'city-neon-night-wide'|'city-rainy-wide'|'sky-sunlit'|'sky-golden'|'sky-storm'|'sky-sunlit-wide'|'sky-golden-wide'|'sky-storm-wide';
+export type BackdropWorld = 'nebula'|'network'|'homeward'|'opening'|'city-sunset'|'city-construction'|'city-neon-night'|'city-rainy'|'city-sunset-wide'|'city-construction-wide'|'city-neon-night-wide'|'city-rainy-wide'|'sky-sunlit'|'sky-golden'|'sky-storm'|'sky-sunlit-wide'|'sky-golden-wide'|'sky-storm-wide'|'space-orbit'|'space-moon'|'space-belt'|'space-drift';
 export function backdropForAspect(portrait:BackdropWorld,wide:BackdropWorld|undefined,aspect:number):BackdropWorld{
   return wide&&aspect>=.7?wide:portrait;
 }

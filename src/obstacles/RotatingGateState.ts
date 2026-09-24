@@ -8,7 +8,7 @@ export type RotatingGateState = {
   centerX: number;
   centerY: number;
   outerRadius: number;
-  /** Decorative hub collar radius (art); plate is solid through the center. */
+  /** Solid hub radius — matches art; the cyan sector only opens outside this. */
   innerRadius: number;
   gapAngle: number;
   gapWidth: number;
@@ -21,6 +21,18 @@ function wrapPi(delta: number): number {
   return d;
 }
 
+/**
+ * Smallest radius where a ball centered in the sector can clear the wedge apex.
+ * Visual hub should cover this so the open pie only shows a flyable path.
+ */
+export function rotatingGateHubRadius(config: RotatingGateConfig, ballRadius = 0.22): number {
+  const gap = Math.max(0.35, config.gapWidth);
+  const half = gap / 2;
+  const apexClear = ballRadius / Math.max(0.2, Math.sin(half));
+  const authored = Math.max(0.12, Math.min(config.innerRadius, config.outerRadius - 0.35));
+  return Math.min(config.outerRadius - 0.45, Math.max(authored, apexClear * 0.92));
+}
+
 export function rotatingGateStateAtTime(
   config: RotatingGateConfig,
   time: number,
@@ -29,7 +41,7 @@ export function rotatingGateStateAtTime(
     centerX: config.centerX,
     centerY: config.centerY,
     outerRadius: config.outerRadius,
-    innerRadius: Math.max(0.12, Math.min(config.innerRadius, config.outerRadius - 0.35)),
+    innerRadius: rotatingGateHubRadius(config),
     gapAngle: time * config.speed + (config.phase ?? 0),
     gapWidth: Math.max(0.35, config.gapWidth),
   };
@@ -52,12 +64,18 @@ export function evaluateRotatingGateCollision(
     return { hit: false, clearance: dist - state.outerRadius - radius, nearMiss: false };
   }
 
+  // Solid hub — no free pass through the middle of the pie.
+  const hubClearance = dist - state.innerRadius - radius;
+  if (hubClearance < 0) {
+    return { hit: true, clearance: hubClearance, nearMiss: false };
+  }
+
   const ang = Math.atan2(dy, dx);
   const half = state.gapWidth / 2;
   const delta = Math.abs(wrapPi(ang - state.gapAngle));
   if (delta <= half) {
-    // Inside the safe sector — clearance to the nearest sector edge or outer rim.
-    const edge = (half - delta) * Math.max(dist, 0.01);
+    // Inside the safe sector — clearance to the nearer sector edge ray (or rim).
+    const edge = dist * Math.sin(Math.max(0, half - delta));
     const radialOut = state.outerRadius - dist;
     const clearance = Math.min(edge, radialOut) - radius;
     return {
@@ -67,7 +85,7 @@ export function evaluateRotatingGateCollision(
     };
   }
 
-  // Solid plate (including the hub): depth into the disk.
+  // Solid plate: depth into the disk.
   const clearance = -(state.outerRadius - (dist - radius));
   return {
     hit: true,

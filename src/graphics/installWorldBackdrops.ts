@@ -15,5 +15,9 @@ const sources={opening:require('../../assets/art/worlds/opening-space.png'),nebu
  'sky-sunlit-wide':require('../../assets/art/worlds/sky/sunlit-updraft-wide.png'),
  'sky-golden-wide':require('../../assets/art/worlds/sky/golden-cloudfalls-wide.png'),
  'sky-storm-wide':require('../../assets/art/worlds/sky/stormfront-drift-wide.png'),
+ 'space-orbit':require('../../assets/art/worlds/space/orbit-wide.jpg'),
+ 'space-moon':require('../../assets/art/worlds/space/moon-wide.jpg'),
+ 'space-belt':require('../../assets/art/worlds/space/belt-wide.jpg'),
+ 'space-drift':require('../../assets/art/worlds/space/drift-wide.jpg'),
 };
 setWorldBackdropLoader(world=>loadModuleTexture(sources[world]));
