@@ -24,6 +24,8 @@ export class ShiftingApertureObstacle {
   openingRadius = 1;
   private config: ShiftingApertureConfig | null = null;
   private visual: THREE.Group | null = null;
+  private openingWash: THREE.Mesh | null = null;
+  private shiftTicks: THREE.Mesh[] = [];
 
   constructor(id: string) {
     this.id = id;
@@ -51,6 +53,38 @@ export class ShiftingApertureObstacle {
         if(object instanceof THREE.Mesh && object.material instanceof THREE.MeshBasicMaterial && object.material.color.getHex()===0x92e8f2)object.material.color.setHex(0xffcf70);
       });
       this.group.add(this.visual);
+
+      // Safe-hole wash lives on the group (not inside iris children) so petal geometry stays authoritative.
+      this.openingWash = new THREE.Mesh(
+        new THREE.RingGeometry(0.15, 1, 48),
+        new THREE.MeshBasicMaterial({
+          color: 0xffcf70,
+          transparent: true,
+          opacity: 0.18,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+        }),
+      );
+      this.openingWash.name = 'aperture-wash';
+      this.openingWash.position.z = 0.04;
+      this.group.add(this.openingWash);
+
+      for (const side of [-1, 1] as const) {
+        const tick = new THREE.Mesh(
+          new THREE.BoxGeometry(0.14, 0.04, 0.03),
+          new THREE.MeshBasicMaterial({
+            color: 0xffcf70,
+            transparent: true,
+            opacity: 0.55,
+            depthWrite: false,
+          }),
+        );
+        tick.name = `shift-tick-${side > 0 ? 'right' : 'left'}`;
+        tick.userData.side = side;
+        this.shiftTicks.push(tick);
+        this.group.add(tick);
+      }
     }
     this.update(0, 0);
   }
@@ -71,6 +105,18 @@ export class ShiftingApertureObstacle {
     this.openingRadius = state.radius;
     this.group.position.set(state.x, state.y, this.z);
     if(this.visual)layoutOrbitalIris(this.visual,state.radius);
+    if (this.openingWash) {
+      const openT = Math.min(1, Math.max(0.15, state.radius / Math.max(0.2, this.config.maxRadius)));
+      this.openingWash.scale.setScalar(state.radius);
+      (this.openingWash.material as THREE.MeshBasicMaterial).opacity = 0.12 + openT * 0.16;
+    }
+    // Lateral ticks mark travel of the shifting center (amplitude cue, not collision).
+    const amp = this.config.shiftAmplitude;
+    for (const tick of this.shiftTicks) {
+      const side = tick.userData.side as number;
+      tick.position.set(side * (amp + state.radius * 0.15), 0, -0.06);
+      tick.visible = amp > 0.05;
+    }
   }
 
   testProjectileCrossing(

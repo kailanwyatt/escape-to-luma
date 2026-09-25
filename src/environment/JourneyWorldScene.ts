@@ -11,7 +11,7 @@ import {containmentMetal} from '../graphics/ContainmentMaterials';
 
 export const JOURNEY_LOOKS = {
  city:{background:0x714f59,ambient:0xd8b7b3,key:0xffbd79},
- upper_atmosphere:{background:0x3a4a6a,ambient:0xc7b6cb,key:0xffcf93},
+ upper_atmosphere:{background:0x0a1524,ambient:0xb8c4d4,key:0xffd4a0},
  orbit:{background:0x040b18,ambient:0x9eaec9,key:0xffe1b3},
  orbital_graveyard:{background:0x030810,ambient:0x7c8d9f,key:0xc3d3e0},
  sky:{background:0x071018,ambient:0x3d4f6e,key:0x8fa8d4},
@@ -48,14 +48,20 @@ export function createJourneyWorldScene(world:JourneyWorld,level=95):THREE.Group
  const moonish = world==='moon'||world==='far_side';
  const rockish = world==='drift';
  const lateArt =
-  world==='nebula'||world==='the_null'||world==='false_home' ? 'nebula' as const :
-  world==='network'||world==='ancient_network'||world==='the_machine' ? 'network' as const :
+  world==='nebula'||world==='the_null' ? 'nebula' as const :
+  world==='false_home' ? 'homeward' as const :
+  world==='network'||world==='ancient_network'||world==='the_machine'||world==='the_signal' ? 'network' as const :
   'homeward' as const;
  const metal=containmentMetal('floor');metal.color.setHex(skyish?0xa5b4bc:0x52636a);metal.map!.repeat.set(1,1);
  const rock=new THREE.MeshPhongMaterial({color:moonish?0x919598:0x665e62,flatShading:true,shininess:3});
  const dark=new THREE.MeshPhongMaterial({color:0x20353f,shininess:48});
  const gold=new THREE.MeshPhongMaterial({color:0xa88a52,shininess:65});
- const light=new THREE.MeshBasicMaterial({color:lateArt==='network'?0xecc371:lateArt==='homeward'?0x91f5ca:0x82cbd9});
+ const light=new THREE.MeshBasicMaterial({
+  color: world==='the_signal' ? 0x7ef0ff :
+    lateArt==='network' ? 0xecc371 :
+    lateArt==='homeward' ? 0x91f5ca :
+    0x82cbd9,
+ });
  const crystal=new THREE.MeshPhongMaterial({color:lateArt==='homeward'?0x74baac:0x956ee1,emissive:lateArt==='homeward'?0x174a3a:0x251452,shininess:100});
  const batches=new Map<THREE.Material,THREE.Matrix4[]>(),transform=new THREE.Object3D();
  const box=(m:THREE.Material,x:number,y:number,z:number,w:number,h:number,d:number,angle=0)=>{transform.position.set(x,y,z);transform.rotation.set(0,angle,0);transform.scale.set(w,h,d);transform.updateMatrix();const b=batches.get(m)??[];b.push(transform.matrix.clone());batches.set(m,b);};
@@ -70,8 +76,9 @@ export function createJourneyWorldScene(world:JourneyWorld,level=95):THREE.Group
   root.add(matte);
   root.add(createMoonArt(world!=='far_side'));
  }else if(rockish){
-  const matte=createWorldBackdrop('space-drift');
-  (matte.material as THREE.MeshBasicMaterial).color.setHex(0xa8b4c4);
+  // Drift owns the ice-current read; Orbital Graveyard keeps the wreckage drift plate.
+  const matte=createWorldBackdrop('space-belt');
+  (matte.material as THREE.MeshBasicMaterial).color.setHex(0x9eb8d0);
   root.add(matte);
   const asteroidMaterial=new THREE.MeshPhongMaterial({color:0xc2b7b3,vertexColors:true,shininess:1,specular:0x141414});
   const variants=Array.from({length:6},(_,i)=>createAsteroidGeometry(7919+i*104729));
@@ -88,7 +95,13 @@ export function createJourneyWorldScene(world:JourneyWorld,level=95):THREE.Group
   const art=createLateWorldArt(lateArt);root.add(art);
   const matte=art.getObjectByName(`${lateArt}-distant-matte`) as THREE.Mesh|undefined;
   if(matte){
-   const tint=world==='false_home'?0x8b799e:world==='the_machine'?0x827b68:world==='the_signal'?0x92b4bc:world==='luma'?0xb6d4bc:0xb3bdc8;
+   // False Home borrows Homeward art but warms it wrong — Signal stays on Network cyan.
+   const tint=
+    world==='false_home'?0xc4a878:
+    world==='the_signal'?0x6a9eb8:
+    world==='the_machine'?0x827b68:
+    world==='luma'?0xb6d4bc:
+    0xb3bdc8;
    (matte.material as THREE.MeshBasicMaterial).color.setHex(tint);
   }
   root.userData.updateAtmosphere=art.userData.updateAtmosphere;

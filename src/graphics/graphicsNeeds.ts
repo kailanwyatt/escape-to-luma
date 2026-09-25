@@ -47,7 +47,7 @@ export const ART_DIRECTION = {
     'Space progression (atmosphere → orbit → moon → belt → nebula → network → home — Worlds 4–10)',
   ],
   prototypeStatus:
-    'Journey banners cover all chapters. Spark uses layered shader core + halos. Currency icons ship via shop atlas. SPARK wordmark image on home/menus. Jump Gate has dimensional throat + scoring-aligned zone rings. Rotor/iris/laser/orbiter/debris silhouette pass shipped (collision envelopes intact). Gameplay 3D remains mostly procedural.',
+    'Journey banners cover all chapters. Spark uses layered shader core + halos. Currency icons ship via shop atlas. SPARK wordmark image on home/menus. Catalog spark portraits + Endless heart sprites ship. Jump Gate has dimensional throat + scoring-aligned zone rings. Phase field / shifting aperture teach windows. Workshop corridor has panels + trays. Rotor/iris/laser/orbiter/debris silhouette pass shipped (collision envelopes intact). Gameplay 3D remains mostly procedural.',
 } as const;
 
 export const GRAPHICS_NEEDS: GraphicsNeed[] = [
@@ -159,8 +159,8 @@ export const GRAPHICS_NEEDS: GraphicsNeed[] = [
     kind: 'campaign',
     priority: 'P1',
     name: 'HOME finale stills',
-    current: 'Empty hazard level + text beat',
-    need: 'Final gate / home silhouette + “SPARK MADE IT HOME” title card',
+    current: 'FinaleScreen pages (finale.png + finale-voyage.png) + luma celebration banner',
+    need: 'Optional “SPARK MADE IT HOME” title card overlay polish',
     format: 'PNG/WebP key art + optional simple 3D set piece',
     notes: 'Level 150 has no dangerous obstacle — art sells the ending.',
   },
@@ -196,10 +196,10 @@ export const GRAPHICS_NEEDS: GraphicsNeed[] = [
   {
     id: 'spark-cards',
     kind: 'ui',
-    priority: 'P0',
+    priority: 'P1',
     name: 'Spark select portraits',
-    current: 'Text rows + color swatches',
-    need: 'Portrait per Spark skin (see catalog — ~14 forms)',
+    current: 'Per-skin PNG portraits on Sparks screen / unlock cards (procedural fallback)',
+    need: 'Optional hand-painted hero variants; keep spherical collider for gameplay Spark',
     format: 'PNG square 256–512 transparent',
     notes:
       'Catalog: original, neon, solar, frost, storm, plasma, lunar, meteor, nebula, void, reactor, ancient, origin, prism (+ aurora world reward).',
@@ -236,10 +236,10 @@ export const GRAPHICS_NEEDS: GraphicsNeed[] = [
   {
     id: 'hearts',
     kind: 'hud',
-    priority: 'P0',
+    priority: 'P1',
     name: 'Endless hearts',
-    current: '♥ ♡ glyphs',
-    need: 'Filled + empty heart sprites (Endless Voyage only)',
+    current: 'Filled + empty heart sprites on Endless Voyage HUD',
+    need: 'Optional denser atlas crop shared with other HUD pips',
     format: 'PNG @2x/@3x or SVG',
   },
   {
@@ -429,21 +429,21 @@ export const GRAPHICS_NEEDS: GraphicsNeed[] = [
   {
     id: 'phase-field',
     kind: 'obstacle',
-    priority: 'P0',
+    priority: 'P1',
     name: 'Phase field',
-    current: 'Primitive field disc / torus',
-    need: 'Energy field with clear open/closed phase windows',
-    format: 'GLB + VFX materials',
+    current: 'Warm solid membrane when closed; cyan passable ghost + rim when open',
+    need: 'Optional volumetric bloom; keep openRatio timing authoritative',
+    format: 'Shader disc + VFX rim',
     notes: 'World 8 primary. Open ratio is timing-critical.',
   },
   {
     id: 'shifting-aperture',
     kind: 'obstacle',
-    priority: 'P0',
+    priority: 'P1',
     name: 'Shifting aperture',
-    current: 'Primitive iris + lateral shift',
-    need: 'Ancient Network synchronized aperture (pulse + shift)',
-    format: 'GLB',
+    current: 'Ancient orbital iris + amber opening wash + lateral shift ticks',
+    need: 'Optional denser carved kit; opening + center shift must match collision',
+    format: 'Procedural / GLB',
     notes: 'World 9 primary. Opening + center shift must match collision.',
   },
 
@@ -451,10 +451,10 @@ export const GRAPHICS_NEEDS: GraphicsNeed[] = [
   {
     id: 'env-workshop',
     kind: 'environment',
-    priority: 'P0',
+    priority: 'P1',
     name: 'Containment / Workshop set',
-    current: 'Boxes: floor, walls, crates, pipes, lamp',
-    need: 'Underground facility corridor (World 1); keep aim lane clear',
+    current: 'Facility corridor with rails, bulkhead bay, wall panels, cable trays, crates',
+    need: 'Optional modular GLB kit; keep aim lane clear',
     format: 'Modular GLB kit',
   },
   {

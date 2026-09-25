@@ -15,6 +15,7 @@ import { getAssetSource } from '../graphics/assetRegistry';
 import { formatScore } from '../target/TargetScoring';
 import { color, ContinueJourneyButton } from '../design';
 import { CampaignOpening } from './CampaignOpening';
+import { HeartIcon } from './HeartIcon';
 
 type Props = {
   reduceMotion?:boolean;
@@ -78,9 +79,15 @@ export function HUD({
   const showCampaignTop = campaign && !CAMPAIGN_OVERLAY_PHASES.has(hud.phase) && hud.phase !== 'RESULT';
   const crackEscapeSource = getAssetSource('world1.crackEscape');
 
-  const hearts = hud.unlimitedHearts
-    ? '∞'
-    : [0, 1, 2].map((index) => (index < hud.lives ? '♥' : '♡')).join(' ');
+  const heartRow = hud.unlimitedHearts ? (
+    <Text style={{color:'#69e6ee',fontSize:12,marginTop:4}}>∞</Text>
+  ) : (
+    <View style={{flexDirection:'row',gap:4,marginTop:4,alignItems:'center'}}>
+      {[0, 1, 2].map((index) => (
+        <HeartIcon key={index} filled={index < hud.lives} size={15} />
+      ))}
+    </View>
+  );
 
 
 
@@ -139,7 +146,7 @@ export function HUD({
           <View style={{flex:1,alignItems:'center'}}>
             <Text style={styles.shot}>{t('voyage.title')}</Text>
             <Text style={{color:'#92c6da',fontSize:11,marginTop:5}}>{t('voyage.progress',{cleared:hud.shotsReached,goal:nextVoyageMilestone(hud.shotsReached)})}</Text>
-            <Text style={{color:'#69e6ee',fontSize:12,marginTop:4}}>{hearts}</Text>
+            {heartRow}
           </View>
           <Text style={styles.score}>{formatScore(hud.score)}</Text>
         </View>

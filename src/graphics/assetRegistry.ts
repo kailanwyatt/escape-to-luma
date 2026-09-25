@@ -33,6 +33,18 @@ export type RuntimeAssetId =
   | 'spark.original'
   | 'spark.reactor'
   | 'spark.neon'
+  | 'spark.solar'
+  | 'spark.frost'
+  | 'spark.storm'
+  | 'spark.aurora'
+  | 'spark.plasma'
+  | 'spark.lunar'
+  | 'spark.meteor'
+  | 'spark.nebula'
+  | 'spark.void'
+  | 'spark.ancient'
+  | 'spark.origin'
+  | 'spark.prism'
   | 'target.jumpGate'
   | 'world1.containment'
   | 'world1.crackEscape'
@@ -75,8 +87,8 @@ const entries: RuntimeAssetEntry[] = [
   { id: 'ui.energy.full', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/shop/currency-icons.png'), fallback: 'energy glyph', disposalOwner: 'react-native' },
   { id: 'ui.energy.empty', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/shop/currency-icons.png'), fallback: 'energy outline glyph', disposalOwner: 'react-native' },
   { id: 'ui.shard', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/shop/currency-icons.png'), fallback: 'diamond glyph', disposalOwner: 'react-native' },
-  { id: 'ui.heart.full', kind: 'image', group: 'optional', version: 1, source: null, fallback: 'filled heart glyph', disposalOwner: 'react-native' },
-  { id: 'ui.heart.empty', kind: 'image', group: 'optional', version: 1, source: null, fallback: 'empty heart glyph', disposalOwner: 'react-native' },
+  { id: 'ui.heart.full', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/ui/heart-full.png'), fallback: 'filled heart glyph', disposalOwner: 'react-native' },
+  { id: 'ui.heart.empty', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/ui/heart-empty.png'), fallback: 'empty heart glyph', disposalOwner: 'react-native' },
   {
     id: 'story.01',
     kind: 'image',
@@ -122,33 +134,21 @@ const entries: RuntimeAssetEntry[] = [
     fallback: 'ContainmentScene mission',
     disposalOwner: 'expo-asset',
   },
-  {
-    id: 'spark.original',
-    kind: 'image',
-    group: 'world1',
-    version: 1,
-    source: require('../../assets/art/sparks/spark-original.png'),
-    fallback: 'procedural layered Spark',
-    disposalOwner: 'expo-asset',
-  },
-  {
-    id: 'spark.reactor',
-    kind: 'image',
-    group: 'world1',
-    version: 1,
-    source: require('../../assets/art/sparks/spark-reactor.png'),
-    fallback: 'procedural Reactor tint',
-    disposalOwner: 'expo-asset',
-  },
-  {
-    id: 'spark.neon',
-    kind: 'image',
-    group: 'world2',
-    version: 1,
-    source: require('../../assets/art/sparks/spark-neon.png'),
-    fallback: 'procedural Neon tint',
-    disposalOwner: 'expo-asset',
-  },
+  { id: 'spark.original', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/sparks/spark-original.png'), fallback: 'procedural layered Spark', disposalOwner: 'expo-asset' },
+  { id: 'spark.reactor', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/sparks/spark-reactor.png'), fallback: 'procedural Reactor tint', disposalOwner: 'expo-asset' },
+  { id: 'spark.neon', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/sparks/spark-neon.png'), fallback: 'procedural Neon tint', disposalOwner: 'expo-asset' },
+  { id: 'spark.solar', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/sparks/spark-solar.png'), fallback: 'procedural Solar tint', disposalOwner: 'expo-asset' },
+  { id: 'spark.frost', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/sparks/spark-frost.png'), fallback: 'procedural Frost tint', disposalOwner: 'expo-asset' },
+  { id: 'spark.storm', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/sparks/spark-storm.png'), fallback: 'procedural Storm tint', disposalOwner: 'expo-asset' },
+  { id: 'spark.aurora', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/sparks/spark-aurora.png'), fallback: 'procedural Aurora tint', disposalOwner: 'expo-asset' },
+  { id: 'spark.plasma', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/sparks/spark-plasma.png'), fallback: 'procedural Plasma tint', disposalOwner: 'expo-asset' },
+  { id: 'spark.lunar', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/sparks/spark-lunar.png'), fallback: 'procedural Lunar tint', disposalOwner: 'expo-asset' },
+  { id: 'spark.meteor', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/sparks/spark-meteor.png'), fallback: 'procedural Meteor tint', disposalOwner: 'expo-asset' },
+  { id: 'spark.nebula', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/sparks/spark-nebula.png'), fallback: 'procedural Nebula tint', disposalOwner: 'expo-asset' },
+  { id: 'spark.void', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/sparks/spark-void.png'), fallback: 'procedural Void tint', disposalOwner: 'expo-asset' },
+  { id: 'spark.ancient', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/sparks/spark-ancient.png'), fallback: 'procedural Ancient tint', disposalOwner: 'expo-asset' },
+  { id: 'spark.origin', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/sparks/spark-origin.png'), fallback: 'procedural Origin tint', disposalOwner: 'expo-asset' },
+  { id: 'spark.prism', kind: 'image', group: 'optional', version: 1, source: require('../../assets/art/sparks/spark-prism.png'), fallback: 'procedural Prism tint', disposalOwner: 'expo-asset' },
   { id: 'target.jumpGate', kind: 'model', group: 'world1', version: 2, source: null, fallback: 'procedural dimensional Jump Gate', disposalOwner: 'three-scene' },
   { id: 'world1.containment', kind: 'model', group: 'world1', version: 1, source: null, fallback: 'procedural workshop kit', disposalOwner: 'three-scene' },
   {

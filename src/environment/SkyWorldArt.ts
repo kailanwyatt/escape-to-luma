@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import {createWorldBackdrop} from '../graphics/WorldBackdrop';
 import {createSkyClouds} from './SkyMoonArt';
 
+/**
+ * Ascent uses sunlit → golden. Storm chapter alone owns the storm plate.
+ * Early ascent keeps a dark tint so beam hazards stay readable on the sunlit art.
+ */
 export function skyLook(storm:boolean,level:number){
   if(storm){
     return {
@@ -23,10 +27,10 @@ export function skyLook(storm:boolean,level:number){
       background:0x527e9c,
     };
   }
-  // Early ascent (incl. L32 ground cutters): night storm plate so beam hazards stay readable.
+  // Early ascent (incl. L32 ground cutters): sunlit plate, night-read tint for lasers.
   return {
-    portrait:'sky-storm' as const,
-    wide:'sky-storm-wide' as const,
+    portrait:'sky-sunlit' as const,
+    wide:'sky-sunlit-wide' as const,
     key:0x8fa8d4,
     ambient:0x3d4f6e,
     tint:0x3a4a68,

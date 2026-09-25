@@ -89,8 +89,19 @@ export class EnvironmentManager {
       const object = this.journeyKit?.getObjectByName(name) ?? this.skins.space.getObjectByName(name);
       if (!object) continue;
       object.visible = nearEarth || lunar;
-      object.scale.setScalar(lunar ? .18 : worldId === 'orbit' || worldId === 'orbital_graveyard' ? .85 : 1);
-      object.position.set(lunar ? 9 : 0, lunar ? 9 : -25, 49);
+      // UA keeps full Earth; orbit/graveyard pull back; lunar is a distant bead.
+      const earthScale =
+        lunar ? 0.18 :
+        worldId === 'upper_atmosphere' ? 1.12 :
+        worldId === 'orbit' ? 0.85 :
+        worldId === 'orbital_graveyard' ? 0.72 :
+        1;
+      object.scale.setScalar(earthScale);
+      object.position.set(
+        lunar ? 9 : 0,
+        lunar ? 9 : worldId === 'upper_atmosphere' ? -27 : -25,
+        49,
+      );
     }
   }
 
@@ -384,6 +395,31 @@ function createWorkshop(warningLamps: THREE.MeshPhongMaterial[]): THREE.Group {
   leftPipe.position.set(-4.7, 6.4, 6);
   leftPipe.rotation.x = Math.PI / 2;
   root.add(leftPipe);
+  const rightPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 12, 10), pipeMaterial);
+  rightPipe.position.set(4.7, 6.55, 7);
+  rightPipe.rotation.x = Math.PI / 2;
+  root.add(rightPipe);
+
+  // Wall paneling + cable trays outside the aim lane (±2.8 rails stay free).
+  const panelMat = new THREE.MeshStandardMaterial({ color: 0x1a2834, metalness: 0.55, roughness: 0.55 });
+  const seamMat = new THREE.MeshStandardMaterial({ color: 0x3d5566, metalness: 0.7, roughness: 0.35 });
+  const cableMat = new THREE.MeshLambertMaterial({ color: 0x2a3a48 });
+  for (const side of [-1, 1] as const) {
+    for (let i = 0; i < 5; i++) {
+      const z = 2 + i * 2.8;
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.4, 2.2), panelMat);
+      panel.position.set(side * 4.75, 3.2, z);
+      root.add(panel);
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(0.04, 2.2, 0.06), seamMat);
+      seam.position.set(side * 4.7, 3.2, z + 1.05);
+      root.add(seam);
+    }
+    for (const y of [5.4, 5.7]) {
+      const tray = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 18), cableMat);
+      tray.position.set(side * 4.85, y, 7);
+      root.add(tray);
+    }
+  }
 
   const ceilingStrip = new THREE.Mesh(
     new THREE.BoxGeometry(0.55, 0.12, 8),

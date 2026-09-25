@@ -2,11 +2,12 @@ import {t, displayLabel} from '../i18n';
 import {MenuBackBar} from '../design/components/MenuBackBar';
 import {CurrencyIcon} from './CurrencyIcon';
 import {useEffect,useRef,useState} from 'react';
-import {Animated,Easing,Pressable,ScrollView,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
+import {Animated,Easing,Image,Pressable,ScrollView,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {SPARK_CATALOG,sparkById,type SparkDefinition} from '../customization/sparks';
+import {SPARK_CATALOG,sparkById,sparkVisualProfile,type SparkDefinition} from '../customization/sparks';
 import {abilityDefinitionForSpark} from '../customization/sparkAbilities';
+import {getAssetSource} from '../graphics/assetRegistry';
 import {worldById} from '../campaign/worlds';
 import {color,BrandWordmark} from '../design';
 import {SPARK_DESCRIPTIONS} from './sparkPresentation';
@@ -14,8 +15,12 @@ import type {PersistentGameData} from '../persistence/GameSave';
 type Props={save:PersistentGameData;onEquip:(id:string)=>void;onBuy:(id:string)=>void;onBack:()=>void;reduceMotion?:boolean};
 const filters=['ALL','OWNED','LOCKED','SPECIAL'] as const;
 const hex=(n:number)=>`#${n.toString(16).padStart(6,'0')}`;
-/** Lightweight living-light preview; uses the actual cosmetic colors and no orbit rings. */
+/** Catalog portrait image when present; procedural living-light fallback otherwise. */
 export function SparkPortrait({spark,size}:{spark:SparkDefinition;size:number}){
+ const source=getAssetSource(sparkVisualProfile(spark).portraitAssetId ?? 'spark.original');
+ if(source){
+  return <Image accessible={false} source={source} resizeMode="contain" style={{width:size,height:size}}/>;
+ }
  const tint=hex(spark.color),halo=hex(spark.trailColor);
  return <View accessible={false} style={{width:size,height:size,alignItems:'center',justifyContent:'center'}}>
  {[.95,.78,.61].map((scale,i)=><View key={scale} style={{position:'absolute',width:size*scale,height:size*scale,borderRadius:size,backgroundColor:halo,opacity:.025+i*.025,shadowColor:halo,shadowRadius:size*.1,shadowOpacity:.6,shadowOffset:{width:0,height:0}}}/>)}

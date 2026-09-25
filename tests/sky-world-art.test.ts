@@ -8,8 +8,8 @@ const render=(mesh:THREE.Mesh,aspect:number)=>mesh.onBeforeRender({} as THREE.We
 it('selects phone/tablet art by shape and keeps all sky level mappings stable',()=>{
   for(const aspect of [.46,.5625])expect(backdropForAspect('sky-storm','sky-storm-wide',aspect)).toBe('sky-storm');
   for(const aspect of [.75,.834,1,4/3,16/9])expect(backdropForAspect('sky-storm','sky-storm-wide',aspect)).toBe('sky-storm-wide');
-  expect(skyLook(false,31).portrait).toBe('sky-storm');expect(skyLook(false,34).portrait).toBe('sky-storm');
-  expect(skyLook(false,32).portrait).toBe('sky-storm');
+  expect(skyLook(false,31).portrait).toBe('sky-sunlit');expect(skyLook(false,34).portrait).toBe('sky-sunlit');
+  expect(skyLook(false,32).portrait).toBe('sky-sunlit');
   expect(skyLook(false,32).background).toBeLessThan(0x204060);
   expect(skyLook(false,31).background).toBeLessThan(0x204060);
   expect(skyLook(false,35).portrait).toBe('sky-golden');expect(skyLook(false,38).portrait).toBe('sky-golden');
@@ -31,7 +31,7 @@ it('switches on rotation, disposes the previous texture, and uses undistorted co
 it('keeps reduced-motion mist stationary and never moves it into the central lane',()=>{
   const root=createSkyWorldArt(false,33);
   expect(root.userData.skyNight).toBe(true);
-  expect(root.userData.skyBackdrop).toBe('sky-storm');
+  expect(root.userData.skyBackdrop).toBe('sky-sunlit');
   root.userData.updateAtmosphere(7,false);
   root.traverse(o=>{if(o.name==='sky-edge-mist'){
     const m=(o as THREE.Mesh).material as THREE.ShaderMaterial;

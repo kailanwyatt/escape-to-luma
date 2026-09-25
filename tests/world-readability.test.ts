@@ -30,9 +30,18 @@ describe('world and obstacle readability',()=>{
  });
  it('removes the filled surface when a field is passable',()=>{
   const o=new PhaseFieldObstacle('field');o.applyConfig({type:'phaseField',z:6,centerX:0,centerY:3,fieldRadius:1.8,speed:1,openRatio:.5},'space');
-  const disc=o.group.children.find(o=>o instanceof THREE.Mesh&&o.geometry.type==='CircleGeometry')!;
-  o.update(0,0);expect(o.open).toBe(true);expect(disc.visible).toBe(false);
-  o.update(0,Math.PI*1.5);expect(o.open).toBe(false);expect(disc.visible).toBe(true);disposeThreeObject(o.group);
+  const solid=o.group.getObjectByName('phase-solid') as THREE.Mesh;
+  const ghost=o.group.getObjectByName('phase-ghost') as THREE.Mesh;
+  o.update(0,0);expect(o.open).toBe(true);expect(solid.visible).toBe(false);expect(ghost.visible).toBe(true);
+  o.update(0,Math.PI*1.5);expect(o.open).toBe(false);expect(solid.visible).toBe(true);expect(ghost.visible).toBe(false);disposeThreeObject(o.group);
+ });
+ it('keeps aperture wash outside iris petal geometry',()=>{
+  const config=getCampaignLevel(121)!.challenge.obstacles.find(o=>o.type==='shiftingAperture')!;
+  if(config.type!=='shiftingAperture')throw new Error('Expected aperture');
+  const o=new ShiftingApertureObstacle('wash');o.applyConfig(config,'space');
+  expect(o.group.getObjectByName('aperture-wash')).toBeTruthy();
+  expect(o.group.children[0].children.some(c=>c.name==='aperture-wash')).toBe(false);
+  disposeThreeObject(o.group);
  });
  it('uses a circular unit collision silhouette for every solid blocker body',()=>{
   for(const kind of ['drone','weight','debris'] as const){const m=createReadableBlocker(kind);m.geometry.computeBoundingSphere();expect(m.geometry.boundingSphere!.radius).toBeCloseTo(1,5);disposeThreeObject(m);}
