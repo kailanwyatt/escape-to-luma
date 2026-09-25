@@ -186,6 +186,13 @@ export function createPendulumVisual(environment: EnvironmentId): THREE.Group {
   const steel = new THREE.MeshStandardMaterial({ color: 0x8f9aa5, metalness: 0.65, roughness: 0.35 });
   const armor = new THREE.MeshStandardMaterial({ color: 0x3a4a58, metalness: 0.7, roughness: 0.4 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x1a242e, metalness: 0.55, roughness: 0.55 });
+  const hazard = new THREE.MeshStandardMaterial({
+    color: environment === 'workshop' ? 0xffb020 : environment === 'rooftop' ? 0xff8a40 : 0x7ef0ff,
+    emissive: environment === 'space' ? 0x145868 : 0x663300,
+    emissiveIntensity: environment === 'space' ? 0.45 : 0.25,
+    metalness: 0.35,
+    roughness: 0.45,
+  });
 
   // Fixed hull mount — boom hangs from this so it never reads as floating.
   const mount = new THREE.Group();
@@ -221,11 +228,32 @@ export function createPendulumVisual(environment: EnvironmentId): THREE.Group {
   );
   pivot.name = 'pivot';
   pivot.rotation.x = Math.PI / 2;
-  const arm = new THREE.Mesh(
-    new THREE.CylinderGeometry(GAME_TUNING.pendulum.armRadius * 1.15, GAME_TUNING.pendulum.armRadius * 0.85, 1, 10),
+
+  // Twin cable strands + hazard sleeve so the arm reads as a wrecking boom, not a stick.
+  const cableA = new THREE.Mesh(
+    new THREE.CylinderGeometry(GAME_TUNING.pendulum.armRadius * 0.35, GAME_TUNING.pendulum.armRadius * 0.35, 1, 8),
     steel,
   );
+  cableA.name = 'cable-a';
+  cableA.position.x = -0.04;
+  const cableB = cableA.clone();
+  cableB.name = 'cable-b';
+  cableB.position.x = 0.04;
+  const arm = new THREE.Group();
   arm.name = 'arm';
+  const sleeve = new THREE.Mesh(
+    new THREE.CylinderGeometry(GAME_TUNING.pendulum.armRadius * 1.05, GAME_TUNING.pendulum.armRadius * 0.9, 1, 10),
+    armor,
+  );
+  sleeve.name = 'arm-sleeve';
+  const stripe = new THREE.Mesh(
+    new THREE.CylinderGeometry(GAME_TUNING.pendulum.armRadius * 1.12, GAME_TUNING.pendulum.armRadius * 1.12, 0.18, 10),
+    hazard,
+  );
+  stripe.name = 'arm-hazard';
+  stripe.position.y = -0.22;
+  arm.add(cableA, cableB, sleeve, stripe);
+
   const tip = new THREE.Mesh(
     new THREE.SphereGeometry(0.12, 12, 10),
     new THREE.MeshStandardMaterial({
@@ -237,9 +265,22 @@ export function createPendulumVisual(environment: EnvironmentId): THREE.Group {
     }),
   );
   tip.name = 'antenna-tip';
+
+  // Wrecking mass collar — keeps ReadableBlocker collision silhouette, adds hero mass.
+  const bobCollar = new THREE.Group();
+  bobCollar.name = 'bob-collar';
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.92, 0.07, 8, 24), steel);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.z = -0.05;
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.78, 0.045, 6, 20), hazard);
+  band.rotation.x = Math.PI / 2;
+  band.position.z = -0.12;
+  bobCollar.add(ring, band);
+
   const blocker = createReadableBlocker('weight');
   blocker.name = 'blocker';
-  group.add(mount, pivot, arm, tip, blocker);
+  bobCollar.position.copy(blocker.position);
+  group.add(mount, pivot, arm, tip, blocker, bobCollar);
   return group;
 }
 
@@ -254,15 +295,20 @@ export function layoutPendulumVisual(
 ): void {
   const mount = group.getObjectByName('boom-mount') as THREE.Group | undefined;
   const pivot = group.getObjectByName('pivot') as THREE.Mesh;
-  const arm = group.getObjectByName('arm') as THREE.Mesh;
+  const arm = group.getObjectByName('arm') as THREE.Object3D;
   const tip = group.getObjectByName('antenna-tip') as THREE.Mesh | undefined;
   const blocker = group.getObjectByName('blocker') as THREE.Mesh;
+  const collar = group.getObjectByName('bob-collar') as THREE.Group | undefined;
   if (mount) {
     mount.position.set(pivotX, pivotY, 0);
   }
   pivot.position.set(pivotX, pivotY, 0);
   blocker.position.set(blockerX, blockerY, 0);
   blocker.scale.setScalar(blockerRadius);
+  if (collar) {
+    collar.position.set(blockerX, blockerY, 0);
+    collar.scale.setScalar(blockerRadius);
+  }
   arm.position.set((pivotX + blockerX) / 2, (pivotY + blockerY) / 2, 0);
   arm.scale.set(1, length, 1);
   arm.rotation.z = Math.atan2(blockerX - pivotX, pivotY - blockerY);

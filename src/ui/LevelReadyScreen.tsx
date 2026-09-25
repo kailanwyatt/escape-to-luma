@@ -6,11 +6,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BOOST_LOADOUT_LIMIT, ECONOMY, type BoostId } from '../config/economy';
 import { getCampaignLevel } from '../campaign/levels';
 import type { SelectedBoosts } from '../campaign/types';
-import { Button, GlassPanel, Screen, ScreenTitle, color, radius, space } from '../design';
+import { Button, GlassPanel, Screen, ScreenTitle, color, fontDisplay, fontUi, radius, space } from '../design';
 import type { PersistentGameData } from '../persistence/GameSave';
 import { worldForLevel } from '../campaign/worlds';
 import { sparkById } from '../customization/sparks';
 import { abilityDefinitionForSpark } from '../customization/sparkAbilities';
+import { BriefingFrame } from './BriefingFrame';
+import { HomeSignalMeter } from './HomeSignalMeter';
 
 type Props = {
   save: PersistentGameData;
@@ -49,13 +51,42 @@ export function LevelReadyScreen({ save, levelNumber, onPlay, onBack,onShop, onS
   const spark = sparkById(save.campaign.equippedSparkId);
   const passive = abilityDefinitionForSpark(spark.id);
   const selectedCount = Object.values(selected).filter(Boolean).length;
+  const wellCount = def?.gravityWells?.length ?? 0;
 
   return (
     <Screen onBack={onBack} backLabel={t("levelreadyscreen.back_to_game")}>
-      <ScreenTitle eyebrow={world?.name ?? t("journeyscreen.journey")} title={t("levelreadyscreen.optional_boosts")} meta={t("levelreadyscreen.level_choose_before_your_first_shot", {value1: levelNumber})} />
-      {def?.storyBeat ? <Text style={styles.beat}>{def.storyBeat}</Text> : null}
-      <Text style={styles.best}>{t("levelreadyscreen.choose_boosts_now_stock_is_used_only_when_you_launch_cancelling_y")}</Text>
-      {def?.windX ? <Text style={styles.wind}>{t("levelreadyscreen.wind_active")}</Text> : null}
+      <ScreenTitle
+        eyebrow={world?.name ?? t("journeyscreen.journey")}
+        title={t("levelreadyscreen.optional_boosts")}
+        meta={t("levelreadyscreen.level_choose_before_your_first_shot", {value1: levelNumber})}
+      />
+
+      <BriefingFrame
+        eyebrow="JUMP GATE BRIEFING"
+        title={`LEVEL ${levelNumber}`}
+        accent={def?.windX ? 'amber' : 'cyan'}
+        style={styles.briefing}
+        meta={
+          <View style={styles.briefMeta}>
+            {world ? <HomeSignalMeter strength={world.homeSignalStrength} compact /> : null}
+            {def?.storyBeat ? <Text style={styles.beat}>{def.storyBeat}</Text> : null}
+            <View style={styles.cues}>
+              {def?.windX ? (
+                <Text style={styles.cueAmber}>{t("levelreadyscreen.wind_active")}</Text>
+              ) : (
+                <Text style={styles.cueMuted}>WIND CLEAR</Text>
+              )}
+              {wellCount > 0 ? (
+                <Text style={styles.cueCyan}>GRAVITY ×{wellCount}</Text>
+              ) : (
+                <Text style={styles.cueMuted}>NO WELLS</Text>
+              )}
+            </View>
+          </View>
+        }
+      >
+        <Text style={styles.best}>{t("levelreadyscreen.choose_boosts_now_stock_is_used_only_when_you_launch_cancelling_y")}</Text>
+      </BriefingFrame>
 
       <GlassPanel style={styles.sparkPanel}>
         <Text style={styles.section}>{t("levelreadyscreen.equipped_spark")}</Text>
@@ -103,7 +134,7 @@ export function LevelReadyScreen({ save, levelNumber, onPlay, onBack,onShop, onS
                     {owned > 0 ? `×${owned}` : t("levelreadyscreen.get_in_shop")}
                   </Text>
                 </Pressable>
-                <Text style={{padding:12,color:color.creamFaint,fontSize:12,lineHeight:18}}>{boost.description}</Text>
+                <Text style={{padding:12,color:color.creamFaint,fontSize:12,lineHeight:18,fontFamily:fontUi}}>{boost.description}</Text>
               </GlassPanel>
             );
           })}
@@ -119,20 +150,25 @@ export function LevelReadyScreen({ save, levelNumber, onPlay, onBack,onShop, onS
 }
 
 const styles = StyleSheet.create({
-  beat: { marginTop: space.sm, color: color.creamMuted, fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  best: { marginTop: space.md, color: color.cyanBright, fontSize: 14, fontWeight: '800', textAlign: 'center' },
-  wind: { marginTop: space.xs, color: color.amberBright, fontSize: 12, fontWeight: '800', letterSpacing: 2, textAlign: 'center' },
-  teaching: { marginTop: space.xl, color: color.cyanDim, fontSize: 11, fontWeight: '800', letterSpacing: 1.5, textAlign: 'center' },
-  section: { marginTop: space.xl, color: color.cyanBright, fontSize: 12, fontWeight: '900', letterSpacing: 2 },
+  briefing: { marginTop: space.md },
+  briefMeta: { alignItems: 'center', gap: 8, width: '100%' },
+  beat: { color: color.creamMuted, fontSize: 13, fontFamily: fontUi, textAlign: 'center', lineHeight: 18 },
+  cues: { flexDirection: 'row', gap: 12, marginTop: 2 },
+  cueAmber: { color: color.amberBright, fontSize: 11, fontFamily: fontUi, letterSpacing: 1.5 },
+  cueCyan: { color: color.cyanBright, fontSize: 11, fontFamily: fontUi, letterSpacing: 1.5 },
+  cueMuted: { color: color.creamFaint, fontSize: 11, fontFamily: fontUi, letterSpacing: 1.5 },
+  best: { marginTop: space.sm, color: color.cyanBright, fontSize: 13, fontFamily: fontUi, textAlign: 'center' },
+  teaching: { marginTop: space.xl, color: color.cyanDim, fontSize: 11, fontFamily: fontUi, letterSpacing: 1.5, textAlign: 'center' },
+  section: { marginTop: space.xl, color: color.cyanBright, fontSize: 12, fontFamily: fontUi, letterSpacing: 2 },
   sparkPanel: { marginTop: space.md, padding: space.sm },
-  sparkName: { color: color.cream, fontSize: 18, fontWeight: '800', marginTop: 6 },
-  passive: { color: color.creamFaint, fontSize: 13, lineHeight: 18, marginTop: 6 },
+  sparkName: { color: color.cream, fontSize: 18, fontFamily: fontDisplay, marginTop: 6 },
+  passive: { color: color.creamFaint, fontSize: 13, lineHeight: 18, marginTop: 6, fontFamily: fontUi },
   changeCollection: { marginTop: 10, alignSelf: 'flex-start' },
-  changeCollectionText: { color: color.cyanBright, fontSize: 12, fontWeight: '800', letterSpacing: 1 },
+  changeCollectionText: { color: color.cyanBright, fontSize: 12, fontFamily: fontUi, letterSpacing: 1 },
   boost: { marginTop: space.xs, padding: 0, borderRadius: radius.md },
   boostPress: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: space.sm, paddingHorizontal: space.sm },
   boostOn: { backgroundColor: color.cyanGlow, borderColor: color.cyanBright },
-  boostLabel: { color: color.cream, fontSize: 13, fontWeight: '800' },
-  boostMeta: { color: color.creamFaint, fontSize: 12, fontWeight: '700' },
+  boostLabel: { color: color.cream, fontSize: 13, fontFamily: fontUi },
+  boostMeta: { color: color.creamFaint, fontSize: 12, fontFamily: fontUi },
   play: { marginTop: space.xl },
 });

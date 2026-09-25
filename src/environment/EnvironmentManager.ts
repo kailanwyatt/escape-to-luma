@@ -437,34 +437,125 @@ function createWorkshop(warningLamps: THREE.MeshPhongMaterial[]): THREE.Group {
 
 function createPortal(): THREE.Group {
   const group = new THREE.Group();
-  const door = new THREE.Mesh(
-    new THREE.BoxGeometry(4.6, 5.2, 0.4),
-    new THREE.MeshLambertMaterial({ color: 0x1a1612 }),
-  );
+
+  // Containment blast door — Jump Gate travel read for workshop exits.
+  const door = new THREE.Group();
   door.name = 'door';
+  const doorFrame = new THREE.Mesh(
+    new THREE.BoxGeometry(4.8, 5.4, 0.45),
+    new THREE.MeshStandardMaterial({ color: 0x1a222c, metalness: 0.7, roughness: 0.4 }),
+  );
+  const doorLip = new THREE.Mesh(
+    new THREE.BoxGeometry(3.5, 4.1, 0.12),
+    new THREE.MeshStandardMaterial({
+      color: 0x7ef0ff,
+      emissive: 0x145868,
+      emissiveIntensity: 0.55,
+      metalness: 0.2,
+      roughness: 0.35,
+    }),
+  );
+  doorLip.position.z = 0.2;
   const doorHole = new THREE.Mesh(
     new THREE.PlaneGeometry(3.2, 3.8),
-    new THREE.MeshBasicMaterial({ color: 0x9ec8e6 }),
+    new THREE.MeshBasicMaterial({
+      color: 0x9ec8e6,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }),
   );
-  doorHole.position.z = 0.22;
-  door.add(doorHole);
+  doorHole.position.z = 0.28;
+  for (const side of [-1, 1]) {
+    const hinge = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.08, 4.2, 8),
+      new THREE.MeshStandardMaterial({ color: 0x8aa0ae, metalness: 0.8, roughness: 0.3 }),
+    );
+    hinge.position.set(side * 2.15, 0, 0.05);
+    door.add(hinge);
+  }
+  door.add(doorFrame, doorLip, doorHole);
   group.add(door);
 
-  const tunnel = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.8, 1.8, 6, 16, 1, true),
-    new THREE.MeshLambertMaterial({ color: 0x101018, side: THREE.DoubleSide }),
-  );
-  tunnel.rotation.x = Math.PI / 2;
+  // Transit tunnel — space corridor throat.
+  const tunnel = new THREE.Group();
   tunnel.name = 'tunnel';
   tunnel.visible = false;
+  const tunnelShell = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.95, 1.7, 6.2, 24, 1, true),
+    new THREE.MeshStandardMaterial({
+      color: 0x101018,
+      side: THREE.DoubleSide,
+      metalness: 0.55,
+      roughness: 0.5,
+    }),
+  );
+  tunnelShell.rotation.x = Math.PI / 2;
+  const tunnelGlow = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.55, 1.55, 6, 24, 1, true),
+    new THREE.MeshBasicMaterial({
+      color: 0x3ad4ff,
+      transparent: true,
+      opacity: 0.18,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
+  );
+  tunnelGlow.rotation.x = Math.PI / 2;
+  const rings = new THREE.Group();
+  for (let i = 0; i < 5; i += 1) {
+    const r = new THREE.Mesh(
+      new THREE.TorusGeometry(1.72, 0.04, 6, 28),
+      new THREE.MeshBasicMaterial({ color: 0x7ef0ff, transparent: true, opacity: 0.35 }),
+    );
+    r.position.z = -2.4 + i * 1.2;
+    rings.add(r);
+  }
+  tunnel.add(tunnelShell, tunnelGlow, rings);
   group.add(tunnel);
 
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(1.7, 0.18, 8, 28),
-    new THREE.MeshPhongMaterial({ color: 0x7ef0ff, emissive: 0x145868, emissiveIntensity: 0.8 }),
-  );
+  // Orbital ring gate — framed hoop travel read.
+  const ring = new THREE.Group();
   ring.name = 'ring';
   ring.visible = false;
+  const outer = new THREE.Mesh(
+    new THREE.TorusGeometry(1.85, 0.16, 10, 40),
+    new THREE.MeshStandardMaterial({
+      color: 0x7ef0ff,
+      emissive: 0x145868,
+      emissiveIntensity: 0.9,
+      metalness: 0.45,
+      roughness: 0.3,
+    }),
+  );
+  const inner = new THREE.Mesh(
+    new THREE.TorusGeometry(1.55, 0.06, 8, 36),
+    new THREE.MeshBasicMaterial({ color: 0xffd24a }),
+  );
+  const aperture = new THREE.Mesh(
+    new THREE.CircleGeometry(1.45, 32),
+    new THREE.MeshBasicMaterial({
+      color: 0x50deff,
+      transparent: true,
+      opacity: 0.22,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  for (let i = 0; i < 6; i += 1) {
+    const strut = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.55, 0.18),
+      new THREE.MeshStandardMaterial({ color: 0x2a3a48, metalness: 0.6, roughness: 0.4 }),
+    );
+    const a = (i / 6) * Math.PI * 2;
+    strut.position.set(Math.cos(a) * 2.15, Math.sin(a) * 2.15, 0);
+    strut.rotation.z = a;
+    ring.add(strut);
+  }
+  ring.add(outer, inner, aperture);
   group.add(ring);
 
   return group;

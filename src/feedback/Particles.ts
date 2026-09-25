@@ -1,28 +1,31 @@
 import * as THREE from 'three';
 
-import { GAME_TUNING } from '../game/gameTuning';
-
 type Particle = {
   mesh: THREE.Mesh;
   velocity: THREE.Vector3;
   life: number;
   maxLife: number;
+  spin: number;
 };
 
+/** Energy shards + bursts — elongated chips for hits, soft spheres for close calls. */
 export class ParticleSystem {
   readonly group = new THREE.Group();
   private readonly pool: Particle[] = [];
   private next = 0;
+  private readonly shardGeo = new THREE.BoxGeometry(0.09, 0.03, 0.03);
+  private readonly softGeo = new THREE.SphereGeometry(0.05, 6, 6);
 
-  constructor(count = 48) {
-    const geometry = new THREE.SphereGeometry(0.05, 6, 6);
+  constructor(count = 64) {
     for (let i = 0; i < count; i += 1) {
       const material = new THREE.MeshBasicMaterial({
         color: 0xffc46b,
         transparent: true,
         opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
       });
-      const mesh = new THREE.Mesh(geometry, material);
+      const mesh = new THREE.Mesh(this.softGeo, material);
       mesh.visible = false;
       this.group.add(mesh);
       this.pool.push({
@@ -30,24 +33,34 @@ export class ParticleSystem {
         velocity: new THREE.Vector3(),
         life: 0,
         maxLife: 1,
+        spin: 0,
       });
     }
   }
 
   spawnSparks(position: THREE.Vector3, count = 10): void {
-    this.burst(position, count, 0xffc46b, 3.2, 0.45);
+    this.burst(position, count, 0xffc46b, 3.2, 0.45, 'shard');
   }
 
   spawnHit(position: THREE.Vector3, count: number, color: number, speed: number): void {
-    this.burst(position, count, color, speed, 0.55);
+    this.burst(position, count, color, speed, 0.55, 'shard');
+  }
+
+  spawnPerfect(position: THREE.Vector3): void {
+    this.burst(position, 16, 0xffd24a, 3.6, 0.65, 'shard');
+    this.burst(position, 8, 0xffffff, 1.4, 0.4, 'soft');
+  }
+
+  spawnClear(position: THREE.Vector3): void {
+    this.burst(position, 10, 0x7ef0ff, 1.6, 0.5, 'soft');
   }
 
   spawnCloseCall(position: THREE.Vector3): void {
-    this.burst(position, 6, 0x7ef0ff, 1.8, 0.35);
+    this.burst(position, 8, 0x7ef0ff, 1.8, 0.35, 'soft');
   }
 
   spawnStreak(position: THREE.Vector3): void {
-    this.burst(position, 10, 0xffd24a, 2.4, 0.4);
+    this.burst(position, 10, 0xffd24a, 2.4, 0.4, 'shard');
   }
 
   /** Cyan flow from entry aperture toward the destination portal. */
@@ -65,21 +78,24 @@ export class ParticleSystem {
       );
       const particle = this.pool[this.next];
       this.next = (this.next + 1) % this.pool.length;
+      particle.mesh.geometry = this.softGeo;
       particle.mesh.position.copy(pos);
       particle.velocity.set(dx * 1.8, dy * 1.8, dz * 1.8 + (Math.random() - 0.5) * 0.4);
       particle.life = 0.45 + u * 0.2;
       particle.maxLife = particle.life;
+      particle.spin = 0;
       particle.mesh.visible = true;
+      particle.mesh.scale.setScalar(1);
       const material = particle.mesh.material as THREE.MeshBasicMaterial;
       material.color.setHex(0x7ef0ff);
       material.opacity = 1;
     }
-    this.burst(to, 8, 0x85f5ff, 1.6, 0.5);
+    this.burst(to, 8, 0x85f5ff, 1.6, 0.5, 'soft');
   }
 
   /** Amber suck when Spark takes a false black-hole entry. */
   spawnFalsePortalSuck(position: THREE.Vector3): void {
-    this.burst(position, 12, 0xffb449, 2.8, 0.5);
+    this.burst(position, 12, 0xffb449, 2.8, 0.5, 'shard');
   }
 
   update(dt: number): void {
@@ -90,6 +106,10 @@ export class ParticleSystem {
       particle.life -= dt;
       particle.velocity.y -= 4 * dt;
       particle.mesh.position.addScaledVector(particle.velocity, dt);
+      if (particle.spin !== 0) {
+        particle.mesh.rotation.z += particle.spin * dt;
+        particle.mesh.rotation.x += particle.spin * 0.4 * dt;
+      }
       const material = particle.mesh.material as THREE.MeshBasicMaterial;
       material.opacity = Math.max(0, particle.life / particle.maxLife);
       if (particle.life <= 0) {
@@ -104,10 +124,12 @@ export class ParticleSystem {
     color: number,
     speed: number,
     life: number,
+    shape: 'shard' | 'soft',
   ): void {
     for (let i = 0; i < count; i += 1) {
       const particle = this.pool[this.next];
       this.next = (this.next + 1) % this.pool.length;
+      particle.mesh.geometry = shape === 'shard' ? this.shardGeo : this.softGeo;
       particle.mesh.position.copy(position);
       particle.velocity.set(
         (Math.random() * 2 - 1) * speed,
@@ -116,7 +138,10 @@ export class ParticleSystem {
       );
       particle.life = life;
       particle.maxLife = life;
+      particle.spin = shape === 'shard' ? (Math.random() - 0.5) * 14 : 0;
       particle.mesh.visible = true;
+      particle.mesh.scale.setScalar(shape === 'shard' ? 0.9 + Math.random() * 0.8 : 1);
+      particle.mesh.rotation.set(Math.random() * 2, Math.random() * 2, Math.random() * 2);
       const material = particle.mesh.material as THREE.MeshBasicMaterial;
       material.color.setHex(color);
       material.opacity = 1;

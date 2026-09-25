@@ -9,12 +9,13 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {TOTAL_CORE_LEVELS, worldForLevel} from '../campaign/worlds';
 import {getCampaignLevel} from '../campaign/levels';
 import {HOME_BRAND} from '../config/branding';
-import {BrandWordmark} from '../design';
+import {BrandWordmark, fontDisplay, fontUi} from '../design';
 import {ECONOMY} from '../config/economy';
 import {devLevelsUnlocked} from '../config/devAccess';
 import {NavIcon} from '../design/components/NavIcon';
 import {formatCountdown, msUntilNextEnergy, regenerateEnergy} from '../economy/energy';
 import {hasUnlimitedEnergy, isEndlessUnlocked, type PersistentGameData} from '../persistence/GameSave';
+import {HomeSignalMeter} from './HomeSignalMeter';
 
 const CITY_ART = require('../../assets/art/home/city-gateway.jpg');
 type Props = {
@@ -50,7 +51,9 @@ export function HomeScreen({reduceMotion=false,save, currentLevel, onContinue, o
   const play = () => c.campaignCompleted && level === currentLevel ? onEndless() : level === currentLevel ? onContinue() : onSelectLevel(level);
   const nav = (name: string, label: string, action: () => void) => (
     <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={action} style={({pressed}) => [s.nav, tablet && s.tabletNav, pressed && s.pressed]}>
-      <BorderGlint active={borderSpotlight===['stats','sparks','shop','journey'].indexOf(name)}/><NavIcon name={name}/><Text style={s.navLabel}>{label}</Text>
+      <BorderGlint active={borderSpotlight===['stats','sparks','shop','journey'].indexOf(name)}/>
+      <View style={s.navFrame} />
+      <NavIcon name={name}/><Text style={s.navLabel}>{label}</Text>
     </Pressable>
   );
   return <View style={s.root}>
@@ -104,7 +107,12 @@ export function HomeScreen({reduceMotion=false,save, currentLevel, onContinue, o
             </Pressable>;
           })}
         </View>
-        <View style={s.chapter}><Text style={s.chapterTitle}>{t("statuspanel.world")}{world.index} · {world.name}</Text><Text style={s.chapterCopy}>{world.subtitle}</Text><Text style={s.completion}>{cleared} / {TOTAL_CORE_LEVELS} {t("homescreen.levels_cleared")}</Text></View>
+        <View style={s.chapter}>
+          <Text style={s.chapterTitle}>{t("statuspanel.world")}{world.index} · {world.name}</Text>
+          <HomeSignalMeter strength={world.homeSignalStrength} />
+          <Text style={s.chapterCopy}>{world.subtitle}</Text>
+          <Text style={s.completion}>{cleared} / {TOTAL_CORE_LEVELS} {t("homescreen.levels_cleared")}</Text>
+        </View>
         <Pressable accessibilityRole="button" accessibilityLabel={t("homescreen.explore_your_journey")} onPress={onJourney} style={s.storyCard}>
           <BorderGlint active={borderSpotlight===5} radius={18}/><Image source={CITY_ART} style={s.storyImage}/><View style={s.storyCopy}><Text style={s.eyebrow}>{t("homescreen.your_journey_continues")}</Text><Text style={s.quote}>{HOME_BRAND.tagline}</Text></View><Text style={s.arrowText}>›</Text>
         </Pressable>
@@ -128,11 +136,11 @@ const s=StyleSheet.create({
   bolt:{fontSize:36,color:'#35E9FF'},gem:{fontSize:22,color:'#BB8EFD'},value:{fontSize:16,color:'#F0FAFF',fontWeight:'800'},resourceLabel:{fontSize:8,color:'#7FD6F5',letterSpacing:1.8,textAlign:'center',marginTop:1},plus:{color:'#41DEFF',fontSize:22,marginLeft:2},
   brand:{alignItems:'center',paddingTop:30},eyebrow:{fontSize:9,color:'#8ADBFA',letterSpacing:2,fontWeight:'700'},title:{color:'#F3FDFF',fontWeight:'300',letterSpacing:12,marginLeft:12,textShadowColor:'#00BDFF',textShadowRadius:18,textShadowOffset:{width:0,height:0},marginTop:8},subtitle:{fontSize:12,color:'#83DEFA',letterSpacing:5,marginTop:2},
   stage:{flexDirection:'row',justifyContent:'space-between',alignItems:'flex-end',paddingHorizontal:14,paddingBottom:10},side:{gap:12},
-  nav:{width:64,minHeight:67,alignItems:'center',justifyContent:'center',paddingVertical:8,borderRadius:13,borderWidth:1,borderColor:'#2385AA',backgroundColor:'rgba(0,19,34,.89)'},navLabel:{fontSize:9,color:'#E4F6FF',fontWeight:'800',letterSpacing:1},
+  nav:{width:64,minHeight:67,alignItems:'center',justifyContent:'center',paddingVertical:8,borderRadius:13,borderWidth:1,borderColor:'#2385AA',backgroundColor:'rgba(0,19,34,.89)',overflow:'hidden'},navFrame:{position:'absolute',top:4,left:4,right:4,bottom:4,borderRadius:10,borderWidth:1,borderColor:'rgba(126,240,255,0.18)'},navLabel:{fontSize:9,color:'#E4F6FF',fontFamily:fontUi,letterSpacing:1},
   sparkPlacement:{position:'absolute',bottom:37,left:'50%',width:50,height:50,marginLeft:-25,alignItems:'center',justifyContent:'center'},aura:{position:'absolute',width:90,height:90,borderRadius:45,backgroundColor:'#02B9FF',shadowColor:'#00CAFF',shadowRadius:28,shadowOpacity:1,shadowOffset:{width:0,height:0}},spark:{width:45,height:45,borderRadius:24,borderWidth:1,borderColor:'#E1FFFF',shadowColor:'#26DAFF',shadowRadius:18,shadowOpacity:1,shadowOffset:{width:0,height:0}},
   tap:{fontSize:10,letterSpacing:3,color:'#A2DBF6',textAlign:'center',marginTop:4,marginBottom:17},playRow:{flexDirection:'row',alignItems:'center',paddingHorizontal:18,gap:12},arrow:{width:40,height:46,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'#2383AA',borderRadius:24,backgroundColor:'#032037'},arrowText:{fontSize:34,color:'#89E2FF',lineHeight:38},disabled:{opacity:.25},pressed:{opacity:.75},
-  play:{flex:1,borderRadius:18,shadowColor:'#FFBB32',shadowRadius:22,shadowOpacity:.55,shadowOffset:{width:0,height:0}},playInner:{borderRadius:18,borderWidth:1,borderColor:'#FFE995',alignItems:'center',paddingVertical:13,paddingHorizontal:8},playLabel:{fontSize:28,fontWeight:'900',letterSpacing:4,color:'#241b06'},playWorld:{fontSize:11,letterSpacing:2,color:'#48360c',marginTop:3},playLevel:{fontSize:9,letterSpacing:2,color:'#695019',marginTop:4},
+  play:{flex:1,borderRadius:18,shadowColor:'#FFBB32',shadowRadius:22,shadowOpacity:.55,shadowOffset:{width:0,height:0}},playInner:{borderRadius:18,borderWidth:1,borderColor:'#FFE995',alignItems:'center',paddingVertical:13,paddingHorizontal:8},playLabel:{fontSize:28,fontFamily:fontDisplay,letterSpacing:4,color:'#241b06'},playWorld:{fontSize:11,letterSpacing:2,color:'#48360c',marginTop:3},playLevel:{fontSize:9,letterSpacing:2,color:'#695019',marginTop:4},
   levelTrack:{marginTop:28,flexDirection:'row',justifyContent:'space-between',paddingHorizontal:15},trackLine:{position:'absolute',height:1,backgroundColor:'#38627B',top:22,left:25,right:25},nodeWrap:{alignItems:'center',width:58},node:{width:44,height:44,borderRadius:22,backgroundColor:'#061F32',borderWidth:1,borderColor:'#52829B',alignItems:'center',justifyContent:'center'},nodeText:{color:'#D5EDF8',fontSize:17,fontWeight:'700'},cleared:{borderColor:'#66E5BE',backgroundColor:'#0D383A'},current:{borderColor:'#35E9FF',borderWidth:2,shadowColor:'#00D7FF',shadowRadius:12,shadowOpacity:.7,shadowOffset:{width:0,height:0}},locked:{borderColor:'#36556D'},rank:{fontSize:7,color:'#78B4D1',marginTop:8,letterSpacing:.7},
-  chapter:{alignItems:'center',paddingHorizontal:20,paddingTop:22,gap:7},chapterTitle:{fontSize:11,letterSpacing:2,color:'#69D7FA',fontWeight:'700',textAlign:'center'},chapterCopy:{fontSize:12,color:'#B0CADD',textAlign:'center'},completion:{fontSize:9,color:'#5C8BA7',letterSpacing:1.5,marginTop:3},
+  chapter:{alignItems:'center',paddingHorizontal:20,paddingTop:22,gap:10},chapterTitle:{fontSize:11,letterSpacing:2,color:'#69D7FA',fontFamily:fontUi,textAlign:'center'},chapterCopy:{fontSize:12,color:'#B0CADD',textAlign:'center'},completion:{fontSize:9,color:'#5C8BA7',letterSpacing:1.5,marginTop:3},
   storyCard:{margin:18,marginTop:24,borderRadius:18,overflow:'hidden',borderWidth:1,borderColor:'#245977',backgroundColor:'#061D2E',flexDirection:'row',alignItems:'center',paddingRight:14,minHeight:104},storyImage:{width:'27%',height:110},storyCopy:{flex:1,padding:14,gap:10},quote:{color:'#D7E5EF',fontSize:12,lineHeight:19,letterSpacing:1},endless:{padding:14},
 });

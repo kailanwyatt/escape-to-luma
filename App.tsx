@@ -5,6 +5,7 @@ import {AdService} from './src/services/ads/AdService';
 import './src/graphics/installWorldBackdrops';
 import {setDevLevelsUnlocked} from './src/config/devAccess';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -15,6 +16,7 @@ import { canStartLevel } from './src/campaign/CampaignPlay';
 import { getCampaignLevel } from './src/campaign/levels';
 import { WORLDS } from './src/campaign/worlds';
 import { ECONOMY } from './src/config/economy';
+import { useAppFonts } from './src/design';
 import { Game } from './src/game/Game';
 import { preloadAssetGroup } from './src/graphics/assetRegistry';
 import { buildDiagnosticReport } from './src/debug/Diagnostics';
@@ -36,6 +38,8 @@ import { ShopScreen } from './src/ui/ShopScreen';
 import { SparksScreen } from './src/ui/SparksScreen';
 import { StatsScreen } from './src/ui/StatsScreen';
 import { PurchaseService } from './src/services/purchases/PurchaseService';
+
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 type AppScreen =
   | 'home'
@@ -153,8 +157,14 @@ export default function App() {
 }
 
 function AppShell() {
+  const fontsReady = useAppFonts();
   const [previewLuma,setPreviewLuma]=useState(false);
   const [testOffer,setTestOffer]=useState<TestOffer|null>(null);
+  useEffect(()=>{
+    if (fontsReady) {
+      SplashScreen.hideAsync().catch(() => undefined);
+    }
+  }, [fontsReady]);
   useEffect(()=>{
     let resolvePending:((v:'completed'|'dismissed')=>void)|null=null;
     AdService.setTestRewardedPresenter(()=>new Promise(resolve=>{
@@ -411,6 +421,10 @@ function AppShell() {
 
   const showOutOfEnergyOverlay =
     (screen === 'play' && hud.phase === 'OUT_OF_ENERGY') || screen === 'outOfEnergy';
+
+  if (!fontsReady) {
+    return null;
+  }
 
   return (
     <View style={styles.root}>

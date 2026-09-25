@@ -13,9 +13,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { HudSnapshot } from '../game/GameState';
 import { getAssetSource } from '../graphics/assetRegistry';
 import { formatScore } from '../target/TargetScoring';
-import { color, ContinueJourneyButton } from '../design';
+import { color, ContinueJourneyButton, fontUi } from '../design';
 import { CampaignOpening } from './CampaignOpening';
 import { HeartIcon } from './HeartIcon';
+import { BriefingFrame } from './BriefingFrame';
 
 type Props = {
   reduceMotion?:boolean;
@@ -159,7 +160,14 @@ export function HUD({
         </View>
       ) : null}
       {hud.banner ? <Text pointerEvents="none" style={styles.banner}>{hud.banner}</Text> : null}
-      {hud.closeCallText ? <Text pointerEvents="none" style={styles.closeCall}>{hud.closeCallText}</Text> : null}
+      {hud.closeCallText ? (
+        <View pointerEvents="none" style={styles.closeCallWrap}>
+          <View style={styles.closeCallFlare} />
+          <Text style={styles.closeCallChevron}>‹‹</Text>
+          <Text style={styles.closeCall}>{hud.closeCallText}</Text>
+          <Text style={styles.closeCallChevron}>››</Text>
+        </View>
+      ) : null}
 
       {showCampaignTop && !hud.firstLevelOnboarding && !paused ? (
         <GameplayBoostButton count={boostCount} disabled={!hud.canChooseBoosts}
@@ -240,23 +248,29 @@ export function HUD({
 
       {hud.phase === 'CONTINUE_OFFER' ? (
         <View style={styles.overlay}>
-          <Text style={styles.endTitle}>{t("hud.keep_going")}</Text>
-          <Text style={styles.continueCopy}>{t("hud.watch_an_ad_to_continue_this_run")}</Text>
-          {hud.adMessage ? <Text style={styles.adMessage}>{hud.adMessage}</Text> : null}
-          <ContinueJourneyButton
-            label={hud.adBusy ? t("hud.loading") : t("storymoments.continue")}
-            playIcon={false}
-            style={styles.overlayCta}
-            disabled={hud.adBusy}
-            onPress={onContinue}
-          />
-          <Pressable
-            style={styles.homeButton}
-            disabled={hud.adBusy}
-            onPress={onDeclineContinue}
+          <BriefingFrame
+            accent="amber"
+            eyebrow="ENDLESS"
+            title={t("hud.keep_going")}
+            style={styles.continueFrame}
+            meta={<Text style={styles.continueCopy}>{t("hud.watch_an_ad_to_continue_this_run")}</Text>}
           >
-            <Text style={styles.homeText}>{t("debugoverlay.end_run")}</Text>
-          </Pressable>
+            {hud.adMessage ? <Text style={styles.adMessage}>{hud.adMessage}</Text> : null}
+            <ContinueJourneyButton
+              label={hud.adBusy ? t("hud.loading") : t("storymoments.continue")}
+              playIcon={false}
+              style={styles.overlayCta}
+              disabled={hud.adBusy}
+              onPress={onContinue}
+            />
+            <Pressable
+              style={styles.homeButton}
+              disabled={hud.adBusy}
+              onPress={onDeclineContinue}
+            >
+              <Text style={styles.homeText}>{t("debugoverlay.end_run")}</Text>
+            </Pressable>
+          </BriefingFrame>
         </View>
       ) : null}
 
@@ -748,13 +762,42 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 4,
   },
-  closeCall: {
+  closeCallWrap: {
     marginTop: 10,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(126,240,255,0.45)',
+    backgroundColor: 'rgba(6,28,44,0.72)',
+    overflow: 'hidden',
+  },
+  closeCallFlare: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(126,240,255,0.12)',
+  },
+  closeCallChevron: {
+    color: color.cyanBright,
+    fontSize: 11,
+    fontFamily: fontUi,
+    letterSpacing: -1,
+    opacity: 0.85,
+  },
+  closeCall: {
     textAlign: 'center',
     color: color.cyanBright,
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: fontUi,
     letterSpacing: 2,
+  },
+  continueFrame: {
+    width: '88%',
+    maxWidth: 360,
+    alignItems: 'center',
   },
   playControls: {
     position: 'absolute',

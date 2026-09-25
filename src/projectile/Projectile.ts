@@ -67,6 +67,7 @@ export class Projectile {
       this.profile = profile;
     }
     this.core.material.color.setHex(style.color);
+    this.core.material.setStyle(this.profile.orbitStyle);
     this.glow.material.color.setHex(style.color);
     this.aura.material.color.setHex(style.color);
     this.pool.material.uniforms.tint.value.setHex(style.color);

@@ -53,44 +53,53 @@ export const radius = {
   pill: 999,
 } as const;
 
+import { fontDisplay, fontDisplayBlack, fontUi, fontUiSemi } from './fonts';
+
 export const type = {
   display: {
+    fontFamily: fontDisplayBlack,
     fontSize: 52,
     fontWeight: '900' as const,
     letterSpacing: 8,
     lineHeight: 58,
   },
   title: {
+    fontFamily: fontDisplay,
     fontSize: 28,
-    fontWeight: '900' as const,
+    fontWeight: '800' as const,
     letterSpacing: 4,
     lineHeight: 34,
   },
   headline: {
+    fontFamily: fontUi,
     fontSize: 15,
-    fontWeight: '800' as const,
+    fontWeight: '700' as const,
     letterSpacing: 4,
     lineHeight: 20,
   },
   body: {
+    fontFamily: fontUiSemi,
     fontSize: 14,
     fontWeight: '600' as const,
     letterSpacing: 0.4,
     lineHeight: 20,
   },
   label: {
+    fontFamily: fontUi,
     fontSize: 12,
-    fontWeight: '800' as const,
+    fontWeight: '700' as const,
     letterSpacing: 1.5,
     lineHeight: 16,
   },
   caption: {
+    fontFamily: fontUiSemi,
     fontSize: 10,
-    fontWeight: '700' as const,
+    fontWeight: '600' as const,
     letterSpacing: 1.5,
     lineHeight: 14,
   },
   micro: {
+    fontFamily: fontUi,
     fontSize: 9,
     fontWeight: '700' as const,
     letterSpacing: 2.5,

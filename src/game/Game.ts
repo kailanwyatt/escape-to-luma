@@ -2118,7 +2118,13 @@ export class Game {
     const particleCount =
       scored.kind === 'PERFECT' ? 22 : scored.kind === 'BULLSEYE' ? 16 : scored.kind === 'GREAT' ? 12 : 8;
     const color = scored.kind === 'PERFECT' ? 0xfff1a8 : scored.kind === 'BULLSEYE' ? 0x7ef0ff : 0xffffff;
-    this.particles.spawnHit(this.projectile.position, particleCount, color, scored.kind === 'PERFECT' ? 4.2 : 2.6);
+    if (scored.kind === 'PERFECT') {
+      this.particles.spawnPerfect(this.projectile.position);
+    } else if (scored.kind === 'HIT') {
+      this.particles.spawnClear(this.projectile.position);
+    } else {
+      this.particles.spawnHit(this.projectile.position, particleCount, color, scored.kind === 'BULLSEYE' ? 3.2 : 2.6);
+    }
     this.camera.hitEmphasis(scored.kind === 'PERFECT');
     this.trail.stop();
     GameHaptics.forResult(scored.kind);

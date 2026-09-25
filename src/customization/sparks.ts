@@ -104,7 +104,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 50,
     trailWidth: 0.09,
     trailColor: 0xffd060,
-    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'hot', glowScale: 1.12, portraitAssetId: portrait('solar') },
+    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'hot', glowScale: 1.12, orbitStyle: 'reactor', portraitAssetId: portrait('solar') },
   },
   {
     id: 'frost',
@@ -117,7 +117,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 100,
     trailWidth: 0.07,
     trailColor: 0xb8e4ff,
-    visualProfile: { ...DEFAULT_PROFILE, pulseRate: 0.85, portraitAssetId: portrait('frost') },
+    visualProfile: { ...DEFAULT_PROFILE, pulseRate: 0.85, orbitStyle: 'calm', portraitAssetId: portrait('frost') },
   },
   {
     id: 'storm',
@@ -164,7 +164,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 70,
     trailWidth: 0.08,
     trailColor: 0xc9a0ff,
-    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'hot', pulseRate: 1.3, portraitAssetId: portrait('plasma') },
+    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'hot', pulseRate: 1.3, orbitStyle: 'neon', portraitAssetId: portrait('plasma') },
   },
   {
     id: 'lunar',
@@ -216,7 +216,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 30,
     trailWidth: 0.1,
     trailColor: 0xd4b8ff,
-    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'hot', shellOpacity: 0.4, portraitAssetId: portrait('void') },
+    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'hot', shellOpacity: 0.4, orbitStyle: 'storm', portraitAssetId: portrait('void') },
   },
   {
     id: 'reactor',
@@ -275,7 +275,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 100,
     trailWidth: 0.09,
     trailColor: 0xffffff,
-    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'hot', pulseRate: 1.35, portraitAssetId: portrait('prism') },
+    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'hot', pulseRate: 1.35, orbitStyle: 'neon', portraitAssetId: portrait('prism') },
   },
 ];
 
