@@ -22,6 +22,7 @@ import { DockingCollarArt } from './DockingCollarArt';
 import { ShearLaneArt } from './ShearLaneArt';
 import { GroundCutLasersArt } from './GroundCutLasersArt';
 import { RotatingGateArt } from './RotatingGateArt';
+import { CorkscrewTunnelArt } from './CorkscrewTunnelArt';
 import { EnergyFieldArt } from './EnergyFieldArt';
 import { PhaseGateArt } from './PhaseGateArt';
 import { RepulsorArt } from './RepulsorArt';
@@ -29,10 +30,13 @@ import { NullTendrilArt } from './NullTendrilArt';
 import { NullLashArt } from './NullLashArt';
 import { TheNullArt } from './TheNullArt';
 import { FalseEntryArt } from './FalseEntryArt';
+import { OrbitingMoonsArt } from './OrbitingMoonsArt';
+import { MovingSafeZoneArt } from './MovingSafeZoneArt';
+import { AccretionShredderArt } from './AccretionShredderArt';
+import { StoryExtraArt } from './StoryExtraArt';
 import { scissorGateStateAtTime } from './ScissorGateState';
 import { speedFieldStateAtTime } from './SpeedFieldState';
-import { corkscrewStateAtTime, cometCrossingStateAtTime } from './ExtendedLibraryState';
-import { orbitingMoonsAtTime, beaconPulseStateAtTime, sequentialTunnelAtTime, movingSafeZoneHoleAtTime, accretionDebrisAtTime, pulsarBeamOn, solarSailAngle, solarSailOpen, teleportPortalPoseAtTime } from './StoryLibraryState';
+import { cometCrossingStateAtTime } from './ExtendedLibraryState';
 
 type Config = LibraryObstacleConfig | StoryLibraryConfig;
 type Part = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial | THREE.MeshStandardMaterial>;
@@ -54,6 +58,7 @@ export class LibraryWorldArt {
   private shear?: ShearLaneArt;
   private groundCuts?: GroundCutLasersArt;
   private rotatingGate?: RotatingGateArt;
+  private corkscrew?: CorkscrewTunnelArt;
   private energyField?: EnergyFieldArt;
   private phaseGate?: PhaseGateArt;
   private repulsor?: RepulsorArt;
@@ -61,6 +66,10 @@ export class LibraryWorldArt {
   private nullLash?: NullLashArt;
   private theNull?: TheNullArt;
   private falseEntry?: FalseEntryArt;
+  private orbitingMoons?: OrbitingMoonsArt;
+  private movingSafeZone?: MovingSafeZoneArt;
+  private accretion?: AccretionShredderArt;
+  private storyExtra?: StoryExtraArt;
   constructor(private c: Config) {
     this.group.name = `world-art-${c.type}`;
     if(c.type==='clockHands'){
@@ -107,6 +116,10 @@ export class LibraryWorldArt {
       this.rotatingGate=new RotatingGateArt(c);
       this.group.add(this.rotatingGate.group);
     }
+    if(c.type==='corkscrewTunnel'){
+      this.corkscrew=new CorkscrewTunnelArt(c);
+      this.group.add(this.corkscrew.group);
+    }
     if(c.type==='energyField'){
       this.energyField=new EnergyFieldArt(c);
       this.group.add(this.energyField.group);
@@ -134,6 +147,29 @@ export class LibraryWorldArt {
     if(c.type==='entryExitPortal'){
       this.falseEntry=new FalseEntryArt(c);
       this.group.add(this.falseEntry.group);
+    }
+    if(c.type==='orbitingMoons'){
+      this.orbitingMoons=new OrbitingMoonsArt(c);
+      this.group.add(this.orbitingMoons.group);
+    }
+    if(c.type==='movingSafeZone'){
+      this.movingSafeZone=new MovingSafeZoneArt(c);
+      this.group.add(this.movingSafeZone.group);
+    }
+    if(c.type==='accretionShredder'){
+      this.accretion=new AccretionShredderArt(c);
+      this.group.add(this.accretion.group);
+    }
+    if(
+      c.type==='magnetopause' ||
+      c.type==='lagrangeNull' ||
+      c.type==='pulsarBeam' ||
+      c.type==='solarSail' ||
+      c.type==='sequentialTunnel' ||
+      c.type==='teleportPortal'
+    ){
+      this.storyExtra=new StoryExtraArt(c);
+      this.group.add(this.storyExtra.group);
     }
     this.update(0);
   }
@@ -237,12 +273,15 @@ export class LibraryWorldArt {
       return;
     }
     if(kind==='rock'){
-      this.ball(id,x,y,r,0x6a737c);
-      for(let i=0;i<3;i++){
-        const a=i*Math.PI*2/3+.2;
-        this.ball(id+'-facet-'+i,x+Math.cos(a)*r*.32,y+Math.sin(a)*r*.32,r*.34,0x4e585f,-r*.4);
+      // Lean shard silhouette — fewer facets so spirals do not strobe.
+      this.ball(id,x,y,r,0x6a737c).visible=true;
+      this.ball(id+'-facet-0',x+r*.22,y-r*.12,r*.28,0x4e585f,-r*.35).visible=true;
+      this.ball(id+'-glint',x,y,r*.1,0xc9d4dc,-r*.7).visible=true;
+      // Hide unused facet slots from denser legacy creatures.
+      for(const i of [1,2]){
+        const f=this.parts.get(id+'-facet-'+i);
+        if(f)f.visible=false;
       }
-      this.ball(id+'-glint',x,y,r*.12,0xc9d4dc,-r*.72);
       return;
     }
     const color=0x647f96;
@@ -274,6 +313,7 @@ export class LibraryWorldArt {
       case 'dockingCollar':this.docking?.update(t);break;
       case 'shearLane':this.shear?.update(t);break;
       case 'rotatingGate':this.rotatingGate?.update(t);break;
+      case 'corkscrewTunnel':this.corkscrew?.update(t);break;
       case 'energyField':this.energyField?.update(t);break;
       case 'phaseGate':this.phaseGate?.update(t);break;
       case 'repulsor':this.repulsor?.update(t);break;
@@ -281,39 +321,21 @@ export class LibraryWorldArt {
       case 'nullLash':this.nullLash?.update(t);break;
       case 'theNull':this.theNull?.update(t);break;
       case 'entryExitPortal':this.falseEntry?.update(t);break;
+      case 'orbitingMoons':this.orbitingMoons?.update(t);break;
+      case 'movingSafeZone':this.movingSafeZone?.update(t);break;
+      case 'accretionShredder':this.accretion?.update(t);break;
+      case 'magnetopause':
+      case 'lagrangeNull':
+      case 'pulsarBeam':
+      case 'solarSail':
+      case 'sequentialTunnel':
+      case 'teleportPortal':
+        this.storyExtra?.update(t);break;
       case 'cometCrossing':{
         const s=cometCrossingStateAtTime(c,t);this.creature('ice-core',s.x,s.y,s.radius,'ice');
         // Ghost-thin wake, never a solid extra obstacle.
         const a=Math.atan2(c.endY-c.startY,c.endX-c.startX);
         for(let i=0;i<4;i++)this.box('wake-'+i,s.x-Math.cos(a)*s.radius*(1+i*.7),s.y-Math.sin(a)*s.radius*(1+i*.7),s.radius*.9,s.radius*(.36-i*.07),0xa5def5,.3,a,.15-i*.03);break;}
-      case 'corkscrewTunnel':{
-        const s=corkscrewStateAtTime(c,t),start=s.gapAngle+s.gapWidth/2,span=Math.PI*2-s.gapWidth;
-        // Solid bore through the hub — only the timed sector is open.
-        const bore=Math.max(0.08,s.innerRadius*0.35);
-        this.ring('conduit-wall',s.centerX,s.centerY,bore,s.radius,0x3d5163,start,span);
-        this.ball('conduit-hub',s.centerX,s.centerY,s.innerRadius,0x2a3848,-.02);
-        this.ring('conduit-collar',s.centerX,s.centerY,s.innerRadius,s.innerRadius+.07,0x7ec8e0,0,Math.PI*2,-.01);
-        this.ring('conduit-rim',s.centerX,s.centerY,s.radius-.06,s.radius,0xd4b07a,start,span,-.01);
-        for(let i=0;i<5;i++){
-          const a=start+((i+.35)/5)*span;
-          this.box('helix-ridge-'+i,s.centerX+Math.cos(a)*(bore+s.radius)/2,s.centerY+Math.sin(a)*(bore+s.radius)/2,.04,(s.radius-bore)*.7,0x9bb0bf,-.04,a);
-        }
-        // Cyan lips mark the safe sector edges.
-        for(const side of [-1,1] as const){
-          const a=s.gapAngle+side*s.gapWidth/2;
-          this.box(
-            'gap-lip-'+side,
-            s.centerX+Math.cos(a)*(bore+s.radius)/2,
-            s.centerY+Math.sin(a)*(bore+s.radius)/2,
-            .05,
-            (s.radius-bore)*.85,
-            0x7ce8ff,
-            -.06,
-            a+Math.PI/2,
-            .7,
-          );
-        }
-        break;}
       case 'speedField':{
         const s=speedFieldStateAtTime(c,t);this.box('current',s.centerX,s.centerY,s.width,s.height,0x399abc,0,0,.17);
         for(const side of [-1,1])this.box('edge-'+side,s.centerX+side*s.width/2,s.centerY,.025,s.height,0x8fdaed,-.02,0,.55);
@@ -321,100 +343,8 @@ export class LibraryWorldArt {
           const u=((t*.28+i/7)%1+1)%1;
           this.box('flow-'+i,s.centerX+(i%3-1)*s.width*.29,s.centerY+(u-.5)*s.height,.018,.22,0xb7f5ff,-.03,0,.45);
         }break;}
-      case 'orbitingMoons':{
-        const hub=c.hubRadius??0;
-        if(hub>0)this.ball('relay-hub',c.centerX,c.centerY,hub,0xffb449,-.06);
-        const moons=orbitingMoonsAtTime(c,t);
-        const pulse=beaconPulseStateAtTime(c,t);
-        moons.forEach((b,i)=>this.creature('relay-beacon-'+i,b.x,b.y,b.radius,'drone'));
-        if(c.beaconPulse){
-          const color=pulse.warning?0xffb449:pulse.phase==='firing'?0xff6a55:0x70e5ed;
-          moons.forEach((b,i)=>{
-            if(c.beaconPulse!.kind==='shockwave'){
-              const r=pulse.phase==='firing'
-                ? b.radius+c.beaconPulse!.range*pulse.fraction
-                : pulse.warning?b.radius+0.08:b.radius+0.04;
-              const thick=c.beaconPulse!.thickness??0.16;
-              const ring=this.ring('beacon-shock-'+i,b.x,b.y,Math.max(0.05,r-thick/2),r+thick/2,color,0,Math.PI*2,-.03,pulse.phase==='off'?0.12:pulse.warning?0.45:0.85);
-              ring.visible=pulse.phase!=='off';
-            }else{
-              // Beams fire inward toward the corridor (matches collision).
-              const len=pulse.phase==='firing'
-                ? c.beaconPulse!.range
-                : pulse.warning
-                  ? c.beaconPulse!.range*0.4
-                  : 0;
-              const ux=-Math.cos(b.angle),uy=-Math.sin(b.angle);
-              const half=c.beaconPulse!.thickness??0.09;
-              this.laserBeam(
-                `beacon-laser-${i}`,
-                b.x+ux*b.radius*0.85,
-                b.y+uy*b.radius*0.85,
-                b.x+ux*(b.radius+len),
-                b.y+uy*(b.radius+len),
-                half,
-                color,
-                pulse.phase==='firing'?1:pulse.warning?0.4:0,
-              );
-            }
-          });
-        }
-        break;}
-      case 'accretionShredder':accretionDebrisAtTime(c,t).forEach((b,i)=>this.creature('rock-shard-'+i,b.x,b.y,b.radius,'rock'));break;
-      case 'sequentialTunnel':{
-        const ports=sequentialTunnelAtTime(c,t),open=ports.find(p=>p.open)!;
-        this.ring('derelict-wall',open.x,open.y,open.radius,40,0x1e2c3a);
-        this.ring('port-active-housing',open.x,open.y,open.radius+.10,open.radius+.22,0x7a93a3,0,Math.PI*2,.02);
-        this.ring('port-active-lip',open.x,open.y,open.radius+.22,open.radius+.28,0xb0c4d0,0,Math.PI*2,.01);
-        ports.forEach((p,i)=>{
-          const r=p.open?p.radius:Math.max(.12,Math.min(p.radius,c.spacing-p.radius-.16));
-          this.ring('port-'+i,p.x,p.y,r,r+.11,p.open?0x92edcf:0x65747e,0,Math.PI*2,-.02);
-          const cross=this.box('sealed-'+i,p.x,p.y,r*1.25,.07,0xa98068,-.05,Math.PI/4);cross.visible=!p.open;
-          const cross2=this.box('sealed-b-'+i,p.x,p.y,r*1.25,.07,0xa98068,-.05,-Math.PI/4);cross2.visible=!p.open;
-        });break;}
-      case 'movingSafeZone':{
-        const s=movingSafeZoneHoleAtTime(c,t);
-        this.ring('wreck-field',s.x,s.y,s.radius,c.fieldRadius,0x5a4836,0,Math.PI*2,0,.78,c.centerX,c.centerY);
-        this.ring('safe-edge',s.x,s.y,s.radius,s.radius+.035,0xffd08a,0,Math.PI*2,-.02);
-        this.ring('field-edge',c.centerX,c.centerY,c.fieldRadius-.025,c.fieldRadius,0xb89a78);break;}
-      case 'magnetopause':{
-        const hub=Math.max(0.12,c.hubRadius??c.innerRadius*.45);
-        const a=t*c.speed+(c.phase??0)+c.gapWidth/2,span=Math.PI*2-c.gapWidth;
-        const inner=Math.max(hub,c.innerRadius);
-        this.ring('dish-arc',c.centerX,c.centerY,inner,c.outerRadius,0x6a7f93,a,span,0,.9);
-        this.ring('dish-rim',c.centerX,c.centerY,c.outerRadius-.04,c.outerRadius,0xd7e4ef,a,span,-.01);
-        this.ball('dish-hub',c.centerX,c.centerY,hub,0xffb449,-.08);break;}
-      case 'lagrangeNull':
-        this.ring('calm-boundary',c.centerX,c.centerY,c.radius-.015,c.radius,0x8caaa9,0,Math.PI*2,0,.4);
-        this.ring('calm-pocket',c.centerX,c.centerY,0,c.radius,0x142637,0,Math.PI*2,.02,.15);break;
-      case 'pulsarBeam':{
-        const on=pulsarBeamOn(c,t),vertical=c.orientation==='vertical';
-        const beam=this.box('radiation',c.centerX,c.centerY,vertical?c.halfWidth*2:80,vertical?80:c.halfWidth*2,0xff997a,0,0,.85);beam.visible=on;
-        const core=this.box('radiation-core',c.centerX,c.centerY,vertical?c.halfWidth*.65:80,vertical?80:c.halfWidth*.65,0xffeee0,-.01);core.visible=on;
-        for(const side of [-1,1])this.box('trace-'+side,c.centerX+(vertical?side*c.halfWidth:0),c.centerY+(vertical?0:side*c.halfWidth),vertical?.012:80,vertical?80:.012,0x8aa3bd,.01,0,on?.5:.15);break;}
-      case 'solarSail':{
-        const a=solarSailAngle(c,t),open=solarSailOpen(c,t);
-        const panel=this.box('vane-panel',c.centerX,c.centerY,c.halfWidth*2,c.halfHeight*2,0x5a6a76,0,a,open?.13:1);
-        for(const side of [-1,1]){
-          const dy=side*c.halfHeight*.94;
-          this.box('vane-frame-'+side,c.centerX-Math.sin(a)*dy,c.centerY+Math.cos(a)*dy,c.halfWidth*1.97,c.halfHeight*.10,0xa8b8c4,-.075,a,open?.10:1);
-        }
-        for(let i=0;i<5;i++){
-          const dx=(i-2)*c.halfWidth*.32;
-          this.box('vane-rib-'+i,c.centerX+Math.cos(a)*dx,c.centerY+Math.sin(a)*dx,.025,c.halfHeight*1.85,0xc5d0d8,-.06,a,open?.10:1);
-        }
-        const line=this.box('clear-line',c.centerX,c.centerY,c.halfWidth*2,.018,0x88efc9,-.07,a);line.visible=open;
-        panel.material.color.setHex(open?0x8ae6c9:0x5a6a76);break;}
-      case 'teleportPortal':{
-        const s=teleportPortalPoseAtTime(c,t);
-        // Portal only — no seal wall, grid, or aperture circle. Vanishes and reappears as one piece.
-        const frame=this.ring('portal-frame',s.x,s.y,s.radius,s.radius+.16,0x6a8498,0,Math.PI*2,.01);frame.visible=s.present;
-        const lip=this.ring('portal-lip',s.x,s.y,s.radius+.16,s.radius+.26,0x3f5363,0,Math.PI*2,.02);lip.visible=s.present;
-        const energy=this.ring('portal-energy',s.x,s.y,s.radius+.04,s.radius+.11,0x4aa7c9,0,Math.PI*2,-.02,.75);energy.visible=s.present;
-        const ghost=this.ring('next-anchor',s.nextX,s.nextY,s.radius*.88,s.radius+.06,0xffbe66,0,Math.PI*2,-.04,.55);ghost.visible=s.warning;
-        break;}
       default: break;
     }
   }
-  dispose():void {this.clock?.dispose();this.drones?.dispose();this.elevator?.dispose();this.shutter?.dispose();this.scissor?.dispose();this.groundCuts?.dispose();this.billboard?.dispose();this.docking?.dispose();this.shear?.dispose();this.rotatingGate?.dispose();this.energyField?.dispose();this.phaseGate?.dispose();this.repulsor?.dispose();this.nullTendril?.dispose();this.nullLash?.dispose();this.theNull?.dispose();this.falseEntry?.dispose();for(const p of this.parts.values()){p.geometry.dispose();if(p.material instanceof THREE.MeshBasicMaterial)p.material.dispose();}this.finishes.dispose();this.parts.clear();this.group.clear();this.group.removeFromParent();}
+  dispose():void {this.clock?.dispose();this.drones?.dispose();this.elevator?.dispose();this.shutter?.dispose();this.scissor?.dispose();this.groundCuts?.dispose();this.billboard?.dispose();this.docking?.dispose();this.shear?.dispose();this.rotatingGate?.dispose();this.corkscrew?.dispose();this.energyField?.dispose();this.phaseGate?.dispose();this.repulsor?.dispose();this.nullTendril?.dispose();this.nullLash?.dispose();this.theNull?.dispose();this.falseEntry?.dispose();this.orbitingMoons?.dispose();this.movingSafeZone?.dispose();this.accretion?.dispose();this.storyExtra?.dispose();for(const p of this.parts.values()){p.geometry.dispose();if(p.material instanceof THREE.MeshBasicMaterial)p.material.dispose();}this.finishes.dispose();this.parts.clear();this.group.clear();this.group.removeFromParent();}
 }

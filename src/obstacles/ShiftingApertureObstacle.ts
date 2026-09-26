@@ -26,6 +26,9 @@ export class ShiftingApertureObstacle {
   private visual: THREE.Group | null = null;
   private openingWash: THREE.Mesh | null = null;
   private shiftTicks: THREE.Mesh[] = [];
+  private shiftRail: THREE.Mesh | null = null;
+  private shiftHub: THREE.Mesh | null = null;
+  private accent: THREE.PointLight | null = null;
 
   constructor(id: string) {
     this.id = id;
@@ -48,7 +51,7 @@ export class ShiftingApertureObstacle {
         }
       });
       const edge=this.visual.getObjectByName('aperture') as THREE.Mesh;
-      (edge.material as THREE.MeshBasicMaterial).color.setHex(0xffcf70);
+      (edge.material as THREE.MeshBasicMaterial | THREE.MeshStandardMaterial).color.setHex(0xffcf70);
       this.visual.traverse(object=>{
         if(object instanceof THREE.Mesh && object.material instanceof THREE.MeshBasicMaterial && object.material.color.getHex()===0x92e8f2)object.material.color.setHex(0xffcf70);
       });
@@ -85,6 +88,38 @@ export class ShiftingApertureObstacle {
         this.shiftTicks.push(tick);
         this.group.add(tick);
       }
+
+      // Horizontal shift rail teaches the travel envelope (decorative).
+      this.shiftRail = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 0.03, 0.02),
+        new THREE.MeshStandardMaterial({
+          color: 0xffcf70,
+          emissive: 0xffb449,
+          emissiveIntensity: 0.55,
+          transparent: true,
+          opacity: 0.45,
+          depthWrite: false,
+        }),
+      );
+      this.shiftRail.name = 'shift-rail';
+      this.shiftRail.position.z = -0.08;
+      this.group.add(this.shiftRail);
+
+      this.shiftHub = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.12, 0.03),
+        new THREE.MeshStandardMaterial({
+          color: 0xffcf70,
+          emissive: 0xffb449,
+          emissiveIntensity: 0.7,
+        }),
+      );
+      this.shiftHub.name = 'shift-hub';
+      this.shiftHub.position.z = -0.05;
+      this.group.add(this.shiftHub);
+
+      this.accent = new THREE.PointLight(0xffcf70, 8, 9, 2);
+      this.accent.name = 'shift-accent';
+      this.group.add(this.accent);
     }
     this.update(0, 0);
   }
@@ -116,6 +151,28 @@ export class ShiftingApertureObstacle {
       const side = tick.userData.side as number;
       tick.position.set(side * (amp + state.radius * 0.15), 0, -0.06);
       tick.visible = amp > 0.05;
+    }
+    if (this.shiftRail) {
+      this.shiftRail.visible = amp > 0.05;
+      // Rail is authored in group-local space; aperture group follows the shifting center,
+      // so center the rail on the rest pose offset (-shift) and span full amplitude.
+      const shift = state.x - this.config.baseX;
+      this.shiftRail.position.set(-shift, 0, -0.08);
+      this.shiftRail.scale.set(Math.max(0.2, amp * 2 + state.radius * 0.3), 1, 1);
+    }
+    if (this.shiftHub) {
+      const shift = state.x - this.config.baseX;
+      this.shiftHub.position.set(-shift, 0, -0.05);
+      this.shiftHub.visible = amp > 0.05;
+    }
+    if (this.accent) {
+      const ball = GAME_TUNING.projectile.radius;
+      const sealed = state.radius < ball + 0.06;
+      const tight = state.radius < ball + 0.35;
+      const teach = sealed ? 0xff7562 : tight ? 0xffb449 : 0xffcf70;
+      this.accent.color.setHex(teach);
+      this.accent.intensity = sealed ? 12 : tight ? 9 : 7;
+      this.accent.position.set(0, 0, -1.05);
     }
   }
 

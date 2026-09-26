@@ -116,7 +116,7 @@ export const LIBRARY_LESSONS: Record<number, { name: string; body: string; hint:
   93: {
     name: 'Debris Spiral',
     body: 'Rock and ice shards spiral through the belt.',
-    hint: 'Throw through the quiet center while the fragments spiral past.',
+    hint: 'Throw through the quiet center — shards orbit wide; do not chase them.',
   },
   94: {
     name: 'Shear Lane',
@@ -366,10 +366,10 @@ function corkscrew(z: number): ObstacleConfig {
     centerX: 0,
     centerY: 3,
     radius: 1.85,
-    // Narrow sector — hub is solid so center throws fail.
-    gapWidth: 0.82,
+    // Teach window — wide enough to lead the sector without reading as a free pass.
+    gapWidth: 1.15,
     innerRadius: 0.28,
-    speed: 0.72,
+    speed: 0.55,
     helixStep: 0.55,
     segmentIndex: 0,
   };
@@ -451,10 +451,11 @@ function accretion(z: number): ObstacleConfig {
     centerX: 0,
     centerY: 3,
     outerRadius: 2.1,
-    debrisCount: 7,
-    debrisRadius: 0.22,
-    speed: 0.4,
-    turns: 1.4,
+    // Fewer, slower shards — spiral must stay readable (not a strobe).
+    debrisCount: 5,
+    debrisRadius: 0.24,
+    speed: 0.24,
+    turns: 1.05,
   };
 }
 
@@ -725,8 +726,11 @@ export function applyLibraryEncounters(source: CampaignLevelDefinition): Campaig
   else if (n === 85) {
     obstacles = [wreckDrift(6)];
     level.windX = 0.32;
-  } else if (n === 86) obstacles = [corkscrew(6)];
-  else if (n === 92) obstacles = [beltRock(6.2)];
+  } else if (n === 86) {
+    obstacles = [corkscrew(6)];
+    target.radius = 1.12;
+    target.y = 3.05;
+  } else if (n === 92) obstacles = [beltRock(6.2)];
   else if (n === 93) obstacles = [accretion(6)];
   else if (n === 94) obstacles = [shearLane(6)];
   else if (n === 100) {

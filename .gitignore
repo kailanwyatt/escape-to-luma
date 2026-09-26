@@ -30,8 +30,19 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# local env / secrets (keep `.env.example` tracked)
+.env
+.env.*
+!.env.example
+
+# common credential dumps
+credentials.json
+**/GoogleService-Info.plist
+**/google-services.json
+*.keystore
+auth.json
+.secrets/
+secrets/
 
 # typescript
 *.tsbuildinfo

@@ -139,13 +139,15 @@ export function buildWorld4(): CampaignLevelDefinition[] {
     const n = 46 + i;
     const t = worldT(n);
     const g = lerp(0.88, 0.58, t);
-    // Seal shut — prior minR (~0.44–0.58) never blocked Spark through the hole.
-    const minR = lerp(0.1, 0.04, t);
+    // Seal vs Spark (r=0.22) without dipping under the validator iris floor (0.2).
+    // Prior 0.04–0.10 sealed harder than needed and flagged every UA iris level.
+    const minR = lerp(0.215, 0.2, t);
     const maxR = lerp(1.55, 1.32, t);
     const speed = lerp(0.58, 0.92, t);
     // Mastery pairs iris with a climb ring — not a city sliding gate — so the
     // thin-air chapter stays on airlock / aperture / ring identity.
     const move = i % 3 === 1 ? 'vertical' : i % 3 === 2 ? 'ellipse' : 'horizontal';
+    const rearMinR = Math.min(0.215, Math.max(0.2, minR + 0.01));
     const obstacles =
       i >= 11
         ? [
@@ -153,7 +155,7 @@ export function buildWorld4(): CampaignLevelDefinition[] {
             ring(lerp(1.32, 1.18, t), speed * 0.72, lerp(0.38, 0.55, t), move, Z_B),
           ]
         : i >= 7
-          ? [iris(minR, maxR, speed), iris(Math.min(0.16, minR + 0.05), maxR - 0.1, speed * 0.85, Z_B)]
+          ? [iris(minR, maxR, speed), iris(rearMinR, maxR - 0.1, speed * 0.85, Z_B)]
           : [iris(minR, maxR, speed)];
     const target = i < 5 ? soft : i % 2 ? offset : center;
     levels.push(

@@ -8,9 +8,8 @@ import {
   type ObstacleDebugInfo,
   type ObstaclePredictedState,
 } from './GameplayObstacle';
-import { createReadableBlocker } from './ReadableBlockerVisual';
 import { interpolateAtZ } from './SlidingGateObstacle';
-import { disposeThreeObject } from '../utils/disposeThree';
+import { OrbiterArt } from './OrbiterArt';
 
 /** Centered root: orbit path stays fixed while the satellite body rides the ring. */
 export class OrbiterObstacle {
@@ -22,9 +21,7 @@ export class OrbiterObstacle {
   blockerX = 0;
   blockerY = 3;
   private config: OrbiterConfig | null = null;
-  private body: THREE.Mesh | null = null;
-  private path: THREE.Mesh | null = null;
-  private environment: EnvironmentId = 'workshop';
+  private art: OrbiterArt | null = null;
 
   constructor(id: string) {
     this.id = id;
@@ -39,41 +36,13 @@ export class OrbiterObstacle {
     this.z = config.z;
     this.group.position.set(config.centerX, config.centerY, config.z);
 
-    const needsBody = !this.body || environment !== this.environment;
-    if (needsBody) {
-      if (this.body) {
-        this.group.remove(this.body);
-        disposeThreeObject(this.body);
-        this.body = null;
-      }
-      this.environment = environment;
-      this.body = createReadableBlocker('drone');
-      this.body.name = 'orbiter-body';
-      this.group.add(this.body);
+    if (this.art) {
+      this.group.remove(this.art.group);
+      this.art.dispose();
+      this.art = null;
     }
-    this.body!.scale.setScalar(config.blockerRadius);
-
-    if (this.path) {
-      this.group.remove(this.path);
-      disposeThreeObject(this.path);
-      this.path = null;
-    }
-    // Thin orbit cue — non-colliding, reads the satellite route without filling the lane.
-    const pathMat = new THREE.MeshBasicMaterial({
-      color: environment === 'space' ? 0x6cf0ff : 0xffb45a,
-      transparent: true,
-      opacity: 0.28,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
-    this.path = new THREE.Mesh(
-      new THREE.TorusGeometry(config.orbitRadius, Math.max(0.012, config.blockerRadius * 0.04), 8, 96),
-      pathMat,
-    );
-    this.path.name = 'orbit-path';
-    this.path.position.z = 0.08;
-    this.group.add(this.path);
-
+    this.art = new OrbiterArt(config, environment);
+    this.group.add(this.art.group);
     this.update(0, 0);
   }
 
@@ -84,15 +53,13 @@ export class OrbiterObstacle {
   }
 
   update(_dt: number, elapsedTime: number): void {
-    if (!this.active || !this.config || !this.body) {
+    if (!this.active || !this.config || !this.art) {
       return;
     }
     const pos = orbiterPosition(this.config, elapsedTime);
     this.blockerX = pos.x;
     this.blockerY = pos.y;
-    this.body.position.set(pos.x - this.config.centerX, pos.y - this.config.centerY, 0);
-    // Slow spin sells a satellite mass without changing the circular hit disk.
-    this.body.rotation.z = elapsedTime * 0.35 + (this.config.phase ?? 0);
+    this.art.update(elapsedTime);
   }
 
   testProjectileCrossing(

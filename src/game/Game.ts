@@ -57,7 +57,7 @@ import { ParticleSystem } from '../feedback/Particles';
 import { ProjectileTrail } from '../feedback/ProjectileTrail';
 import { WindField } from '../feedback/WindField';
 import { GravityWellField } from '../feedback/GravityWellField';
-import { SafeOpeningMarker } from '../feedback/SafeOpeningMarker';
+import { SafeOpeningMarker, hasAuthoredSafeOpening } from '../feedback/SafeOpeningMarker';
 import { ObstacleSlot } from '../obstacles/ObstacleSlot';
 import { AimSystem } from '../projectile/AimSystem';
 import { Projectile } from '../projectile/Projectile';
@@ -1256,12 +1256,22 @@ export class Game {
       return;
     }
     const predicted = obstacle.predictState(0, this.obstacleTime);
-    const x = predicted.openingX || predicted.x;
-    const y = predicted.openingY || predicted.y;
+    // Only aperture-style openings — never invent a ring on conveyors / blockers.
+    if (!hasAuthoredSafeOpening(predicted)) {
+      this.safeOpeningMarker.setTarget(false, 0, 0, 0);
+      return;
+    }
     const radius =
-      predicted.openingRadius ||
-      Math.max(0.4, Math.min(predicted.openingWidth, predicted.openingHeight) / 2 || 0.55);
-    this.safeOpeningMarker.setTarget(true, x, y, obstacle.z, radius);
+      predicted.openingRadius > 0.05
+        ? predicted.openingRadius
+        : Math.max(0.4, Math.min(predicted.openingWidth, predicted.openingHeight) / 2);
+    this.safeOpeningMarker.setTarget(
+      true,
+      predicted.openingX,
+      predicted.openingY,
+      obstacle.z,
+      radius,
+    );
   }
 
   skipCampaignOpening(): void {

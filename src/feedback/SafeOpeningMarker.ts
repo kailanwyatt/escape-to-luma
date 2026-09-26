@@ -4,6 +4,16 @@
  */
 
 import * as THREE from 'three';
+import type { ObstaclePredictedState } from '../obstacles/GameplayObstacle';
+
+/** True when predicted state names a real aperture (not a default empty pose). */
+export function hasAuthoredSafeOpening(predicted: ObstaclePredictedState): boolean {
+  return (
+    predicted.openingRadius > 0.05 ||
+    predicted.openingWidth > 0.15 ||
+    predicted.openingHeight > 0.15
+  );
+}
 
 export class SafeOpeningMarker {
   readonly group = new THREE.Group();

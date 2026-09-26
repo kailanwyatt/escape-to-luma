@@ -151,6 +151,29 @@ export function createIrisVisual(environment: EnvironmentId): THREE.Group {
     kit.box(petal, 'petal-edge', 0.95, 0.05, 0.025, 0.08, 0, -0.05, steel, 0.004);
     kit.box(petal, 'petal-lamp', 0.55, 0.07, 0.018, -0.12, 0, -0.055, lamp, 0.003);
   }
+  // Status bezel + depth cuff for non-space cinematic iris.
+  const status = new THREE.Mesh(
+    new THREE.TorusGeometry(1.4, 0.03, 8, 48),
+    new THREE.MeshStandardMaterial({
+      color: colors.energy,
+      emissive: colors.energy,
+      emissiveIntensity: 0.8,
+      metalness: 0.12,
+      roughness: 0.3,
+    }),
+  );
+  status.name = 'iris-status-bezel';
+  status.position.z = -0.08;
+  group.add(status);
+  const cuff = new THREE.Mesh(
+    new THREE.CylinderGeometry(outer * 0.9, outer * 0.76, 0.36, 40, 1, true),
+    kit.metal(colors.panel, 0.5, false),
+  );
+  cuff.name = 'iris-depth-cuff';
+  cuff.rotation.x = Math.PI / 2;
+  cuff.position.z = 0.24;
+  group.add(cuff);
+
   const accent = new THREE.PointLight(colors.energy, 8, 8, 2);
   accent.name = 'iris-accent';
   accent.position.set(0, 0, -1.05);
@@ -171,11 +194,24 @@ export function layoutIrisVisual(group: THREE.Group, openingRadius: number): voi
     petal.rotation.z = angle;
     petal.scale.setX(Math.max(0.25, (outer - openingRadius) / (outer - 0.4)));
   }
+  const ball = GAME_TUNING.projectile.radius;
+  const sealed = openingRadius < ball + 0.06;
+  const tight = openingRadius < ball + 0.35;
+  const teach = sealed ? 0xff7562 : tight ? 0xffb449 : 0x70e5ed;
   const accent = group.getObjectByName('iris-accent') as THREE.PointLight | undefined;
   if (accent) {
-    const open = (openingRadius - 0.6) / Math.max(0.01, outer - 0.6);
-    accent.intensity = 7 + Math.max(0, Math.min(1, open)) * 5;
-    accent.color.setHex(open > 0.65 ? 0x70e5ed : open < 0.35 ? 0xff7562 : 0xffb449);
+    accent.intensity = sealed ? 12 : tight ? 9.5 : 7.5;
+    accent.color.setHex(teach);
+  }
+  const status = group.getObjectByName('iris-status-bezel') as THREE.Mesh | undefined;
+  if (status) {
+    status.scale.setScalar(Math.max(0.2, openingRadius) / 1.4);
+    const mat = status.material as THREE.MeshStandardMaterial;
+    if (mat.emissive) {
+      mat.color.setHex(teach);
+      mat.emissive.setHex(teach);
+      mat.emissiveIntensity = sealed ? 1.35 : tight ? 1.05 : 0.75;
+    }
   }
 }
 

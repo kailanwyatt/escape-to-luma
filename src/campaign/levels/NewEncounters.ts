@@ -2,6 +2,9 @@ import {t} from '../../i18n';
 import type {CampaignLevelDefinition} from '../types';
 import type {FormationConfig,ObstacleConfig} from '../../config/ObstacleConfig';
 
+/** Dual phase-gate template used by EncounterProgression (L116/118/137). Not a player-facing lesson — L113 is remapped to The Null. */
+export const PHASE_MEMBRANE_TEMPLATE_LEVEL = 113;
+
 export const ENCOUNTER_LESSONS:Record<number,{name:string;body:string;hint:string}>={
  22:{name:t("newencounters.alternating_doors"),body:t("newencounters.rooftop_security_switches_between_two_lanes_one_door_retracts_whi"),hint:t("newencounters.choose_a_lane_then_time_spark_s_arrival_amber_warns_that_the_open")},
  24:{name:t("newencounters.alternating_doors"),body:t("newencounters.the_next_checkpoint_switches_faster_and_the_destination_is_on_the"),hint:t("newencounters.aim_right_watch_the_complete_door_cycle_before_releasing")},
@@ -13,18 +16,19 @@ export const ENCOUNTER_LESSONS:Record<number,{name:string;body:string;hint:strin
  96:{name:t("newencounters.expanding_debris"),body:t("newencounters.fragments_spread_outward_then_converge_again_around_the_route"),hint:t("newencounters.launch_through_the_center_while_the_rocks_spread_their_return_clo")},
  102:{name:t("newencounters.expanding_debris"),body:t("newencounters.two_debris_clusters_breathe_at_different_rates"),hint:t("newencounters.read_the_near_cluster_then_the_far_one_time_the_whole_flight_rath")},
  108:{name:t("newencounters.phase_columns"),body:t("newencounters.columns_of_condensed_energy_emerge_from_the_nebula_then_fade_back"),hint:t("newencounters.bright_filled_columns_are_solid_dim_outlines_are_passable_amber_w")},
- 113:{name:'False Membranes',body:'Two glowing membranes bar the false-home approach — each fades open, then solidifies again.',hint:'Wait for cyan on both membranes, then throw through the whole corridor while the passage is open.'},
  123:{name:t("newencounters.rotating_maze"),body:t("newencounters.an_ancient_plate_turns_an_off_center_opening_around_its_axis"),hint:t("newencounters.follow_the_amber_aperture_aim_where_the_opening_will_be_when_spar")},
  127:{name:t("newencounters.rotating_maze"),body:t("newencounters.two_ancient_plates_rotate_in_opposite_directions"),hint:t("newencounters.wait_for_a_route_through_both_amber_openings_then_commit_to_the_s")},
- 129:{name:t("newencounters.sequential_tunnel"),body:t("newencounters.three_mechanisms_form_one_timed_passage_through_the_network"),hint:'Wait for the membranes to fade — throw through the whole corridor while the passage is open.'},
- 142:{name:t("newencounters.sequential_tunnel"),body:t("newencounters.luma_s_approach_repeats_the_sequence_at_a_quicker_rhythm"),hint:'Same timed corridor, quicker cycle — commit when cyan opens and hold the line through all three.'},
+ 129:{name:t("newencounters.phase_membranes"),body:t("newencounters.three_membranes_form_one_timed_passage_through_the_network"),hint:t("newencounters.wait_for_the_membranes_to_fade_throw_through_the_whole_corridor")},
+ 142:{name:t("newencounters.phase_membranes"),body:t("newencounters.luma_s_approach_repeats_the_membranes_at_a_quicker_rhythm"),hint:t("newencounters.same_timed_corridor_quicker_cycle_commit_when_cyan_opens")},
 };
 
 /** Deliberate playtest courses; preserve level IDs, rewards, world exits and save progress. */
 export function applyNewEncounters(source:CampaignLevelDefinition):CampaignLevelDefinition {
- const lesson=ENCOUNTER_LESSONS[source.levelNumber];if(!lesson)return source;
+ const n=source.levelNumber;
+ const lesson=ENCOUNTER_LESSONS[n];
+ const isMembraneTemplate=n===PHASE_MEMBRANE_TEMPLATE_LEVEL;
+ if(!lesson&&!isMembraneTemplate)return source;
  const level:CampaignLevelDefinition=JSON.parse(JSON.stringify(source));
- const n=level.levelNumber;
  const formation=(variant:FormationConfig['variant'],z:number,speed:number,phase=0,direction:1|-1=1):FormationConfig=>({type:'formation',variant,z,speed,phase,direction,centerY:3});
  let obstacles:ObstacleConfig[]=[];
  let target={x:0,y:3.1,z:12,radius:.92};
@@ -48,9 +52,8 @@ export function applyNewEncounters(source:CampaignLevelDefinition):CampaignLevel
  }else if(n===108){
   obstacles=[formation('phaseColumns',5.8,.32)];
   target.x=.85;
- }else if(n===113){
-  // Dual membranes (not panel columns) — base for false_home progressions 116/118/137.
-  // Library remaps campaign L113 to theNull; these obstacles only feed EncounterProgression.
+ }else if(n===PHASE_MEMBRANE_TEMPLATE_LEVEL){
+  // Dual membranes for false_home progressions 116/118/137 — not shown as a lesson card.
   const speed=0.58;
   const refVz=8.5;
   obstacles=[5.6,8.2].map((z,i)=>({
@@ -91,7 +94,8 @@ export function applyNewEncounters(source:CampaignLevelDefinition):CampaignLevel
   level.gravityScale = 0.8;
   target.y = 3.15;
  }
- level.tutorialHint=lesson.hint;
- level.challenge={...level.challenge,template:'COMBINED_HAZARD',obstacles,target,ricochet:undefined,tags:[...(level.challenge.tags??[]),'new-encounter',lesson.name]};
+ const tagName=lesson?.name??'Phase Membranes';
+ level.tutorialHint=lesson?.hint??'Wait for cyan on both membranes, then throw through the corridor.';
+ level.challenge={...level.challenge,template:'COMBINED_HAZARD',obstacles,target,ricochet:undefined,tags:[...(level.challenge.tags??[]),'new-encounter',tagName]};
  return level;
 }

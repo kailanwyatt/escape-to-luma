@@ -1,4 +1,3 @@
-import {createReadableBlocker} from './ReadableBlockerVisual';
 import * as THREE from 'three';
 
 import type { EnvironmentId } from '../config/ChallengeConfig';
@@ -11,6 +10,7 @@ import {
   type ObstaclePredictedState,
 } from './GameplayObstacle';
 import { interpolateAtZ } from './SlidingGateObstacle';
+import { DriftingBlockerArt } from './DriftingBlockerArt';
 
 export class DriftingBlockerObstacle {
   readonly id: string;
@@ -21,23 +21,28 @@ export class DriftingBlockerObstacle {
   blockerX = 0;
   blockerY = 3;
   private config: DriftingBlockerConfig | null = null;
-  private mesh: THREE.Mesh | null = null;
+  private art: DriftingBlockerArt | null = null;
 
   constructor(id: string) {
     this.id = id;
+    this.group.name = 'drifting-blocker';
     this.group.visible = false;
   }
 
-  applyConfig(config: DriftingBlockerConfig, environment: EnvironmentId): void {
+  applyConfig(config: DriftingBlockerConfig, _environment: EnvironmentId): void {
     this.config = config;
     this.active = true;
     this.group.visible = true;
     this.z = config.z;
-    if (!this.mesh) {
-      this.mesh = createReadableBlocker('debris');
-      this.group.add(this.mesh);
+    this.group.position.set(config.baseX, config.baseY, config.z);
+
+    if (this.art) {
+      this.group.remove(this.art.group);
+      this.art.dispose();
+      this.art = null;
     }
-    this.mesh.scale.setScalar(config.blockerRadius);
+    this.art = new DriftingBlockerArt(config);
+    this.group.add(this.art.group);
     this.update(0, 0);
   }
 
@@ -48,13 +53,15 @@ export class DriftingBlockerObstacle {
   }
 
   update(_dt: number, elapsedTime: number): void {
-    if (!this.active || !this.config) {
+    if (!this.active || !this.config || !this.art) {
       return;
     }
     const pos = driftPosition(this.config, elapsedTime);
     this.blockerX = pos.x;
     this.blockerY = pos.y;
-    this.group.position.set(pos.x, pos.y, this.z);
+    // Art is local to baseX/baseY; world position stays at the drift center.
+    this.group.position.set(this.config.baseX, this.config.baseY, this.z);
+    this.art.update(elapsedTime);
   }
 
   testProjectileCrossing(

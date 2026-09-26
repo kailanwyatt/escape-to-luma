@@ -92,6 +92,12 @@ export class LaserGridObstacle {
 
     // The obstacle root and frame are fixed. Only beam child positions change.
     this.group.position.set(0, 0, config.z);
+    if (!this.group.getObjectByName('laser-grid-accent')) {
+      const accent = new THREE.PointLight(0xff6a40, 8, 10, 2);
+      accent.name = 'laser-grid-accent';
+      accent.position.set(config.centerX ?? 0, config.centerY ?? 3, -1.05);
+      this.group.add(accent);
+    }
     this.update(0, 0);
   }
 
@@ -112,6 +118,12 @@ export class LaserGridObstacle {
     this.lasersOn = this.lasersActiveAt(elapsedTime);
     this.beams = laserBeamsAtTime(this.config, elapsedTime);
     this.syncBeamMeshes(this.beams, this.lasersOn, elapsedTime);
+    const accent = this.group.getObjectByName('laser-grid-accent') as THREE.PointLight | undefined;
+    if (accent) {
+      accent.color.setHex(this.lasersOn ? 0xff6a40 : 0x476b72);
+      accent.intensity = this.lasersOn ? 10 : 4;
+      accent.position.set(this.config.centerX ?? 0, this.config.centerY ?? 3, -1.05);
+    }
   }
 
   testProjectileCrossing(

@@ -147,6 +147,49 @@ function createOrbitalIrisCinematic(): THREE.Group {
     root.add(hinge);
   }
 
+  // Status bezel rides the live opening — color teach without inventing hit volume.
+  const statusMat = new THREE.MeshStandardMaterial({
+    color: 0x70e5ed,
+    emissive: 0x3aa8b8,
+    emissiveIntensity: 0.85,
+    metalness: 0.15,
+    roughness: 0.28,
+    side: THREE.DoubleSide,
+  });
+  root.userData.statusMat = statusMat;
+  const status = new THREE.Mesh(new THREE.TorusGeometry(1, 0.028, 8, 96), statusMat);
+  status.name = 'iris-status-bezel';
+  status.position.z = -0.09;
+  root.add(status);
+
+  // Recessed tunnel cuff behind the petals — reads as an airlock throat.
+  const cuff = new THREE.Mesh(
+    new THREE.CylinderGeometry(outer * 0.92, outer * 0.78, 0.42, 48, 1, true),
+    dark,
+  );
+  cuff.name = 'iris-depth-cuff';
+  cuff.rotation.x = Math.PI / 2;
+  cuff.position.z = 0.28;
+  root.add(cuff);
+
+  // Outer seal ticks — pulse when the hole is too small for Spark.
+  for (let i = 0; i < 16; i++) {
+    const angle = (i * Math.PI) / 8;
+    kit.box(
+      root,
+      `iris-seal-tick-${i}`,
+      0.06,
+      0.16,
+      0.02,
+      Math.cos(angle) * (outer + 0.12),
+      Math.sin(angle) * (outer + 0.12),
+      -0.16,
+      lamp,
+      0.004,
+    );
+    root.getObjectByName(`iris-seal-tick-${i}`)!.rotation.z = angle;
+  }
+
   const accent = new THREE.PointLight(0xf0b657, 9, 9, 2);
   accent.name = 'iris-accent';
   accent.position.set(0, 0, -1.05);
@@ -174,10 +217,47 @@ export function layoutOrbitalIris(root: THREE.Group, radius: number): void {
       }
     positions.needsUpdate = true;
   }
+  // Match IrisObstacle aperture teach: red = sealed vs Spark, amber = tight, cyan = throw.
+  const ball = GAME_TUNING.projectile.radius;
+  const sealed = radius < ball + 0.06;
+  const tight = radius < ball + 0.35;
+  const teach = sealed ? 0xff7562 : tight ? 0xffb449 : 0x70e5ed;
+
   const accent = root.getObjectByName('iris-accent') as THREE.PointLight | undefined;
   if (accent) {
-    const open = (radius - 0.6) / Math.max(0.01, GAME_TUNING.iris.outerRadius - 0.6);
-    accent.intensity = 7 + Math.max(0, Math.min(1, open)) * 5;
-    accent.color.setHex(open > 0.65 ? 0x70e5ed : open < 0.35 ? 0xff7562 : 0xffb449);
+    accent.color.setHex(teach);
+    accent.intensity = sealed ? 12 : tight ? 9.5 : 7.5;
+  }
+
+  const status = root.getObjectByName('iris-status-bezel') as THREE.Mesh | undefined;
+  if (status) {
+    status.scale.setScalar(Math.max(0.18, radius));
+    const mat =
+      (root.userData.statusMat as THREE.MeshStandardMaterial | undefined) ??
+      (status.material as THREE.MeshStandardMaterial);
+    mat.color.setHex(teach);
+    mat.emissive.setHex(teach);
+    mat.emissiveIntensity = sealed ? 1.35 : tight ? 1.05 : 0.75;
+  }
+
+  for (let i = 0; i < 8; i++) {
+    const lamp = root.getObjectByName(`iris-lamp-${i}`) as THREE.Mesh | undefined;
+    const lampMat = lamp?.material as THREE.MeshStandardMaterial | undefined;
+    if (lampMat?.emissive) {
+      lampMat.color.setHex(teach);
+      lampMat.emissive.setHex(teach);
+      lampMat.emissiveIntensity = sealed ? 1.4 : tight ? 1.05 : 0.85;
+    }
+  }
+  for (let i = 0; i < 16; i++) {
+    const tick = root.getObjectByName(`iris-seal-tick-${i}`) as THREE.Mesh | undefined;
+    if (!tick) continue;
+    tick.visible = sealed || tight;
+    const tickMat = tick.material as THREE.MeshStandardMaterial | undefined;
+    if (tickMat?.emissive) {
+      tickMat.color.setHex(sealed ? 0xff7562 : 0xffb449);
+      tickMat.emissive.setHex(sealed ? 0xff7562 : 0xffb449);
+      tickMat.emissiveIntensity = sealed ? 1.5 : 0.9;
+    }
   }
 }

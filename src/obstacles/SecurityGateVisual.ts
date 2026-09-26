@@ -79,11 +79,23 @@ export function createSecurityGate(environment: EnvironmentId): THREE.Group {
   }
 
   // Opening lip — cyan so the safe rectangle reads against dark armor.
-  const edgeMat = new THREE.MeshBasicMaterial({ color: colors.energy });
+  const edgeMat = new THREE.MeshStandardMaterial({
+    color: colors.energy,
+    emissive: colors.energy,
+    emissiveIntensity: 0.85,
+    metalness: 0.1,
+    roughness: 0.3,
+  });
+  root.userData.edgeMat = edgeMat;
   for (const name of ['edgeLeft', 'edgeRight', 'edgeTop', 'edgeBottom']) {
     const edge = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.03), edgeMat);
     edge.name = name;
     root.add(edge);
+  }
+
+  // Opening corner chevrons — teach the throw rectangle at a glance.
+  for (let i = 0; i < 4; i++) {
+    kit.box(root, `opening-corner-${i}`, 0.14, 0.14, 0.04, 0, 0, -0.12, energy, 0.006);
   }
 
   // Fixed service frame sits outside the playable lane.
@@ -181,11 +193,34 @@ export function layoutSecurityGate(
   put('motorLeft', leftEdge - 0.35, topEdge + 0.38, -0.08, 1, 1);
   put('motorRight', rightEdge + 0.35, topEdge + 0.38, -0.08, 1, 1);
 
+  const corners: Array<[number, number, number]> = [
+    [leftEdge + 0.08, topEdge - 0.08, Math.PI / 4],
+    [rightEdge - 0.08, topEdge - 0.08, -Math.PI / 4],
+    [leftEdge + 0.08, bottomEdge + 0.08, -Math.PI / 4],
+    [rightEdge - 0.08, bottomEdge + 0.08, Math.PI / 4],
+  ];
+  corners.forEach(([x, y, rot], i) => {
+    const corner = root.getObjectByName(`opening-corner-${i}`);
+    if (!corner) return;
+    corner.position.set(x, y, -0.12);
+    corner.rotation.z = rot;
+    corner.visible = openingWidth > 0.35 && openingHeight > 0.35;
+  });
+
+  const teach =
+    openingWidth * openingHeight > 3.3 ? 0x70e5ed : openingWidth * openingHeight < 1.8 ? 0xff7562 : 0xffb449;
+  const edgeMat = root.userData.edgeMat as THREE.MeshStandardMaterial | undefined;
+  if (edgeMat?.emissive) {
+    edgeMat.color.setHex(teach);
+    edgeMat.emissive.setHex(teach);
+    edgeMat.emissiveIntensity = teach === 0xff7562 ? 1.35 : teach === 0xffb449 ? 1.05 : 0.8;
+  }
+
   const accent = root.getObjectByName('gate-accent') as THREE.PointLight | undefined;
   if (accent) {
     accent.position.set(openingX, openingY, -1.05);
     const open = Math.min(1, (openingWidth * openingHeight) / 6);
     accent.intensity = 6 + open * 5;
-    accent.color.setHex(open > 0.55 ? 0x70e5ed : open < 0.3 ? 0xff7562 : 0xffb449);
+    accent.color.setHex(teach);
   }
 }

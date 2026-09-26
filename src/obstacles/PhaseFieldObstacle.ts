@@ -10,6 +10,8 @@ import {
   type ObstaclePredictedState,
 } from './GameplayObstacle';
 import { interpolateAtZ } from './SlidingGateObstacle';
+import { PhaseFieldArt } from './PhaseFieldArt';
+import { phaseOpen } from './PhaseFieldState';
 
 /**
  * Phase membrane — solid when closed (warm), faint passable ghost when open (cyan).
@@ -23,14 +25,7 @@ export class PhaseFieldObstacle {
   active = false;
   open = true;
   private config: PhaseFieldConfig | null = null;
-  private mesh: THREE.Mesh | null = null;
-  private ghost: THREE.Mesh | null = null;
-  private warning: THREE.Group | null = null;
-  private boundary: THREE.Mesh | null = null;
-  private readonly solidUniforms = {
-    intensity: { value: 1 },
-    time: { value: 0 },
-  };
+  private art: PhaseFieldArt | null = null;
 
   constructor(id: string) {
     this.id = id;
@@ -42,79 +37,13 @@ export class PhaseFieldObstacle {
     this.active = true;
     this.group.visible = true;
     this.z = config.z;
-    if (!this.mesh) {
-      this.mesh = new THREE.Mesh(
-        new THREE.CircleGeometry(1, 48),
-        new THREE.ShaderMaterial({
-          transparent: true,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-          uniforms: this.solidUniforms,
-          vertexShader: `varying vec2 v;void main(){v=uv*2.-1.;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-          fragmentShader: `precision mediump float;varying vec2 v;uniform float intensity;uniform float time;
-          void main(){float r=length(v),a=atan(v.y,v.x);
-            float threads=pow(.5+.5*sin(r*65.+sin(a*7.)*2.4+time*.8),14.);
-            float veins=pow(.5+.5*sin(a*17.+r*9.+sin(r*23.)),22.);
-            float rim=smoothstep(.87,1.,r);float energy=max(threads*.45,veins*.3)+rim*.65;
-            vec3 c=mix(vec3(.38,.025,.12),vec3(1.,.44,.4),energy);
-            gl_FragColor=vec4(c,(.14+energy*.62)*intensity);}`,
-        }),
-      );
-      this.mesh.name = 'phase-solid';
-      this.group.add(this.mesh);
-
-      this.ghost = new THREE.Mesh(
-        new THREE.CircleGeometry(1, 48),
-        new THREE.MeshBasicMaterial({
-          color: 0x7ef0ff,
-          transparent: true,
-          opacity: 0.12,
-          depthWrite: false,
-          side: THREE.DoubleSide,
-          blending: THREE.AdditiveBlending,
-        }),
-      );
-      this.ghost.name = 'phase-ghost';
-      this.ghost.position.z = 0.01;
-      this.group.add(this.ghost);
-
-      this.warning = new THREE.Group();
-      this.warning.name = 'phase-warning';
-      const warningMat = new THREE.MeshBasicMaterial({
-        color: 0xff8a7a,
-        transparent: true,
-        opacity: 0.55,
-        depthWrite: false,
-      });
-      const warnRing = new THREE.Mesh(new THREE.TorusGeometry(0.92, 0.03, 6, 48), warningMat);
-      warnRing.position.z = -0.02;
-      this.warning.add(warnRing);
-      // Four inward ticks teach “solid — do not enter”.
-      for (let i = 0; i < 4; i++) {
-        const tick = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.22, 0.02), warningMat);
-        const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-        tick.position.set(Math.cos(a) * 0.72, Math.sin(a) * 0.72, -0.03);
-        tick.rotation.z = a;
-        this.warning.add(tick);
-      }
-      this.group.add(this.warning);
-
-      this.boundary = new THREE.Mesh(
-        new THREE.TorusGeometry(1, 0.018, 6, 64),
-        new THREE.MeshBasicMaterial({
-          color: 0x98efdc,
-          transparent: true,
-          opacity: 0.7,
-          depthWrite: false,
-        }),
-      );
-      this.boundary.name = 'phase-boundary';
-      this.group.add(this.boundary);
+    if (this.art) {
+      this.group.remove(this.art.group);
+      this.art.dispose();
+      this.art = null;
     }
-    this.mesh.scale.setScalar(config.fieldRadius);
-    this.ghost!.scale.setScalar(config.fieldRadius);
-    this.boundary!.scale.setScalar(config.fieldRadius);
-    this.warning!.scale.setScalar(config.fieldRadius);
+    this.art = new PhaseFieldArt(config);
+    this.group.add(this.art.group);
     this.group.position.set(config.centerX, config.centerY, config.z);
     this.update(0, 0);
   }
@@ -126,18 +55,11 @@ export class PhaseFieldObstacle {
   }
 
   update(_dt: number, elapsedTime: number): void {
-    if (!this.active || !this.config || !this.mesh || !this.ghost) {
+    if (!this.active || !this.config || !this.art) {
       return;
     }
-    this.open = phaseOpen(this.config, elapsedTime);
-    this.solidUniforms.time.value = elapsedTime;
-    this.solidUniforms.intensity.value = this.open ? 0 : 1;
-    // Solid disc hidden when passable; faint cyan ghost remains so the window never goes silent.
-    this.mesh.visible = !this.open;
-    this.ghost.visible = this.open;
-    this.warning!.visible = !this.open;
-    (this.boundary!.material as THREE.MeshBasicMaterial).color.setHex(this.open ? 0x7ef0ff : 0xff806f);
-    (this.boundary!.material as THREE.MeshBasicMaterial).opacity = this.open ? 0.45 : 0.78;
+    this.art.update(elapsedTime);
+    this.open = this.art.open;
   }
 
   testProjectileCrossing(
@@ -202,8 +124,4 @@ export class PhaseFieldObstacle {
   }
 }
 
-export function phaseOpen(config: PhaseFieldConfig, elapsedTime: number): boolean {
-  const ratio = config.openRatio ?? 0.45;
-  const cycle = ((elapsedTime * config.speed + (config.phase ?? 0)) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
-  return cycle / (Math.PI * 2) < ratio;
-}
+export { phaseOpen } from './PhaseFieldState';

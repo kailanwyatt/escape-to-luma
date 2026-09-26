@@ -336,6 +336,23 @@ describe('library isolation encounters (recapture placement)', () => {
         expect(Math.abs(level.windX ?? 0)).toBeGreaterThan(0.1);
         expect(level.tutorialHint).toMatch(/lead|wreck/i);
       }
+      if (n === 86) {
+        const o = level.challenge.obstacles[0];
+        expect(o.type).toBe('corkscrewTunnel');
+        if (o.type === 'corkscrewTunnel') {
+          expect(o.gapWidth).toBeGreaterThanOrEqual(1.1);
+          expect(o.speed).toBeLessThanOrEqual(0.6);
+        }
+        expect(level.challenge.target.radius).toBeGreaterThanOrEqual(1.1);
+      }
+      if (n === 93) {
+        const o = level.challenge.obstacles[0];
+        expect(o.type).toBe('accretionShredder');
+        if (o.type === 'accretionShredder') {
+          expect(o.speed).toBeLessThanOrEqual(0.28);
+          expect(o.debrisCount).toBeLessThanOrEqual(5);
+        }
+      }
       if (n === 76) {
         const o = level.challenge.obstacles[0];
         expect(o.type).toBe('pendulum');

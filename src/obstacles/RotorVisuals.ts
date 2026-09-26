@@ -31,6 +31,12 @@ export function createRotorVisual(environment: EnvironmentId, bladeCount: number
   const light = kit.lampCore();
   light.color.setHex(environment === 'space' ? 0xa5a4ff : 0x77ebff);
   light.emissive.setHex(environment === 'space' ? 0x6a69cc : 0x4aa7c9);
+  const tipWakeMat = kit.lampCore();
+  tipWakeMat.color.setHex(environment === 'space' ? 0xa5a4ff : 0x77ebff);
+  tipWakeMat.emissive.setHex(environment === 'space' ? 0x6a69cc : 0x4aa7c9);
+  tipWakeMat.transparent = true;
+  tipWakeMat.opacity = 0.55;
+  tipWakeMat.depthWrite = false;
   const bolt = new THREE.CylinderGeometry(0.018, 0.018, 0.012, 6);
   const unit = new THREE.BoxGeometry(1, 1, 1);
   const addBox = (parent: THREE.Group, material: THREE.Material, x: number, y: number, z: number, w: number, h: number, d: number) => {
@@ -92,6 +98,9 @@ export function createRotorVisual(environment: EnvironmentId, bladeCount: number
     addBox(arm, dark, tipX, 0, 0.02, 0.14, t.bladeWidth * 0.92, t.bladeDepth * 0.85);
     addBox(arm, light, tipX, 0, -0.085, 0.05, 0.14, 0.012);
     addBox(arm, warning, tipX - 0.12, 0, -0.09, 0.1, t.bladeWidth * 0.7, 0.014);
+    // Soft tip wake — decorative only; stays inside bladeLength × bladeWidth.
+    const tipWake = addBox(arm, tipWakeMat, tipX - 0.22, 0, -0.11, 0.28, t.bladeWidth * 0.45, 0.01);
+    tipWake.name = 'tip-wake';
     for (let j = 0; j < 7; j += 1) {
       const x = t.hubRadius + 0.15 + j * 0.22;
       addBox(arm, warning, x, 0, -0.09, 0.13, 0.095, 0.015);
@@ -117,6 +126,18 @@ export function createRotorVisual(environment: EnvironmentId, bladeCount: number
 export function syncRotorHousing(visual: THREE.Group | null, angle: number): void {
   const housing = visual?.children[0];
   if (housing) housing.rotation.z = -angle;
+  const accent = visual?.getObjectByName('rotor-accent') as THREE.PointLight | undefined;
+  if (accent) {
+    const pulse = 0.5 + 0.5 * Math.sin(angle * 2);
+    accent.intensity = 7 + pulse * 4;
+  }
+  visual?.traverse((obj) => {
+    if (obj.name !== 'tip-wake' || !(obj instanceof THREE.Mesh)) return;
+    const mat = obj.material as THREE.MeshStandardMaterial;
+    if (!mat.emissive) return;
+    mat.emissiveIntensity = 0.7 + 0.5 * Math.abs(Math.sin(angle * 3));
+    mat.opacity = 0.4 + 0.35 * Math.abs(Math.sin(angle * 2.5));
+  });
 }
 
 export function replaceRotorVisual(

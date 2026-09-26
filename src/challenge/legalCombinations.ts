@@ -48,6 +48,7 @@ export const LEGAL_PAIRS: ReadonlyArray<readonly [ObstacleType, ObstacleType]> =
   ['laserGrid', 'slidingGate'],
   ['slidingGate', 'laserGrid'],
   ['laserGrid', 'laserGrid'],
+  ['phaseGate', 'phaseGate'],
 ];
 
 export function isLegalCombination(obstacles: ObstacleConfig[]): boolean {
@@ -56,6 +57,8 @@ export function isLegalCombination(obstacles: ObstacleConfig[]): boolean {
   }
   if (obstacles.every(o=>o.type==='iris') && obstacles.length===3)return true;
   if (obstacles.length===2 && obstacles.every(o=>o.type==='formation'))return true;
+  // Authored late-campaign stacks: dual/triple phase membranes at staggered depths.
+  if (obstacles.every((o) => o.type === 'phaseGate') && obstacles.length <= 3) return true;
   if (obstacles.length > 2) {
     return false;
   }

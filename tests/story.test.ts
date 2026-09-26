@@ -1,7 +1,9 @@
 import {describe,it,expect} from 'vitest';
-import {FIRST_ESCAPE,storyForLevel} from '../src/campaign/StoryMoments';
+import {FIRST_ESCAPE,storyAfterWorld,storyForLevel} from '../src/campaign/StoryMoments';
 import {WORLDS} from '../src/campaign/worlds';
+import {ENCOUNTER_LESSONS} from '../src/campaign/levels/NewEncounters';
 import {LIBRARY_LESSONS} from '../src/campaign/levels/LibraryEncounters';
+import {getCampaignLevel} from '../src/campaign/levels';
 import {GameState} from '../src/game/GameState';
 describe('campaign story moments',()=>{
   it('recovers the unread escape story on arrival in the lab and suppresses repeats after acknowledgement',()=>{
@@ -41,5 +43,25 @@ describe('campaign story moments',()=>{
   it('does not accept gameplay input during a story',()=>{
     const state=new GameState();state.set('CAMPAIGN_STORY');expect(state.canAcceptInput()).toBe(false);
     state.set('READY');expect(state.canAcceptInput()).toBe(true);
+  });
+  it('keeps membrane and Null lesson cards aligned with what levels play',()=>{
+    expect(ENCOUNTER_LESSONS[113]).toBeUndefined();
+    expect(LIBRARY_LESSONS[113]?.name).toBe('The Null');
+    expect(storyForLevel(113,[])?.title).toBe('The Null');
+    expect(getCampaignLevel(113)!.challenge.obstacles.every(o=>o.type==='theNull')).toBe(true);
+    for(const level of [129,142]){
+      const story=storyForLevel(level,[])!;
+      expect(story.title).toBe('Phase Membranes');
+      expect(story.body.toLowerCase()).toContain('membrane');
+      expect(story.body.toLowerCase()).not.toContain('sequential');
+      expect(getCampaignLevel(level)!.challenge.obstacles.every(o=>o.type==='phaseGate')).toBe(true);
+    }
+  });
+  it('hands Upper Atmosphere off into Orbit, not the graveyard or Moon',()=>{
+    const exit=storyAfterWorld(60,[])!;
+    expect(exit.action).toBe('ENTER ORBIT');
+    expect(exit.instruction.toLowerCase()).not.toContain('graveyard');
+    expect(exit.body.toLowerCase()).toContain('orbit');
+    expect(exit.body.toLowerCase()).not.toContain('moon');
   });
 });
