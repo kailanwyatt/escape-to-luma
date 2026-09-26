@@ -21,4 +21,12 @@ describe('Endless Voyage progression',()=>{
   expect(run.challengesCleared).toBe(1);expect(run.runXp).toBe(xp);
   run.reset();expect(run.lives).toBe(3);expect(run.challengesCleared).toBe(0);
  });
+ it('restores full hearts on a rewarded continue',()=>{
+  const run=new RunManager();run.reset();
+  run.applyResult('MISS',0);run.applyResult('MISS',0);run.applyResult('MISS',0);
+  expect(run.lives).toBe(0);
+  run.grantContinue();
+  expect(run.lives).toBe(3);
+  expect(run.hasUsedRewardedContinue).toBe(true);
+ });
 });
