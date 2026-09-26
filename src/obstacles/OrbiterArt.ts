@@ -9,19 +9,18 @@ function localOrbit(config: OrbiterConfig, time: number) {
 }
 
 /**
- * Cinematic orbiting sentry — body stays inside the hit disk;
- * path rail / wake / hub are decorative teach only.
+ * Cinematic orbiting sentry — body stays inside the hit disk.
+ * Orbit path is a faint rail only; no debug hub / box tabs.
  */
 export class OrbiterArt {
   readonly group = new THREE.Group();
   private readonly kit = new FacilityArtKit({ cinematic: true });
   private readonly body = new THREE.Group();
-  private readonly wake: THREE.Mesh;
-  private readonly hub: THREE.Mesh;
   private readonly optic: THREE.MeshStandardMaterial;
   private readonly accent: THREE.PointLight;
   private readonly pathGlow: THREE.MeshStandardMaterial;
   private readonly ownedGeo: THREE.BufferGeometry[] = [];
+  private readonly ownedMats: THREE.Material[] = [];
 
   constructor(
     private readonly config: OrbiterConfig,
@@ -36,11 +35,11 @@ export class OrbiterArt {
     this.optic.color.setHex(space ? 0x70e5ed : 0xffb449);
     this.optic.emissive.setHex(space ? 0x3aa8b8 : 0xffa12a);
     this.pathGlow = this.kit.lampCore();
-    this.pathGlow.color.setHex(space ? 0x6cf0ff : 0xffb45a);
-    this.pathGlow.emissive.setHex(space ? 0x2a8898 : 0xff8a30);
-    this.pathGlow.emissiveIntensity = 0.55;
+    this.pathGlow.color.setHex(space ? 0x4aa8b8 : 0xffb45a);
+    this.pathGlow.emissive.setHex(space ? 0x1a5060 : 0xff8a30);
+    this.pathGlow.emissiveIntensity = 0.25;
     this.pathGlow.transparent = true;
-    this.pathGlow.opacity = 0.55;
+    this.pathGlow.opacity = 0.22;
     this.pathGlow.depthWrite = false;
 
     const r = config.blockerRadius;
@@ -59,22 +58,61 @@ export class OrbiterArt {
     collar.position.z = -r * 0.32;
     this.body.add(collar);
 
-    // Solar panels stay inside the hit disk so gaps remain readable.
+    // Flush dark solar arrays — stay inside the hit disk, no glowing tabs.
     for (const side of [-1, 1] as const) {
-      this.kit.box(this.body, `solar-${side > 0 ? 'r' : 'l'}`, r * 0.55, r * 0.22, r * 0.04, side * r * 0.55, 0, -r * 0.15, dark, 0.008);
-      this.kit.box(this.body, `panel-cell-${side > 0 ? 'r' : 'l'}`, r * 0.42, r * 0.14, r * 0.02, side * r * 0.55, 0, -r * 0.2, this.optic, 0.004);
+      this.kit.box(
+        this.body,
+        `solar-${side > 0 ? 'r' : 'l'}`,
+        r * 0.48,
+        r * 0.18,
+        r * 0.03,
+        side * r * 0.42,
+        0,
+        -r * 0.12,
+        dark,
+        0.006,
+      );
+      const cellMat = new THREE.MeshStandardMaterial({
+        color: space ? 0x0e2438 : 0x241c14,
+        emissive: space ? 0x0a3048 : 0x3a2810,
+        emissiveIntensity: 0.2,
+        metalness: 0.55,
+        roughness: 0.5,
+      });
+      this.ownedMats.push(cellMat);
+      const cellGeo = new THREE.PlaneGeometry(r * 0.34, r * 0.1);
+      this.ownedGeo.push(cellGeo);
+      const cell = new THREE.Mesh(cellGeo, cellMat);
+      cell.name = `panel-cell-${side > 0 ? 'r' : 'l'}`;
+      cell.position.set(side * r * 0.42, 0, -r * 0.145);
+      this.body.add(cell);
     }
-    this.kit.box(this.body, 'scanner-recess', r * 1.1, r * 0.32, r * 0.1, 0, 0, -r * 0.62, dark, 0);
-    this.kit.box(this.body, 'scanner-lens', r * 0.85, r * 0.1, r * 0.04, 0, 0, -r * 0.72, this.optic, 0.008);
-    this.kit.box(this.body, 'antenna', r * 0.06, r * 0.48, r * 0.06, 0, r * 0.55, -r * 0.2, rim, 0.006);
+
+    // Recessed scanner bay + circular lens (no bar / slab).
+    this.kit.box(this.body, 'scanner-recess', r * 0.95, r * 0.28, r * 0.08, 0, 0, -r * 0.55, dark, 0);
+    const lensGeo = new THREE.CircleGeometry(r * 0.11, 20);
+    this.ownedGeo.push(lensGeo);
+    const lens = new THREE.Mesh(lensGeo, this.optic);
+    lens.name = 'scanner-lens';
+    lens.position.set(0, 0, -r * 0.66);
+    this.body.add(lens);
+    const lensRingGeo = new THREE.TorusGeometry(r * 0.11, r * 0.014, 6, 20);
+    this.ownedGeo.push(lensRingGeo);
+    const lensRing = new THREE.Mesh(lensRingGeo, rim);
+    lensRing.name = 'scanner-lens-ring';
+    lensRing.position.copy(lens.position);
+    this.body.add(lensRing);
+
+    // Slim antenna mast — metal, not a glow brick.
+    this.kit.box(this.body, 'antenna', r * 0.04, r * 0.4, r * 0.04, 0, r * 0.48, -r * 0.15, rim, 0.004);
     this.body.name = 'orbiter-body';
     this.group.add(this.body);
 
-    // Orbit rail — thin torus, non-colliding teach of the satellite route.
+    // Faint orbit rail only — no hub square/ring, no chevron boxes, no wake bar.
     const pathGeo = new THREE.TorusGeometry(
       config.orbitRadius,
-      Math.max(0.014, r * 0.045),
-      8,
+      Math.max(0.01, r * 0.028),
+      6,
       96,
     );
     this.ownedGeo.push(pathGeo);
@@ -83,41 +121,7 @@ export class OrbiterArt {
     path.position.z = 0.06;
     this.group.add(path);
 
-    // Direction chevrons along the orbit so motion sense is obvious at a glance.
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      const chevron = this.kit.box(
-        this.group,
-        `orbit-chevron-${i}`,
-        Math.max(0.08, r * 0.22),
-        Math.max(0.04, r * 0.1),
-        0.02,
-        Math.cos(a) * config.orbitRadius,
-        Math.sin(a) * config.orbitRadius,
-        0.1,
-        this.pathGlow,
-        0.004,
-      );
-      chevron.rotation.z = a + Math.PI / 2;
-    }
-
-    // Hub beacon marks the orbit center (safe eye of the path).
-    this.hub = this.kit.box(this.group, 'orbit-hub', r * 0.28, r * 0.28, 0.04, 0, 0, 0.05, this.optic, 0.006);
-
-    this.wake = this.kit.box(
-      this.group,
-      'orbit-wake',
-      r * 1.4,
-      r * 0.22,
-      0.03,
-      0,
-      0,
-      r * 0.35,
-      this.pathGlow,
-      0.002,
-    );
-
-    this.accent = new THREE.PointLight(space ? 0x70e5ed : 0xffb449, 7, 9, 2);
+    this.accent = new THREE.PointLight(space ? 0x70e5ed : 0xffb449, 5, 8, 2);
     this.accent.name = 'orbiter-accent';
     this.group.add(this.accent);
     this.update(0);
@@ -126,32 +130,20 @@ export class OrbiterArt {
   update(time: number) {
     const pos = localOrbit(this.config, time);
     this.body.position.set(pos.x, pos.y, 0);
-    // Face tangentially along the orbit so panels read as travel, not spin-only.
     const tangent = pos.angle + Math.PI / 2;
     this.body.rotation.z = tangent;
     this.body.rotation.x = Math.sin(time * 0.55) * 0.08;
 
-    // Wake trails opposite travel direction.
-    const back = tangent + Math.PI;
-    const wr = this.config.blockerRadius;
-    this.wake.position.set(
-      pos.x + Math.cos(back) * wr * 0.95,
-      pos.y + Math.sin(back) * wr * 0.95,
-      wr * 0.3,
-    );
-    this.wake.rotation.z = back;
-    this.wake.scale.set(wr * 1.2, wr * 0.2, 1);
-
     const pulse = 0.85 + 0.25 * Math.sin(time * 2.4);
-    this.optic.emissiveIntensity = pulse;
-    this.pathGlow.emissiveIntensity = 0.4 + 0.25 * pulse;
-    this.accent.intensity = 6 + 3 * pulse;
+    this.optic.emissiveIntensity = pulse * 0.7;
+    this.pathGlow.emissiveIntensity = 0.18 + 0.1 * pulse;
+    this.accent.intensity = 4 + 2 * pulse;
     this.accent.position.set(pos.x, pos.y, -1.05);
-    this.hub.rotation.z = time * 0.8;
   }
 
   dispose() {
     this.ownedGeo.forEach((g) => g.dispose());
+    this.ownedMats.forEach((m) => m.dispose());
     this.kit.dispose();
     this.group.clear();
     this.group.removeFromParent();

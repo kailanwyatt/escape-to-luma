@@ -80,7 +80,7 @@ const HINTS: Record<string,string> = {
   cometCrossing:'Read the loop and throw when the traveler is clear of center.',
   orbitingMoons:'Throw through a gap between beacons — amber means the lasers are about to fire.',
   sequentialTunnel:'Aim only at the currently open aperture.',
-  movingSafeZone:'Arrive inside the amber wreck-pocket, not where it was at launch.',
+  movingSafeZone:'Arrive inside the amber-lit corridor through the wreckage, not where it was at launch.',
   accretionShredder:'Throw through the quiet center while rock shards spiral past.',
   pulsarBeam:'Throw while the security beam is dark, or stay clear of its band.',
   magnetopause:'The hub is solid — time the open sector in the dish rim.',

@@ -71,8 +71,19 @@ describe('fixed-frame laser grid', () => {
     expect(o.group.getObjectByName('FixedLeftPost')).toBeUndefined();
     const emitters=o.group.children.filter(child=>child.name==='LaserEmitter');
     const beams=o.beamsAtTime(2);expect(emitters).toHaveLength(beams.length*2);
-    beams.forEach((b,i)=>{expect(emitters[i*2].position.x).toBe(b.position);expect(emitters[i*2].position.y).toBeCloseTo(b.centerY-c.span/2-.08);});
+    beams.forEach((b,i)=>{expect(emitters[i*2].position.x).toBe(b.position);expect(emitters[i*2].position.y).toBeCloseTo(b.centerY-c.span/2-.08,1);});
+    const rockets=o.group.children[0].children.filter(c=>c.name==='CornerRocket');
+    expect(rockets).toHaveLength(4);
+    expect(o.group.getObjectByName('CornerRocketPlume')).toBeTruthy();
+    expect(o.group.getObjectByName('ThrusterPlume')).toBeFalsy();
     o.hide();expect(o.group.children.some(child=>child.name==='LaserEmitter')).toBe(false);
+  });
+
+  it('keeps workshop lasers without space thrusters',()=>{
+    const o=new LaserGridObstacle('grounded');o.applyConfig(config('VERTICAL_WAVE'),'workshop');
+    expect(o.group.getObjectByName('CornerRocket')).toBeFalsy();
+    expect(o.group.getObjectByName('FrameThrusterBank')).toBeFalsy();
+    o.hide();
   });
 
   it('extinguishes hot cores, halos and contact flares while pulsed lasers are off',()=>{

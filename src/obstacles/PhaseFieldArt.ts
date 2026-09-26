@@ -5,7 +5,7 @@ import { phaseCycleT, phaseOpen } from './PhaseFieldState';
 
 /**
  * Cinematic phase membrane — solid/ghost discs stay authoritative;
- * pods, accent, and warn ticks teach open vs sealed.
+ * pods, accent, and warn ring teach open vs sealed.
  */
 export class PhaseFieldArt {
   readonly group = new THREE.Group();
@@ -59,19 +59,6 @@ export class PhaseFieldArt {
     this.ghost.scale.setScalar(r);
     this.group.add(this.ghost);
 
-    // Open-state crosshair so the passable disc never goes silent.
-    for (const rot of [0, Math.PI / 2]) {
-      const bar = new THREE.Mesh(
-        new THREE.BoxGeometry(0.55, 0.035, 0.02),
-        this.ghostMat,
-      );
-      bar.name = `ghost-cross-${rot === 0 ? 'h' : 'v'}`;
-      bar.rotation.z = rot;
-      bar.position.z = 0.02;
-      bar.scale.setScalar(r);
-      this.group.add(bar);
-    }
-
     this.warnMat = this.kit.lamp();
     this.warnMat.color.setHex(0xff8a7a);
     this.warnMat.emissive.setHex(0xff6a5a);
@@ -80,12 +67,6 @@ export class PhaseFieldArt {
     const warnRing = new THREE.Mesh(new THREE.TorusGeometry(0.92, 0.032, 8, 48), this.warnMat);
     warnRing.position.z = -0.02;
     this.warning.add(warnRing);
-    for (let i = 0; i < 4; i++) {
-      const tick = this.kit.box(this.warning, `warn-tick-${i}`, 0.08, 0.22, 0.02, 0, 0, -0.03, this.warnMat, 0.004);
-      const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-      tick.position.set(Math.cos(a) * 0.72, Math.sin(a) * 0.72, -0.03);
-      tick.rotation.z = a;
-    }
     this.warning.scale.setScalar(r);
     this.group.add(this.warning);
 
@@ -170,10 +151,6 @@ export class PhaseFieldArt {
     this.solidUniforms.intensity.value = open ? 0 : 1;
     this.solid.visible = !open;
     this.ghost.visible = open;
-    for (const name of ['ghost-cross-h', 'ghost-cross-v']) {
-      const cross = this.group.getObjectByName(name);
-      if (cross) cross.visible = open;
-    }
     this.warning.visible = !open || closingSoon;
     if (closingSoon) {
       this.warnMat.color.setHex(0xffb449);

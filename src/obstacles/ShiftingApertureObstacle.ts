@@ -106,11 +106,14 @@ export class ShiftingApertureObstacle {
       this.group.add(this.shiftRail);
 
       this.shiftHub = new THREE.Mesh(
-        new THREE.BoxGeometry(0.12, 0.12, 0.03),
+        new THREE.TorusGeometry(0.07, 0.014, 6, 24),
         new THREE.MeshStandardMaterial({
           color: 0xffcf70,
           emissive: 0xffb449,
-          emissiveIntensity: 0.7,
+          emissiveIntensity: 0.55,
+          transparent: true,
+          opacity: 0.85,
+          depthWrite: false,
         }),
       );
       this.shiftHub.name = 'shift-hub';

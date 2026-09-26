@@ -85,8 +85,8 @@ export const LIBRARY_LESSONS: Record<number, { name: string; body: string; hint:
   },
   71: {
     name: 'Wreck Field',
-    body: 'A damaged containment pocket still drifts through the wreckage.',
-    hint: 'Arrive inside the amber safe hole, not where it was at launch.',
+    body: 'Broken satellites pack a dense orbital lane — one thinning corridor still drifts through.',
+    hint: 'Arrive inside the amber-lit corridor, not where it was at launch.',
   },
   76: {
     name: 'Survey Boom',
@@ -522,9 +522,9 @@ function energyShell(z: number): ObstacleConfig {
     z,
     centerX: 0,
     centerY: 3.05,
-    // Full device / playable band — no going around the curtain.
-    halfWidth: 2.55,
-    halfHeight: 2.05,
+    // Full device / playable band — visual pad in art makes it read edge-to-edge.
+    halfWidth: 2.85,
+    halfHeight: 2.35,
     holeRadius: 0.88,
     driftAmplitudeX: 1.2,
     driftAmplitudeY: 0.08,

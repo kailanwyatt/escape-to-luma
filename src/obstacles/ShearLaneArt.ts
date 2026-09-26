@@ -14,7 +14,6 @@ export class ShearLaneArt {
   private readonly rocks: THREE.Mesh[] = [];
   private readonly glow: THREE.MeshStandardMaterial;
   private readonly accent: THREE.PointLight;
-  private readonly owned: THREE.Object3D[] = [];
 
   constructor(private readonly config: ShearLaneConfig) {
     this.group.name = 'shear-lane-art';
@@ -29,38 +28,7 @@ export class ShearLaneArt {
       rock.scale.setScalar(b.radius);
       this.group.add(rock);
       this.rocks.push(rock);
-      this.owned.push(rock);
-
-      // Thin wake streak behind each rock (non-colliding visual only — stays inside radius).
-      const wake = this.kit.box(
-        this.group,
-        `shear-wake-${i}`,
-        b.radius * 1.4,
-        b.radius * 0.22,
-        0.04,
-        0,
-        0,
-        b.radius * 0.55,
-        this.glow,
-        0.002,
-      );
-      this.owned.push(wake);
     });
-
-    // Center-lane cue — thin cyan guide between streams (decorative, outside hit rocks).
-    const guide = this.kit.box(
-      this.group,
-      'shear-gap-guide',
-      config.wrapWidth * 0.55,
-      0.03,
-      0.02,
-      0,
-      0,
-      -0.08,
-      this.glow,
-      0,
-    );
-    this.owned.push(guide);
 
     this.accent = new THREE.PointLight(0xffb449, 8, 11, 2);
     this.accent.name = 'shear-accent';
@@ -76,19 +44,7 @@ export class ShearLaneArt {
       rock.position.set(b.x, b.y, 0);
       rock.rotation.z = time * 0.35 * b.stream + i * 0.4;
       rock.scale.setScalar(b.radius);
-
-      const wake = this.group.getObjectByName(`shear-wake-${i}`);
-      if (wake) {
-        // Trail opposite travel direction.
-        wake.position.set(b.x - b.stream * b.radius * 0.85, b.y, b.radius * 0.4);
-        wake.scale.set(b.radius * 1.2, b.radius * 0.2, 1);
-      }
     });
-
-    const guide = this.group.getObjectByName('shear-gap-guide');
-    if (guide) {
-      guide.position.set(this.config.centerX, this.config.centerY, -0.08);
-    }
 
     const pulse = 0.5 + 0.5 * Math.sin(time * 2.2);
     this.glow.emissiveIntensity = 0.55 + pulse * 0.35;

@@ -11,7 +11,7 @@
     "backgroundColor": "#050B15",
     "ios": {
       "bundleIdentifier": "com.escapetoluma.spark",
-      "buildNumber": "9",
+      "buildNumber": "18",
       "supportsTablet": true,
       "requireFullScreen": true,
       "config": {
@@ -80,6 +80,12 @@
           "ios": {
             "enableSceneSupport": true
           }
+        }
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "Spark uses this identifier to show you relevant ads and measure ad performance. You can still play and watch rewarded ads if you decline."
         }
       ]
     ],

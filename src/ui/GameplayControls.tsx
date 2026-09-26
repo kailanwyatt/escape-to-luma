@@ -8,7 +8,7 @@ import {CurrencyIcon} from './CurrencyIcon';
 import {color} from '../design';
 
 /** Presentation only: all actions and resource values come from the existing game. */
-export function GameplayHeader({hud,onBack,onTitlePress}:{hud:HudSnapshot;onBack:()=>void;onTitlePress?:()=>void}) {
+export function GameplayHeader({hud,onBack,onTitlePress,onOpenSupplies}:{hud:HudSnapshot;onBack:()=>void;onTitlePress?:()=>void;onOpenSupplies?:()=>void}) {
   const insets=useSafeAreaInsets();
   const {width}=useWindowDimensions();
   const compact=width-insets.left-insets.right<420;
@@ -38,11 +38,18 @@ export function GameplayHeader({hud,onBack,onTitlePress}:{hud:HudSnapshot;onBack
       </View>:null}
       {hud.windActive?<Text style={s.wind}>{hud.windDirection==='left'?t("gameplaycontrols.wind"):t("gameplaycontrols.wind_2")}</Text>:null}
     </Pressable>
-    <View pointerEvents="none" accessible accessibilityLabel={t("gameplaycontrols.energy_shards", {value1: energy, value2: hud.shards})} style={[s.resources,compact&&{gap:3,paddingHorizontal:6}]}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t("gameplaycontrols.energy_shards", {value1: energy, value2: hud.shards})}
+      accessibilityHint={t("resourcemodal.open")}
+      disabled={!onOpenSupplies}
+      onPress={onOpenSupplies}
+      style={({pressed})=>[s.resources,compact&&{gap:3,paddingHorizontal:6},pressed&&onOpenSupplies&&s.pressed]}
+    >
       <CurrencyIcon kind="energy" size={compact?20:26}/><Text style={[s.value,compact&&s.smallValue]}>{energy}</Text>
       {hud.unlimitedEnergy&&hud.overchargeRemainingLabel?<Text style={[s.overcharge,compact&&s.smallOvercharge]}>{hud.overchargeRemainingLabel}</Text>:null}
       <CurrencyIcon kind="shard" size={compact?20:26}/><Text style={[s.value,compact&&s.smallValue]}>{hud.shards.toLocaleString()}</Text>
-    </View>
+    </Pressable>
   </View>;
 }
 

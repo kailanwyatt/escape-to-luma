@@ -33,6 +33,16 @@ export function msUntilNextEnergy(currentEnergy: number, energyUpdatedAt: number
   return Math.max(0, regenMs - (elapsed % regenMs));
 }
 
+/** Time until the meter reaches max from the current regen clock. */
+export function msUntilFullEnergy(currentEnergy: number, energyUpdatedAt: number, now = Date.now()): number {
+  if (currentEnergy >= ECONOMY.maxEnergy) {
+    return 0;
+  }
+  const regenMs = ECONOMY.energyRegenMinutes * 60 * 1000;
+  const remaining = ECONOMY.maxEnergy - currentEnergy;
+  return msUntilNextEnergy(currentEnergy, energyUpdatedAt, now) + Math.max(0, remaining - 1) * regenMs;
+}
+
 export function formatCountdown(ms: number): string {
   const total = Math.ceil(ms / 1000);
   const m = Math.floor(total / 60);

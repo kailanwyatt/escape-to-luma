@@ -40,8 +40,6 @@ export class FormationExpandingDebrisArt {
     this.halo.position.set(0, this.centerY, -0.08);
     this.group.add(this.halo);
 
-    this.kit.box(this.group, 'expand-hub', 0.14, 0.14, 0.04, 0, this.centerY, 0.04, this.glow, 0.006);
-
     this.accent = new THREE.PointLight(0xff8a4a, 7, 10, 2);
     this.accent.name = 'expand-accent';
     this.group.add(this.accent);

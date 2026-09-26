@@ -39,6 +39,7 @@ type Props = {
   onSkipOpening: () => void;
   onBoosts:()=>void;
   onOpenJourney?: () => void;
+  onOpenSupplies?: () => void;
 };
 
 const CAMPAIGN_OVERLAY_PHASES = new Set<HudSnapshot['phase']>([
@@ -73,6 +74,7 @@ export function HUD({
   onSkipOpening,
   onBoosts,
   onOpenJourney,
+  onOpenSupplies,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [instructionHeight, setInstructionHeight] = useState(0);
@@ -105,10 +107,10 @@ export function HUD({
 
   return (
     <View style={styles.root} pointerEvents="box-none">
-      {showCampaignTop ? <GameplayHeader hud={hud} onBack={onPause} onTitlePress={onOpenJourney}/> : null}
+      {showCampaignTop ? <GameplayHeader hud={hud} onBack={onPause} onTitlePress={onOpenJourney} onOpenSupplies={onOpenSupplies}/> : null}
       {showCampaignTop ? (
         hud.firstLevelOnboarding ? (
-          <View style={[styles.breachHeaderWrap, { paddingTop: 8 }]}>
+          <View style={[styles.breachHeaderWrap, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
             <LinearGradient
               colors={['rgba(6,18,32,0.94)', 'rgba(8,28,44,0.88)', 'rgba(4,14,26,0.55)']}
               locations={[0, 0.55, 1]}
@@ -159,13 +161,26 @@ export function HUD({
           {hud.streak >= 2 ? <Text style={styles.streak}>{t("hud.streak")}{hud.streak}</Text> : null}
         </View>
       ) : null}
-      {hud.banner ? <Text pointerEvents="none" style={styles.banner}>{hud.banner}</Text> : null}
-      {hud.closeCallText ? (
-        <View pointerEvents="none" style={styles.closeCallWrap}>
-          <View style={styles.closeCallFlare} />
-          <Text style={styles.closeCallChevron}>‹‹</Text>
-          <Text style={styles.closeCall}>{hud.closeCallText}</Text>
-          <Text style={styles.closeCallChevron}>››</Text>
+      {hud.banner || hud.closeCallText ? (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.topToast,
+            {
+              // When the gameplay header is hidden (e.g. RESULT), keep toasts clear of the Dynamic Island.
+              paddingTop: showCampaignTop || !campaign ? 0 : Math.max(insets.top, 16) + 10,
+            },
+          ]}
+        >
+          {hud.banner ? <Text style={styles.banner}>{hud.banner}</Text> : null}
+          {hud.closeCallText ? (
+            <View style={styles.closeCallWrap}>
+              <View style={styles.closeCallFlare} />
+              <Text style={styles.closeCallChevron}>‹‹</Text>
+              <Text style={styles.closeCall}>{hud.closeCallText}</Text>
+              <Text style={styles.closeCallChevron}>››</Text>
+            </View>
+          ) : null}
         </View>
       ) : null}
 
@@ -740,6 +755,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
     alignItems: 'center',
   },
+  topToast: {
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
   multiplier: {
     color: color.amberBright,
     fontSize: 16,
@@ -755,7 +774,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   banner: {
-    marginTop: 18,
+    marginTop: 10,
     textAlign: 'center',
     color: color.cream,
     fontSize: 22,

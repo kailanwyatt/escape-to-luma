@@ -18,13 +18,12 @@ const conveyor = (overrides: Partial<FormationConfig> = {}): FormationConfig => 
 });
 
 describe('FormationConveyorArt', () => {
-  it('builds sculpted rocks with lane rails and a gap guide', () => {
+  it('builds sculpted rocks without leftover guide rails or wake bars', () => {
     const art = new FormationConveyorArt(conveyor());
-    expect(art.group.getObjectByName('conveyor-gap-guide')).toBeTruthy();
-    expect(art.group.getObjectByName('conveyor-rail-0')).toBeTruthy();
-    expect(art.group.getObjectByName('conveyor-rail-1')).toBeTruthy();
+    expect(art.group.getObjectByName('conveyor-gap-guide')).toBeFalsy();
+    expect(art.group.getObjectByName('conveyor-rail-0')).toBeFalsy();
+    expect(art.group.getObjectByName('conveyor-wake-0')).toBeFalsy();
     expect(art.group.getObjectByName('conveyor-rock-0')).toBeTruthy();
-    expect(art.group.getObjectByName('conveyor-wake-0')).toBeTruthy();
     art.update(1.25);
     expect(art.group.userData.blockCount).toBe(10);
     art.dispose();

@@ -35,6 +35,8 @@ export class LaserGridObstacle {
   private meshes: THREE.Mesh[] = [];
   private elapsed = 0;
   private emitters: THREE.Group[][] = [];
+  /** Space grids have no walls to mount on — stationkeeping thrusters sell the hover. */
+  private space = false;
 
   constructor(id: string) {
     this.id = id;
@@ -46,6 +48,7 @@ export class LaserGridObstacle {
 
   applyConfig(config: LaserGridConfig, environment: EnvironmentId): void {
     this.config = config;
+    this.space = environment === 'space';
     this.active = true;
     this.group.visible = true;
     this.z = config.z;
@@ -251,7 +254,11 @@ export class LaserGridObstacle {
       }
       this.emitters[index].forEach((emitter,j)=>{
         const sign=j===0?-1:1;
-        emitter.position.set(vertical?beam.position:beam.centerX+sign*(config.span/2+.08),vertical?beam.centerY+sign*(config.span/2+.08):beam.position,0);
+        emitter.position.set(
+          vertical?beam.position:beam.centerX+sign*(config.span/2+.08),
+          vertical?beam.centerY+sign*(config.span/2+.08):beam.position,
+          0,
+        );
         emitter.rotation.z=vertical?Math.PI/2:0;
         const lens=emitter.getObjectByName('EmitterLens') as THREE.Mesh<THREE.SphereGeometry,THREE.MeshStandardMaterial>;
         if(lens.material instanceof THREE.MeshStandardMaterial){
@@ -264,6 +271,7 @@ export class LaserGridObstacle {
         emitter.getObjectByName('ContactFlare')!.visible=on;
       });
     }
+    this.pulseCornerRockets(elapsedTime);
   }
 
   private createEmitter():THREE.Group {
@@ -285,6 +293,106 @@ export class LaserGridObstacle {
       color:0xffb449,emissive:0xff9b32,emissiveIntensity:.9,metalness:.1,roughness:.3,
     }));status.position.set(0,-.14,-.2);root.add(status);
     return root;
+  }
+
+  private pulseCornerRockets(elapsedTime: number): void {
+    if (!this.space) return;
+    this.fixedFrame.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      if (obj.name !== 'CornerRocketPlume' && obj.name !== 'CornerRocketCore') return;
+      if (!(obj.material instanceof THREE.ShaderMaterial)) return;
+      const phase = (obj.userData.phase as number) ?? 0;
+      const flicker = 0.72 + 0.28 * Math.sin(elapsedTime * 11 + phase * 2.3);
+      const surge = 0.85 + 0.15 * Math.sin(elapsedTime * 3.1 + phase);
+      obj.material.uniforms.strength.value = flicker * surge;
+      if (obj.name === 'CornerRocketPlume') {
+        obj.scale.y = 0.92 + 0.14 * Math.sin(elapsedTime * 9.5 + phase);
+      }
+    });
+  }
+
+  /** One diagonal rocket at a frame corner — exhaust points outward for stationkeeping. */
+  private addCornerRocket(cx: number, cy: number, sx: number, sy: number, phase: number): void {
+    const steel = new THREE.MeshStandardMaterial({ color: 0x7a8fa3, metalness: 0.82, roughness: 0.28 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x0c141c, metalness: 0.55, roughness: 0.5 });
+    const pod = new THREE.Group();
+    pod.name = 'CornerRocket';
+    pod.position.set(cx + sx * 0.06, cy + sy * 0.06, 0.08);
+    // Point nozzle diagonally outward from frame center.
+    pod.rotation.z = Math.atan2(sy, sx);
+
+    const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.22, 10), dark);
+    housing.rotation.z = Math.PI / 2;
+    housing.position.x = -0.04;
+    pod.add(housing);
+
+    const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.12, 0.16, 12), steel);
+    bell.name = 'CornerRocketBell';
+    bell.rotation.z = Math.PI / 2;
+    bell.position.x = 0.12;
+    pod.add(bell);
+
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.018, 6, 16), steel);
+    ring.rotation.y = Math.PI / 2;
+    ring.position.x = 0.2;
+    pod.add(ring);
+
+    const plumeMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+      uniforms: { strength: { value: 1 } },
+      vertexShader: `varying vec2 v;void main(){v=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+      fragmentShader: `varying vec2 v;uniform float strength;void main(){
+        float x=abs(v.x-.5)*2.;
+        float y=v.y;
+        // Long rocket column: bright core + hotter orange sheath + soft tip fade.
+        float core=exp(-x*x*55.)*pow(1.-y,0.55);
+        float sheath=exp(-x*x*12.)*pow(1.-y,1.1)*.75;
+        float tip=exp(-x*x*4.)*pow(1.-y,2.4)*.35;
+        float a=clamp((core*1.15+sheath+tip)*strength,0.,1.)*(1.-smoothstep(.88,1.,y));
+        vec3 col=mix(vec3(1.,.55,.12),vec3(1.,.95,.75),core);
+        col=mix(col,vec3(1.,.28,.05),sheath*.45);
+        gl_FragColor=vec4(col,a);
+      }`,
+    });
+    const plume = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 1.35), plumeMat);
+    plume.name = 'CornerRocketPlume';
+    plume.userData.phase = phase;
+    plume.position.set(0.95, 0, 0);
+    plume.rotation.z = -Math.PI / 2;
+    pod.add(plume);
+
+    // Second crossed plane for volume.
+    const plumeB = plume.clone();
+    plumeB.rotation.y = Math.PI / 2;
+    pod.add(plumeB);
+
+    const core = new THREE.Mesh(
+      new THREE.ConeGeometry(0.07, 0.55, 10, 1, true),
+      new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+        uniforms: { strength: { value: 1 } },
+        vertexShader: `varying float along;void main(){along=uv.y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+        fragmentShader: `varying float along;uniform float strength;void main(){
+          float a=pow(1.-along,1.2)*strength*.85;
+          gl_FragColor=vec4(1.,.92,.7,a);
+        }`,
+      }),
+    );
+    core.name = 'CornerRocketCore';
+    core.userData.phase = phase + 0.4;
+    core.rotation.z = -Math.PI / 2;
+    core.position.set(0.55, 0, 0);
+    pod.add(core);
+
+    this.fixedFrame.add(pod);
   }
 
   private buildFixedFrame(
@@ -341,6 +449,16 @@ export class LaserGridObstacle {
         bracket.name='GapBracket';
         bracket.position.set(centerX+sx*gap,centerY+sy*gap,-.2);
         this.fixedFrame.add(bracket);
+      }
+    }
+
+    // Space only: four corner rockets with outward exhaust — stationkeeping, not wall-mounted.
+    if (this.space) {
+      let phase = 0;
+      for (const sx of [-1, 1] as const) {
+        for (const sy of [-1, 1] as const) {
+          this.addCornerRocket(centerX + sx * half, centerY + sy * half, sx, sy, phase++);
+        }
       }
     }
   }

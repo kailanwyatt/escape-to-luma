@@ -83,9 +83,13 @@ export const GAME_TUNING = {
   },
 
   timing: {
-    resultDelay: 480,
+    /** How long miss / blocked stamps stay on screen (ms). */
+    resultDelay: 1100,
+    /** How long hit / great / bullseye / perfect stamps stay on screen (ms). */
+    hitResultDelay: 1000,
+    /** Slightly snappier hold for containment breach clears (ms). */
+    hitAdvanceDelay: 850,
     resetDelay: 140,
-    hitAdvanceDelay: 180,
     ricochetDuration: 700,
     perfectSlowdownDuration: 0.2,
     perfectTimeScale: 0.38,

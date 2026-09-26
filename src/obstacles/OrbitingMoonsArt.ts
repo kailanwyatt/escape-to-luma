@@ -15,7 +15,6 @@ export class OrbitingMoonsArt {
   readonly group = new THREE.Group();
   private readonly kit = new FacilityArtKit({ cinematic: true });
   private readonly moons: THREE.Mesh[] = [];
-  private readonly wakes: THREE.Mesh[] = [];
   private readonly pulseMeshes: THREE.Object3D[] = [];
   private readonly glow: THREE.MeshStandardMaterial;
   private readonly accent: THREE.PointLight;
@@ -43,7 +42,13 @@ export class OrbitingMoonsArt {
 
     if ((config.hubRadius ?? 0) > 0) {
       const hubR = config.hubRadius!;
-      this.kit.box(this.group, 'relay-hub', hubR * 1.6, hubR * 1.6, hubR * 0.8, config.centerX, config.centerY, 0, this.glow, 0.01);
+      const hub = new THREE.Mesh(
+        new THREE.TorusGeometry(Math.max(0.08, hubR * 0.55), Math.max(0.016, hubR * 0.12), 6, 28),
+        this.glow,
+      );
+      hub.name = 'relay-hub';
+      hub.position.set(config.centerX, config.centerY, 0.02);
+      this.group.add(hub);
     }
 
     for (let i = 0; i < config.moonCount; i++) {
@@ -52,20 +57,6 @@ export class OrbitingMoonsArt {
       moon.scale.setScalar(config.moonRadius);
       this.group.add(moon);
       this.moons.push(moon);
-
-      const wake = this.kit.box(
-        this.group,
-        `moon-wake-${i}`,
-        config.moonRadius * 1.3,
-        config.moonRadius * 0.2,
-        0.03,
-        0,
-        0,
-        config.moonRadius * 0.4,
-        this.glow,
-        0.002,
-      );
-      this.wakes.push(wake);
 
       if (config.beaconPulse) {
         if (config.beaconPulse.kind === 'shockwave') {
@@ -111,20 +102,10 @@ export class OrbitingMoonsArt {
     const pulse = this.config.beaconPulse ? beaconPulseStateAtTime(this.config, time) : null;
     moons.forEach((b, i) => {
       const moon = this.moons[i];
-      const wake = this.wakes[i];
       if (!moon) return;
       moon.position.set(b.x, b.y, 0);
       moon.scale.setScalar(b.radius);
       moon.rotation.z = b.angle + time * 0.2;
-      if (wake) {
-        wake.position.set(
-          b.x - Math.cos(b.angle) * b.radius * 0.9,
-          b.y - Math.sin(b.angle) * b.radius * 0.9,
-          b.radius * 0.35,
-        );
-        wake.rotation.z = b.angle;
-        wake.scale.set(b.radius * 1.2, b.radius * 0.18, 1);
-      }
 
       const pulseMesh = this.pulseMeshes[i];
       if (!pulseMesh || !pulse || !this.config.beaconPulse) return;

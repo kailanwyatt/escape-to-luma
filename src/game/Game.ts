@@ -1,7 +1,8 @@
 import {voyageReward} from '../progression/voyage';
 import {t} from '../i18n';
+import {failTip} from './failTips';
 import {ReflectorField} from '../reflectors/ReflectorField';
-import {stepRicochet,RICOCHET_STEP} from '../reflectors/Reflection';
+import {stepRicochet,RICOCHET_STEP,ricochetBlockResult} from '../reflectors/Reflection';
 import type {Vec3} from '../reflectors/ReflectorConfig';
 import {campaignEncounterStart} from '../campaign/EncounterStart';
 import {FIRST_ESCAPE, storyForLevel, storyAfterWorld, pendingWorldStory, type StoryMoment} from '../campaign/StoryMoments';
@@ -21,6 +22,7 @@ import { AudioManager } from '../feedback/AudioManager';
 import { GameHaptics } from '../feedback/Haptics';
 import { Analytics, ANALYTICS_EVENTS } from '../services/analytics/Analytics';
 import { AdService } from '../services/ads/AdService';
+import { requestTrackingIfNeeded } from '../services/ads/trackingPermission';
 import { PurchaseService } from '../services/purchases/PurchaseService';
 import { getCommercialConfig } from '../config/commercial';
 import { ECONOMY, SELECTABLE_BOOST_IDS, SHARD_PACKS, type ShardPackId, BOOST_LOADOUT_LIMIT } from '../config/economy';
@@ -290,6 +292,7 @@ export class Game {
     if (!this.save.hasCompletedOnboarding) {
       Analytics.markOnboardingStarted();
     }
+    await requestTrackingIfNeeded();
     AdService.start();
   }
 
@@ -635,15 +638,24 @@ export class Game {
   }
 
   debugResetProgress(): void {
-    void resetGameSave().then((save) => {
-      this.save = save;
-      this.bests = save.personalBests;
-      this.startingLevel = 1;
-      PurchaseService.hydrate(false);
-      this.applyProjectileLook();
-      this.applySettings();
-      this.emitHud();
-    });
+    void this.resetAllProgress();
+  }
+
+  /** Wipe campaign, voyage records, and local progress back to a fresh save. */
+  async resetAllProgress(): Promise<PersistentGameData> {
+    const save = await resetGameSave();
+    this.save = save;
+    this.bests = save.personalBests;
+    this.startingLevel = 1;
+    this.runProgressCommitted = true;
+    this.sessionMode = 'endless';
+    this.campaignDef = null;
+    this.campaignStory = null;
+    PurchaseService.hydrate(false);
+    this.applyProjectileLook();
+    this.applySettings();
+    this.emitHud();
+    return save;
   }
 
   debugAddXp(amount = 50): void {
@@ -770,7 +782,7 @@ export class Game {
     return true;
   }
 
-  startCampaignLevel(levelNumber: number, boosts: SelectedBoosts): void {
+  startCampaignLevel(levelNumber: number, boosts: SelectedBoosts, options?: { force?: boolean }): void {
     if (!this.hydrated) {
       return;
     }
@@ -779,6 +791,7 @@ export class Game {
       return;
     }
     if (
+      !options?.force &&
       this.sessionMode === 'campaign' &&
       this.campaignDef?.levelNumber === levelNumber &&
       (this.state.phase === 'READY' || this.state.phase === 'CAMPAIGN_OPENING' || this.state.phase === 'CAMPAIGN_STORY')
@@ -786,8 +799,15 @@ export class Game {
       return;
     }
     this.syncCampaignEnergyOnSave();
-    if(canStartLevel(this.save.campaign,levelNumber).reason==='energy'){this.campaignDef=def;this.state.set('OUT_OF_ENERGY');this.emitHud();return;}
+    if(canStartLevel(this.save.campaign,levelNumber).reason==='energy'){
+      this.sessionMode='campaign';
+      this.campaignDef=def;
+      this.state.set('OUT_OF_ENERGY');
+      this.emitHud();
+      return;
+    }
     this.sessionMode = 'campaign';
+    this.director.mode = 'AUTHORED_30';
     this.campaignStory = null;
     this.campaignDef = def;
     this.campaignShotFired=false;
@@ -1827,7 +1847,17 @@ export class Game {
           });
         if(this.state.phase==='PROJECTILE_ACTIVE'){
           p.position.set(motion.x,motion.y,motion.z);p.velocity.set(motion.vx,motion.vy,motion.vz);
-          if(this.ricochetStatus.blocked){this.lastFail=t("game.reflector_frame_backing");this.particles.spawnSparks(p.position,8);this.beginResult('ROTOR_HIT',0,.4);}
+          if(this.ricochetStatus.blocked){
+            // Failed bounce path (missed a required cyan face / 2nd bounce) is a Miss —
+            // not BLOCKED. Frame/backing after the required route still reads as blocked.
+            const kind = ricochetBlockResult(this.ricochetStatus, ricochet.requiredBounces ?? 0);
+            this.lastFail =
+              kind === 'MISS'
+                ? t('game.use_the_reflector')
+                : t('game.reflector_frame_backing');
+            this.particles.spawnSparks(p.position, 8);
+            this.beginResult(kind, 0, GAME_TUNING.timing.resultDelay / 1000);
+          }
         }
       }else {
         this.projectileSystem.speedFieldTime = this.obstacleTime;
@@ -1967,12 +1997,12 @@ export class Game {
       const u=(o.z-a.z)/(b.z-a.z);if(u<0||u>1)continue;
       const at={x:a.x+(b.x-a.x)*u,y:a.y+(b.y-a.y)*u,z:o.z};
       const hit=o.evaluateAt(at.x,at.y,GAME_TUNING.projectile.radius,o.predictState(Math.max(0,clock+duration*u-(this.simTime-RICOCHET_STEP))*this.obstacleTimeScale(),this.obstacleTime-this.lastObstacleStep));
-      if(hit.hit){p.position.set(at.x,at.y,at.z);this.lastFail=failLabel(o.type,i);this.particles.spawnSparks(p.position,14);GameHaptics.forResult('ROTOR_HIT');AudioManager.play(collisionEvent(o.type));this.beginResult('ROTOR_HIT',0,.4);return false;}
+      if(hit.hit){p.position.set(at.x,at.y,at.z);this.lastFail=failTip(o.type);this.particles.spawnSparks(p.position,14);GameHaptics.forResult('ROTOR_HIT');AudioManager.play(collisionEvent(o.type));this.beginResult('ROTOR_HIT',0,GAME_TUNING.timing.resultDelay/1000);return false;}
       this.obstacleCleared[i]=true;
     }
     if(a.z<this.target.z&&b.z>=this.target.z){
       const required=this.campaignDef?.challenge.ricochet?.requiredBounces??0;
-      if(this.ricochetStatus.bounces<required){this.lastFail=t("game.use_the_reflector");this.beginResult('MISS',0,.4);return false;}
+      if(this.ricochetStatus.bounces<required){this.lastFail=t("game.use_the_reflector");this.beginResult('MISS',0,GAME_TUNING.timing.resultDelay/1000);return false;}
       // Collision was checked above; retain the existing portal precision/reward path.
       this.obstacleCleared=this.obstacles.map(()=>true);this.checkCollisions();
       return this.state.phase==='PROJECTILE_ACTIVE';
@@ -2042,7 +2072,7 @@ export class Game {
         AudioManager.play(collisionEvent(item.rotor.type));
         this.trail.stop();
         this.lastRotorHitIndex = item.index;
-        this.lastFail = failLabel(item.rotor.type, item.index);
+        this.lastFail = failTip(item.rotor.type);
         if (this.director.isAuthored) {
           this.authored.noteRotorHit(this.director.index, item.index);
         }
@@ -2151,7 +2181,11 @@ export class Game {
       this.timeScale = GAME_TUNING.timing.perfectTimeScale;
       this.slowdownRemaining = GAME_TUNING.timing.perfectSlowdownDuration;
     }
-    this.beginResult(scored.kind, scored.points, this.target.isBreach ? GAME_TUNING.timing.hitAdvanceDelay / 1000 : .5);
+    this.beginResult(
+      scored.kind,
+      scored.points,
+      (this.target.isBreach ? GAME_TUNING.timing.hitAdvanceDelay : GAME_TUNING.timing.hitResultDelay) / 1000,
+    );
   }
 
   private checkOutOfBounds(): void {
@@ -3001,56 +3035,6 @@ function formatMiss(report: TargetMissReport | null): string {
     return '-';
   }
   return t("game.act_tgt_d_r_ball_edge", {value1: report.actualX.toFixed(2), value2: report.actualY.toFixed(2), value3: report.targetX.toFixed(2), value4: report.targetY.toFixed(2), value5: report.distance.toFixed(2), value6: report.targetRadius.toFixed(2), value7: report.projectileRadius.toFixed(2), value8: report.edgeWouldHit ? 'Y' : 'N'});
-}
-
-function failLabel(type: string, index: number): string {
-  const names: Record<string, string> = {
-    rotor: 'ROTOR',
-    slidingGate: 'GATE',
-    iris: 'AIRLOCK',
-    pendulum: 'BOOM',
-    movingRing: 'RING',
-    orbiter: 'ROCK',
-    driftingBlocker: 'DRIFT',
-    phaseField: 'MEMBRANE',
-    shiftingAperture: 'APERTURE',
-    laserGrid: 'LASER',
-    formation: 'OBSTACLE',
-    pistonField: 'PISTON',
-    clockHands: 'SCANNER',
-    elevatorBlocks: 'ELEVATOR',
-    pulseRing: 'PULSE',
-    scissorGate: 'SCISSOR',
-    groundCutLasers: 'GROUND CUT',
-    speedField: 'CURRENT',
-    splitShutter: 'SHUTTER',
-    reactiveGate: 'REACT',
-    conveyorGate: 'DRONES',
-    billboardFlip: 'BOARD',
-    dockingCollar: 'COLLAR',
-    shearLane: 'SHEAR',
-    rotatingGate: 'ROTATE',
-    energyField: 'ENERGY',
-    phaseGate: 'PHASE',
-    repulsor: 'PUSH',
-    nullTendril: 'TENDRIL',
-    nullLash: 'LASH',
-    rollingAperture: 'ROLL',
-    corkscrewTunnel: 'CONDUIT',
-    cometCrossing: 'COMET',
-    orbitingMoons: 'BEACONS',
-    sequentialTunnel: 'SEQ',
-    movingSafeZone: 'WRECK',
-    accretionShredder: 'DEBRIS',
-    pulsarBeam: 'BEAM',
-    solarSail: 'VANE',
-    magnetopause: 'DISH',
-    lagrangeNull: 'NULL',
-    teleportPortal: 'TELEPORT',
-    entryExitPortal: 'FALSE',
-    theNull: 'THE NULL',
-  };
-  return `${names[type] ?? type.toUpperCase()} ${String.fromCharCode(65 + index)}`;
 }
 
 function wellsFromRepulsors(obstacles: ObstacleConfig[]) {

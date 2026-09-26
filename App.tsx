@@ -32,6 +32,7 @@ import { HUD } from './src/ui/HUD';
 import { JourneyScreen } from './src/ui/JourneyScreen';
 import { LevelReadyScreen } from './src/ui/LevelReadyScreen';
 import { OutOfEnergyScreen } from './src/ui/OutOfEnergyScreen';
+import { ResourceModal } from './src/ui/ResourceModal';
 import { ResultFeedback } from './src/ui/ResultFeedback';
 import { SettingsScreen } from './src/ui/SettingsScreen';
 import { ShopScreen } from './src/ui/ShopScreen';
@@ -133,10 +134,10 @@ const INITIAL_HUD: HudSnapshot = {
 
 function continueLevelNumber(save: PersistentGameData): number {
   const c = save.campaign;
-  if (c.campaignCompleted) {
-    return 1;
-  }
   const highest = Math.min(150, Math.max(1, c.highestUnlockedLevel));
+  if (c.campaignCompleted) {
+    return Math.min(highest, Math.max(1, c.lastPlayedLevel || highest));
+  }
   for (let level = 1; level <= highest; level += 1) {
     const definition = getCampaignLevel(level);
     if (definition && !c.completedLevels[definition.id]?.cleared) {
@@ -192,6 +193,8 @@ function AppShell() {
   const [shopReturn,setShopReturn]=useState<AppScreen>('home');
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
+  const [suppliesOpen, setSuppliesOpen] = useState(false);
+  const suppliesPausedRef = useRef(false);
 
   const refreshSave = useCallback(() => {
     const game = gameRef.current;
@@ -380,6 +383,7 @@ function AppShell() {
   const startSelectedLevel = useCallback(
     (levelNumber: number) => {
       setPendingLevel(levelNumber);
+      setJourneyFocusLevel(levelNumber);
       syncEnergyAndSave();
       const campaign = gameRef.current?.getSave().campaign ?? save.campaign;
       const check = canStartLevel(campaign, levelNumber);
@@ -390,10 +394,12 @@ function AppShell() {
       if (!check.ok) {
         return;
       }
-      setPendingLevel(levelNumber);
+      // Bank any active voyage, then always force the authored campaign level.
+      gameRef.current?.finishEndlessVoyage();
       void preloadAssetGroup(levelNumber<=15?'world1':levelNumber<=30?'world2':'optional');
       pausedRef.current=false;setPaused(false);gameRef.current?.resume();
-      setScreen('play');gameRef.current?.startCampaignLevel(levelNumber,{});
+      setScreen('play');
+      gameRef.current?.startCampaignLevel(levelNumber,{},{force:true});
     },
     [save.campaign, syncEnergyAndSave],
   );
@@ -522,8 +528,47 @@ function AppShell() {
               setScreen('journey');
             })
           }
+          onOpenSupplies={() =>
+            tap(() => {
+              syncEnergyAndSave();
+              if (!suppliesPausedRef.current && !pausedRef.current) {
+                suppliesPausedRef.current = true;
+                gameRef.current?.onTouchCancel();
+                gameRef.current?.pause();
+              }
+              setSuppliesOpen(true);
+            })
+          }
         />
       ) : null}
+      <ResourceModal
+        visible={suppliesOpen}
+        save={save}
+        onClose={() => {
+          setSuppliesOpen(false);
+          if (suppliesPausedRef.current) {
+            suppliesPausedRef.current = false;
+            if (!pausedRef.current) gameRef.current?.resume();
+          }
+        }}
+        onShop={() => {
+          setSuppliesOpen(false);
+          // Keep the run paused while browsing the shop from an active attempt.
+          if (suppliesPausedRef.current || playing) {
+            suppliesPausedRef.current = false;
+            pausedRef.current = true;
+            setPaused(true);
+            gameRef.current?.pause();
+          }
+          refreshSave();
+          setShopReturn(playing ? 'play' : 'home');
+          setScreen('shop');
+        }}
+        onWatch={async () => {
+          await gameRef.current?.watchRewardedEnergy();
+          refreshSave();
+        }}
+      />
       {showOutOfEnergyOverlay ? (
         <OutOfEnergyScreen
           save={save}
@@ -623,6 +668,10 @@ function AppShell() {
               setShopReturn('home');setScreen('shop');
             })
           }
+          onWatchEnergy={async () => {
+            await gameRef.current?.watchRewardedEnergy();
+            refreshSave();
+          }}
           onStats={() =>
             tap(() => {
               refreshSave();
@@ -663,7 +712,6 @@ function AppShell() {
           }
           onSelectLevel={(levelNumber) =>
             tap(() => {
-              setJourneyFocusLevel(levelNumber);
               startSelectedLevel(levelNumber);
             })
           }
@@ -748,6 +796,19 @@ function AppShell() {
             pausedRef.current = false;
             setPaused(false);
             setScreen('play');
+          }}
+          onResetProgress={async () => {
+            GameHaptics.forUi();
+            AudioManager.play('ui');
+            await gameRef.current?.resetAllProgress();
+            setDevLevelsUnlocked(false);
+            setDevUnlockAll(false);
+            setJourneyFocusLevel(null);
+            setPendingLevel(1);
+            pausedRef.current = false;
+            setPaused(false);
+            refreshSave();
+            setScreen('home');
           }}
           settings={save.settings}
           systemReduceMotion={systemReduceMotion}

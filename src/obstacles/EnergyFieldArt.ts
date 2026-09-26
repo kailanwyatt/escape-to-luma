@@ -3,7 +3,7 @@ import type { EnergyFieldConfig } from '../config/ObstacleConfig';
 import { energyFieldStateAtTime } from './EnergyFieldState';
 
 /**
- * Cinematic energy curtain — full-width flowing membrane with a drifting safe hole.
+ * Cinematic energy curtain — full-bleed flowing membrane with a drifting safe hole.
  * Opening position/radius sample EnergyFieldState; shader discards the hole.
  */
 export class EnergyFieldArt {
@@ -11,12 +11,12 @@ export class EnergyFieldArt {
   private readonly membrane: THREE.Mesh;
   private readonly holeRing: THREE.Mesh;
   private readonly innerRing: THREE.Mesh;
-  private readonly chevrons: THREE.Mesh[] = [];
   private readonly membraneMat: THREE.ShaderMaterial;
   private readonly ringMat: THREE.MeshStandardMaterial;
-  private readonly chevronMat: THREE.MeshStandardMaterial;
   private readonly accent: THREE.PointLight;
   private readonly geometries: THREE.BufferGeometry[] = [];
+  /** Visual plane is slightly larger than collision so the curtain reads edge-to-edge. */
+  private readonly visualPad = 1.18;
   private readonly uniforms: {
     uTime: { value: number };
     uHole: { value: THREE.Vector2 };
@@ -27,11 +27,14 @@ export class EnergyFieldArt {
   constructor(private readonly config: EnergyFieldConfig) {
     this.group.name = 'energy-field-art';
 
+    const visW = config.halfWidth * this.visualPad;
+    const visH = config.halfHeight * this.visualPad;
+
     this.uniforms = {
       uTime: { value: 0 },
       uHole: { value: new THREE.Vector2(0, 0) },
       uHoleR: { value: config.holeRadius },
-      uHalf: { value: new THREE.Vector2(config.halfWidth, config.halfHeight) },
+      uHalf: { value: new THREE.Vector2(visW, visH) },
     };
 
     this.membraneMat = new THREE.ShaderMaterial({
@@ -64,35 +67,40 @@ export class EnergyFieldArt {
         void main() {
           float dist = length(vLocal - uHole);
           if (dist < uHoleR) discard;
-          float edge = smoothstep(uHoleR, uHoleR + 0.18, dist);
+          float edge = smoothstep(uHoleR, uHoleR + 0.16, dist);
           vec2 uv = vLocal / uHalf;
-          float flow = noise(uv * vec2(3.2, 1.4) + vec2(uTime * 0.55, uTime * 0.18));
-          float veins = pow(0.5 + 0.5 * sin(uv.x * 18.0 + flow * 6.0 + uTime * 1.4), 10.0);
-          float wash = pow(0.5 + 0.5 * sin(uv.y * 11.0 - uTime * 0.9 + flow * 4.0), 6.0);
-          float rim = 1.0 - smoothstep(uHoleR, uHoleR + 0.28, dist);
-          vec3 deep = vec3(0.22, 0.04, 0.38);
-          vec3 bright = vec3(0.72, 0.28, 0.95);
-          vec3 cyan = vec3(0.35, 0.85, 1.0);
-          vec3 col = mix(deep, bright, flow * 0.65 + veins * 0.35);
-          col = mix(col, cyan, rim * 0.55 + wash * 0.12);
-          float alpha = (0.42 + flow * 0.28 + veins * 0.18) * edge;
-          alpha = max(alpha, rim * 0.7);
-          // Soft falloff near rectangle edges
+          float flow = noise(uv * vec2(2.8, 1.2) + vec2(uTime * 0.45, uTime * 0.16));
+
+          // Vertical flowing curves across the curtain.
+          float w1 = uv.x * 10.0 + sin(uv.y * 5.0 + uTime * 0.9) * 1.55 + uTime * 0.45;
+          float w2 = uv.x * 15.5 + sin(uv.y * 3.4 - uTime * 0.65) * 2.0 + flow * 2.8;
+          float w3 = uv.x * 7.0 - sin(uv.y * 6.2 + uTime * 0.55) * 1.25 - uTime * 0.35;
+          float curves =
+            smoothstep(0.88, 1.0, abs(sin(w1))) +
+            smoothstep(0.91, 1.0, abs(sin(w2))) * 0.75 +
+            smoothstep(0.93, 1.0, abs(sin(w3))) * 0.55;
+
+          float wash = pow(0.5 + 0.5 * sin(uv.x * 8.0 - uTime * 0.75 + flow * 3.5), 5.0);
+          float rim = 1.0 - smoothstep(uHoleR, uHoleR + 0.3, dist);
+          vec3 deep = vec3(0.2, 0.05, 0.4);
+          vec3 bright = vec3(0.78, 0.32, 1.0);
+          vec3 cyan = vec3(0.4, 0.9, 1.0);
+          vec3 col = mix(deep, bright, flow * 0.55 + curves * 0.45);
+          col = mix(col, cyan, rim * 0.5 + wash * 0.1 + curves * 0.18);
+
+          float alpha = (0.58 + flow * 0.22 + curves * 0.28) * edge;
+          alpha = max(alpha, rim * 0.78);
+          // Soft falloff toward the outer edges of the curtain.
           float border = min(
-            1.0 - smoothstep(uHalf.x - 0.15, uHalf.x, abs(vLocal.x)),
-            1.0 - smoothstep(uHalf.y - 0.15, uHalf.y, abs(vLocal.y))
+            1.0 - smoothstep(uHalf.x * 0.42, uHalf.x, abs(vLocal.x)),
+            1.0 - smoothstep(uHalf.y * 0.42, uHalf.y, abs(vLocal.y))
           );
-          gl_FragColor = vec4(col, alpha * mix(0.55, 1.0, border));
+          gl_FragColor = vec4(col, clamp(alpha * mix(0.05, 1.0, border), 0.0, 0.88));
         }
       `,
     });
 
-    const planeGeo = new THREE.PlaneGeometry(
-      config.halfWidth * 2,
-      config.halfHeight * 2,
-      1,
-      1,
-    );
+    const planeGeo = new THREE.PlaneGeometry(visW * 2, visH * 2, 1, 1);
     this.geometries.push(planeGeo);
     this.membrane = new THREE.Mesh(planeGeo, this.membraneMat);
     this.membrane.name = 'energy-membrane';
@@ -124,25 +132,6 @@ export class EnergyFieldArt {
     this.innerRing.position.z = -0.01;
     this.group.add(this.innerRing);
 
-    this.chevronMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      emissive: 0xb8e8ff,
-      emissiveIntensity: 0.85,
-      metalness: 0.05,
-      roughness: 0.35,
-      transparent: true,
-      opacity: 0.85,
-    });
-    for (let i = 0; i < 3; i++) {
-      const geo = new THREE.ConeGeometry(0.07, 0.14, 3);
-      this.geometries.push(geo);
-      const tip = new THREE.Mesh(geo, this.chevronMat);
-      tip.name = `energy-chevron-${i}`;
-      tip.rotation.z = -Math.PI / 2;
-      this.group.add(tip);
-      this.chevrons.push(tip);
-    }
-
     this.accent = new THREE.PointLight(0x8a5cff, 14, 14, 2);
     this.accent.name = 'energy-accent';
     this.group.add(this.accent);
@@ -154,13 +143,15 @@ export class EnergyFieldArt {
     this.group.position.set(0, 0, 0);
     this.membrane.position.set(state.centerX, state.centerY, -0.02);
 
+    const visW = state.halfWidth * this.visualPad;
+    const visH = state.halfHeight * this.visualPad;
     this.uniforms.uTime.value = time;
     this.uniforms.uHole.value.set(
       state.openingX - state.centerX,
       state.openingY - state.centerY,
     );
     this.uniforms.uHoleR.value = state.holeRadius;
-    this.uniforms.uHalf.value.set(state.halfWidth, state.halfHeight);
+    this.uniforms.uHalf.value.set(visW, visH);
 
     this.holeRing.position.set(state.openingX, state.openingY, -0.04);
     this.holeRing.scale.setScalar(Math.max(0.25, state.holeRadius));
@@ -169,21 +160,6 @@ export class EnergyFieldArt {
 
     const pulse = 0.5 + 0.5 * Math.sin(time * 2.4);
     this.ringMat.emissiveIntensity = 0.95 + pulse * 0.45;
-    this.chevronMat.emissiveIntensity = 0.65 + pulse * 0.4;
-    this.chevronMat.opacity = 0.55 + pulse * 0.35;
-
-    // Chevrons trail opposite the drift direction (sheet: <<< or >>> beside opening).
-    const dir = state.driftDir;
-    this.chevrons.forEach((tip, i) => {
-      const lag = 0.22 + i * 0.16;
-      tip.position.set(
-        state.openingX - dir * (state.holeRadius + 0.22 + lag),
-        state.openingY + (i - 1) * 0.08,
-        -0.05,
-      );
-      tip.rotation.z = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
-      tip.visible = true;
-    });
 
     this.accent.color.setHex(0x6a90ff);
     this.accent.intensity = 11 + pulse * 6;
@@ -199,7 +175,6 @@ export class EnergyFieldArt {
     this.membraneMat.dispose();
     this.ringMat.dispose();
     if (this.innerRing.material instanceof THREE.Material) this.innerRing.material.dispose();
-    this.chevronMat.dispose();
     this.group.clear();
     this.group.removeFromParent();
   }

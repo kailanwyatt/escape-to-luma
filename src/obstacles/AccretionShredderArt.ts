@@ -40,19 +40,6 @@ export class AccretionShredderArt {
     this.halo.position.set(config.centerX, config.centerY, -0.06);
     this.group.add(this.halo);
 
-    this.kit.box(
-      this.group,
-      'quiet-hub',
-      0.16,
-      0.16,
-      0.04,
-      config.centerX,
-      config.centerY,
-      0.04,
-      this.glow,
-      0.006,
-    );
-
     this.accent = new THREE.PointLight(0xff8a4a, 8, 11, 2);
     this.accent.name = 'accretion-accent';
     this.group.add(this.accent);

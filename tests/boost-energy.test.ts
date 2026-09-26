@@ -2,7 +2,7 @@ import {describe,it,expect} from 'vitest';
 import {emptySave} from '../src/persistence/GameSave';
 import {applyLevelFailure,consumeBoosts,canStartLevel} from '../src/campaign/CampaignPlay';
 import {getCampaignLevel} from '../src/campaign/levels';
-import {regenerateEnergy} from '../src/economy/energy';
+import {regenerateEnergy,msUntilFullEnergy,msUntilNextEnergy} from '../src/economy/energy';
 import {ECONOMY} from '../src/config/economy';
 describe('consumable economy',()=>{
  it('consumes Portal Bloom alongside other boosts without mutating the original save',()=>{
@@ -15,6 +15,12 @@ describe('consumable economy',()=>{
   const next=applyLevelFailure(s,getCampaignLevel(6)!,{consumeEnergy:true,usedSecondChance:false});
   expect(next.campaign.currentEnergy).toBe(2);expect(next.campaign.energyUpdatedAt).toBe(start);
   expect(regenerateEnergy(2,start,start+ECONOMY.energyRegenMinutes*60000).energy).toBe(3);
+ });
+ it('reports time until the energy meter is full',()=>{
+  const start=1_000_000;
+  expect(msUntilFullEnergy(ECONOMY.maxEnergy,start,start)).toBe(0);
+  expect(msUntilFullEnergy(14,start,start)).toBe(msUntilNextEnergy(14,start,start));
+  expect(msUntilFullEnergy(10,start,start)).toBe(msUntilNextEnergy(10,start,start)+4*ECONOMY.energyRegenMinutes*60000);
  });
  it('permits cleared-level replay at zero energy without charging for failures',()=>{
   const s=emptySave(),def=getCampaignLevel(1)!;

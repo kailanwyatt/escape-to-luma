@@ -62,7 +62,14 @@ export class StoryExtraArt {
       arc.position.set(c.centerX, c.centerY, 0);
       this.group.add(arc);
       this.owned.push(arc);
-      this.kit.box(this.group, 'dish-hub', hub * 1.5, hub * 1.5, hub, c.centerX, c.centerY, -0.05, this.glow, 0.01);
+      const dishHub = new THREE.Mesh(
+        new THREE.TorusGeometry(Math.max(0.08, hub * 0.55), Math.max(0.016, hub * 0.12), 6, 28),
+        this.glow,
+      );
+      dishHub.name = 'dish-hub';
+      dishHub.position.set(c.centerX, c.centerY, -0.05);
+      this.group.add(dishHub);
+      this.owned.push(dishHub);
       this.kit.box(this.group, 'gap-tick-a', 0.08, 0.2, 0.03, c.centerX + c.outerRadius, c.centerY, -0.08, this.glow, 0.004);
       this.kit.box(this.group, 'gap-tick-b', 0.08, 0.2, 0.03, c.centerX + c.outerRadius, c.centerY, -0.08, this.glow, 0.004);
     } else if (c.type === 'lagrangeNull') {

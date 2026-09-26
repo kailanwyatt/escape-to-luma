@@ -21,12 +21,13 @@ const drift = (overrides: Partial<DriftingBlockerConfig> = {}): DriftingBlockerC
 });
 
 describe('DriftingBlockerArt', () => {
-  it('builds sculpted rock, path, wake, and hub', () => {
+  it('builds sculpted rock and path without debug hub/wake/veins', () => {
     const art = new DriftingBlockerArt(drift());
     expect(art.group.getObjectByName('drift-rock')).toBeTruthy();
     expect(art.group.getObjectByName('drift-path')).toBeTruthy();
-    expect(art.group.getObjectByName('drift-wake')).toBeTruthy();
-    expect(art.group.getObjectByName('drift-hub')).toBeTruthy();
+    expect(art.group.getObjectByName('drift-wake')).toBeFalsy();
+    expect(art.group.getObjectByName('drift-hub')).toBeFalsy();
+    expect(art.group.getObjectByName('drift-vein-0')).toBeFalsy();
     art.update(1.4);
     const rock = art.group.getObjectByName('drift-rock')!;
     expect(Math.hypot(rock.position.x, rock.position.y)).toBeGreaterThan(0.1);

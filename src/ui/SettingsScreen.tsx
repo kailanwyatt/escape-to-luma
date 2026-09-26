@@ -1,5 +1,6 @@
 import {t} from '../i18n';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 
 import { RELEASE_POLICY } from '../config/release';
@@ -20,6 +21,7 @@ type Props = {
   onRestore: () => void;
   onShareDiagnostics: () => void;
   onReplayOpening: () => void;
+  onResetProgress: () => void | Promise<void>;
   onBack: () => void;
 };
 
@@ -36,7 +38,27 @@ export function SettingsScreen({
   onShareDiagnostics,
   onBack,
   onReplayOpening,
+  onResetProgress,
 }: Props) {
+  const [resetBusy, setResetBusy] = useState(false);
+  const confirmReset = () => {
+    if (resetBusy) return;
+    Alert.alert(
+      t('settingsscreen.reset_progress_title'),
+      t('settingsscreen.reset_progress_body'),
+      [
+        { text: t('hud.cancel'), style: 'cancel' },
+        {
+          text: t('settingsscreen.reset_confirm'),
+          style: 'destructive',
+          onPress: () => {
+            setResetBusy(true);
+            void Promise.resolve(onResetProgress()).finally(() => setResetBusy(false));
+          },
+        },
+      ],
+    );
+  };
   return (
     <Screen onBack={onBack} backLabel={t("journeyscreen.back_to_home")}>
       <ScreenTitle title={t("settingsscreen.settings")} />
@@ -96,6 +118,17 @@ export function SettingsScreen({
       </Text>
       <Pressable accessibilityRole="button" style={styles.diagnostics} onPress={onReplayOpening}>
         <Text style={styles.restoreText}>{t("settingsscreen.replay_opening")}</Text>
+      </Pressable>
+      <Text style={styles.section}>{t("settingsscreen.data")}</Text>
+      <Text style={styles.blurb}>{t("settingsscreen.reset_progress_hint")}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("settingsscreen.reset_progress")}
+        disabled={resetBusy}
+        style={[styles.reset, resetBusy && styles.purchaseBusy]}
+        onPress={confirmReset}
+      >
+        <Text style={styles.resetText}>{resetBusy ? t("outofenergyscreen.please_wait") : t("settingsscreen.reset_progress")}</Text>
       </Pressable>
     </Screen>
   );
@@ -220,6 +253,23 @@ const styles = StyleSheet.create({
   },
   restoreText: {
     color: color.cyanBright,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
+  reset: {
+    marginTop: 16,
+    alignSelf: 'stretch',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,120,100,0.55)',
+    backgroundColor: 'rgba(60,16,18,0.55)',
+    alignItems: 'center',
+  },
+  resetText: {
+    color: '#ff9b8a',
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1.5,

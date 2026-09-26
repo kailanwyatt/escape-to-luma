@@ -36,13 +36,13 @@ const orbiter = (overrides: Partial<OrbiterConfig> = {}): OrbiterConfig => ({
 });
 
 describe('OrbiterArt', () => {
-  it('builds satellite, orbit rail, chevrons, hub, and wake', () => {
+  it('builds satellite and faint orbit rail without debug hub/wake/chevrons', () => {
     const art = new OrbiterArt(orbiter(), 'space');
     expect(art.group.getObjectByName('orbiter-body')).toBeTruthy();
     expect(art.group.getObjectByName('orbit-path')).toBeTruthy();
-    expect(art.group.getObjectByName('orbit-chevron-0')).toBeTruthy();
-    expect(art.group.getObjectByName('orbit-hub')).toBeTruthy();
-    expect(art.group.getObjectByName('orbit-wake')).toBeTruthy();
+    expect(art.group.getObjectByName('orbit-hub')).toBeFalsy();
+    expect(art.group.getObjectByName('orbit-wake')).toBeFalsy();
+    expect(art.group.getObjectByName('orbit-chevron-0')).toBeFalsy();
     art.update(1.1);
     const body = art.group.getObjectByName('orbiter-body')!;
     expect(Math.hypot(body.position.x, body.position.y)).toBeCloseTo(1.2, 2);
