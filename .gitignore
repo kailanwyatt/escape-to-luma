@@ -37,6 +37,7 @@ yarn-error.*
 
 # common credential dumps
 credentials.json
+ios/certs/
 **/GoogleService-Info.plist
 **/google-services.json
 *.keystore

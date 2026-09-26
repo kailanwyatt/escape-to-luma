@@ -10,8 +10,8 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#050B15",
     "ios": {
-      "bundleIdentifier": "com.kurt.sparkescapetoluma",
-      "buildNumber": "4",
+      "bundleIdentifier": "com.escapetoluma.spark",
+      "buildNumber": "9",
       "supportsTablet": true,
       "requireFullScreen": true,
       "config": {
@@ -34,7 +34,7 @@
       "permissions": [
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
-      "package": "com.kurt.sparkescapetoluma"
+      "package": "com.escapetoluma.spark"
     },
     "web": {
       "favicon": "./assets/favicon.png",

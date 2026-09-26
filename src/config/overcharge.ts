@@ -16,7 +16,7 @@ export type OverchargeProduct = {
 export const OVERCHARGE_PRODUCTS: readonly OverchargeProduct[] = [
   {
     id: 'overcharge_2h',
-    productId: 'com.kurt.sparkescapetoluma.overcharge2h',
+    productId: 'com.escapetoluma.spark.overcharge2h',
     durationMs: 2 * 60 * 60 * 1000,
     fallbackPrice: '$0.99',
     label: '2 hours',
@@ -24,7 +24,7 @@ export const OVERCHARGE_PRODUCTS: readonly OverchargeProduct[] = [
   },
   {
     id: 'overcharge_24h',
-    productId: 'com.kurt.sparkescapetoluma.overcharge24h',
+    productId: 'com.escapetoluma.spark.overcharge24h',
     durationMs: 24 * 60 * 60 * 1000,
     fallbackPrice: '$1.99',
     label: '24 hours',
@@ -32,7 +32,7 @@ export const OVERCHARGE_PRODUCTS: readonly OverchargeProduct[] = [
   },
   {
     id: 'overcharge_7d',
-    productId: 'com.kurt.sparkescapetoluma.overcharge7d',
+    productId: 'com.escapetoluma.spark.overcharge7d',
     durationMs: 7 * 24 * 60 * 60 * 1000,
     fallbackPrice: '$4.99',
     label: '7 days',

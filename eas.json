@@ -48,6 +48,10 @@
         "EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_UNIT_ID": "ca-app-pub-1715335515944327/8380221265"
       }
     },
+    "production-local": {
+      "extends": "production",
+      "credentialsSource": "local"
+    },
     "testflight": {
       "extends": "production"
     }
