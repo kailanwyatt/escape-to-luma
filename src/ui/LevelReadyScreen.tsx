@@ -4,6 +4,7 @@ import {useMemo, useState} from 'react';
 import {
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -18,13 +19,17 @@ import type {PersistentGameData} from '../persistence/GameSave';
 import {worldForLevel} from '../campaign/worlds';
 import {sparkById} from '../customization/sparks';
 import {abilityDefinitionForSpark} from '../customization/sparkAbilities';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import type {ShopBoost} from './ShopScreen';
+
+const BOOST_GRID_GAP = 12;
 
 type Props = {
   save: PersistentGameData;
   levelNumber: number;
   onPlay: (boosts: SelectedBoosts) => void;
   onBack: () => void;
-  onShop: () => void;
+  onShop: (boostId?: ShopBoost) => void;
   onSparks?: () => void;
 };
 
@@ -107,6 +112,7 @@ export function LevelReadyScreen({save, levelNumber, onPlay, onBack, onShop, onS
   const [infoId, setInfoId] = useState<BoostId | null>(null);
   const [loadoutHint, setLoadoutHint] = useState(false);
   const {width} = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const def = getCampaignLevel(levelNumber);
   const world = worldForLevel(levelNumber);
   const inv = save.campaign.boostInventory;
@@ -116,10 +122,15 @@ export function LevelReadyScreen({save, levelNumber, onPlay, onBack, onShop, onS
   const selectedCount = Object.values(selected).filter(Boolean).length;
   const infoBoost = useMemo(() => BOOSTS.find((b) => b.id === infoId) ?? null, [infoId]);
   const columns = width >= 700 ? 3 : 2;
+  // Pixel widths so gap cannot force a single-column wrap (%-width + gap overflow).
+  const padX = Math.max(insets.left, space.screenX) + Math.max(insets.right, space.screenX);
+  const gridWidth = Math.min(width - padX, 480);
+  const cardWidth = (gridWidth - BOOST_GRID_GAP * (columns - 1)) / columns;
+  const hasSelection = selectedCount > 0;
 
   const toggleBoost = (id: BoostId, owned: number) => {
     if (owned <= 0) {
-      onShop();
+      onShop(id as ShopBoost);
       return;
     }
     setSelected((current) => {
@@ -139,133 +150,156 @@ export function LevelReadyScreen({save, levelNumber, onPlay, onBack, onShop, onS
   };
 
   return (
-    <Screen onBack={onBack} backLabel={t('levelreadyscreen.back_to_game')}>
-      <View style={styles.header}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {t('gameplaycontrols.boosts_2')}
-        </Text>
-        <View style={styles.headerRow}>
-          <View style={styles.headerCopy}>
-            <Text style={styles.subtitle}>{t('levelreadyscreen.choose_up_to_n', {value1: BOOST_LOADOUT_LIMIT})}</Text>
-            <Text style={styles.launchNote}>
-              {t('levelreadyscreen.choose_boosts_now_stock_is_used_only_when_you_launch_cancelling_y')}
+    <Screen scroll={false} onBack={onBack} backLabel={t('levelreadyscreen.back_to_game')}>
+      <View style={styles.body}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <Text accessibilityRole="header" style={styles.title}>
+              {t('gameplaycontrols.boosts_2')}
             </Text>
-            <Text style={styles.levelMeta}>
-              {(world?.name ?? t('journeyscreen.journey')).toUpperCase()} · L{levelNumber}
-              {def?.windX ? ` · ${t('levelreadyscreen.wind_active')}` : ''}
-            </Text>
-          </View>
-          {showBoosts ? (
-            <View style={styles.maxBadge} accessibilityLabel={t('levelreadyscreen.max_slots', {value1: selectedCount, value2: BOOST_LOADOUT_LIMIT})}>
-              <Text style={styles.maxLabel}>{t('levelreadyscreen.max_n', {value1: BOOST_LOADOUT_LIMIT})}</Text>
-              <View style={styles.slots}>
-                {Array.from({length: BOOST_LOADOUT_LIMIT}, (_, i) => (
-                  <View key={i} style={[styles.slot, i < selectedCount && styles.slotFilled]} />
-                ))}
+            <View style={styles.headerRow}>
+              <View style={styles.headerCopy}>
+                <Text style={styles.subtitle}>
+                  {t('levelreadyscreen.choose_up_to_n', {value1: BOOST_LOADOUT_LIMIT})}
+                </Text>
+                <Text style={styles.launchNote}>
+                  {t(
+                    'levelreadyscreen.choose_boosts_now_stock_is_used_only_when_you_launch_cancelling_y',
+                  )}
+                </Text>
+                <Text style={styles.levelMeta}>
+                  {(world?.name ?? t('journeyscreen.journey')).toUpperCase()} · L{levelNumber}
+                  {def?.windX ? ` · ${t('levelreadyscreen.wind_active')}` : ''}
+                </Text>
               </View>
+              {showBoosts ? (
+                <View
+                  style={styles.maxBadge}
+                  accessibilityLabel={t('levelreadyscreen.max_slots', {
+                    value1: selectedCount,
+                    value2: BOOST_LOADOUT_LIMIT,
+                  })}
+                >
+                  <Text style={styles.maxLabel}>
+                    {t('levelreadyscreen.max_n', {value1: BOOST_LOADOUT_LIMIT})}
+                  </Text>
+                  <View style={styles.slots}>
+                    {Array.from({length: BOOST_LOADOUT_LIMIT}, (_, i) => (
+                      <View key={i} style={[styles.slot, i < selectedCount && styles.slotFilled]} />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
             </View>
+          </View>
+
+          <View style={styles.sparkRow}>
+            <View style={{flex: 1}}>
+              <Text style={styles.sparkEyebrow}>{t('levelreadyscreen.equipped_spark')}</Text>
+              <Text style={styles.sparkName}>{spark.name}</Text>
+              <Text style={styles.sparkPassive} numberOfLines={2}>
+                {t('levelreadyscreen.passive')}: {passive.summary}
+              </Text>
+            </View>
+            {onSparks ? (
+              <Pressable accessibilityRole="button" onPress={onSparks} style={styles.changeSpark}>
+                <Text style={styles.changeSparkText}>{t('levelreadyscreen.change_collection')}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {loadoutHint ? (
+            <Text accessibilityLiveRegion="polite" style={styles.loadoutHint}>
+              {t('levelreadyscreen.loadout_full_remove_one')}
+            </Text>
+          ) : null}
+
+          {showBoosts ? (
+            <View style={[styles.grid, columns === 3 && styles.gridWide, {gap: BOOST_GRID_GAP}]}>
+              {BOOSTS.map((boost) => {
+                const owned = inv[boost.id] ?? 0;
+                const on = Boolean(selected[boost.id]);
+                const needsShop = owned <= 0;
+                return (
+                  <View
+                    key={boost.id}
+                    style={[
+                      styles.card,
+                      on && styles.cardOn,
+                      needsShop && styles.cardLocked,
+                      {width: cardWidth},
+                    ]}
+                  >
+                    <Pressable
+                      accessibilityRole={needsShop ? 'button' : 'checkbox'}
+                      accessibilityLabel={`${boost.label}. ${needsShop ? t('levelreadyscreen.get_in_shop') : boost.short}`}
+                      accessibilityState={needsShop ? undefined : {checked: on}}
+                      onPress={() => toggleBoost(boost.id, owned)}
+                      style={styles.cardPress}
+                    >
+                      <View style={styles.artWrap}>
+                        <ShopArt tile={boost.tile} style={styles.art} />
+                      </View>
+                      <Text style={styles.cardName} numberOfLines={1}>
+                        {boost.label}
+                      </Text>
+                      <Text style={styles.cardShort} numberOfLines={2}>
+                        {boost.short}
+                      </Text>
+                      <View style={styles.cardFooter}>
+                        <View style={[styles.check, on && styles.checkOn]} />
+                        <View style={[styles.qty, needsShop && styles.qtyShop]}>
+                          <Text style={[styles.qtyText, needsShop && styles.qtyShopText]}>
+                            {needsShop ? t('levelreadyscreen.get_in_shop') : `x${owned}`}
+                          </Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t('levelreadyscreen.info_about', {value1: boost.label})}
+                      hitSlop={10}
+                      onPress={() => setInfoId(boost.id)}
+                      style={styles.infoBtn}
+                    >
+                      <Text style={styles.infoGlyph}>ⓘ</Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.teaching}>{t('levelreadyscreen.no_boosts_learn_the_throw')}</Text>
+          )}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <View style={styles.tip}>
+            <Text style={styles.tipIcon}>💡</Text>
+            <Text style={styles.tipText}>{t('levelreadyscreen.footer_tip')}</Text>
+          </View>
+          <Button
+            label={
+              showBoosts
+                ? t('levelreadyscreen.equip_return')
+                : t('levelreadyscreen.return_to_game')
+            }
+            disabled={showBoosts && !hasSelection}
+            onPress={() => onPlay(selected)}
+          />
+          {showBoosts ? (
+            <Button
+              variant="outline"
+              label={t('levelreadyscreen.shop_get_boosts')}
+              onPress={onShop}
+            />
           ) : null}
         </View>
-      </View>
-
-      <View style={styles.sparkRow}>
-        <View style={{flex: 1}}>
-          <Text style={styles.sparkEyebrow}>{t('levelreadyscreen.equipped_spark')}</Text>
-          <Text style={styles.sparkName}>{spark.name}</Text>
-          <Text style={styles.sparkPassive} numberOfLines={2}>
-            {t('levelreadyscreen.passive')}: {passive.summary}
-          </Text>
-        </View>
-        {onSparks ? (
-          <Pressable accessibilityRole="button" onPress={onSparks} style={styles.changeSpark}>
-            <Text style={styles.changeSparkText}>{t('levelreadyscreen.change_collection')}</Text>
-          </Pressable>
-        ) : null}
-      </View>
-
-      {loadoutHint ? (
-        <Text accessibilityLiveRegion="polite" style={styles.loadoutHint}>
-          {t('levelreadyscreen.loadout_full_remove_one')}
-        </Text>
-      ) : null}
-
-      {showBoosts ? (
-        <View style={[styles.grid, columns === 3 && styles.gridWide]}>
-          {BOOSTS.map((boost) => {
-            const owned = inv[boost.id] ?? 0;
-            const on = Boolean(selected[boost.id]);
-            const needsShop = owned <= 0;
-            return (
-              <View
-                key={boost.id}
-                style={[
-                  styles.card,
-                  on && styles.cardOn,
-                  needsShop && styles.cardLocked,
-                  {width: columns === 3 ? '31.5%' : '48.5%'},
-                ]}
-              >
-                <Pressable
-                  accessibilityRole={needsShop ? 'button' : 'checkbox'}
-                  accessibilityLabel={`${boost.label}. ${needsShop ? t('levelreadyscreen.get_in_shop') : boost.short}`}
-                  accessibilityState={needsShop ? undefined : {checked: on}}
-                  onPress={() => toggleBoost(boost.id, owned)}
-                  style={styles.cardPress}
-                >
-                  <View style={styles.artWrap}>
-                    <ShopArt tile={boost.tile} style={styles.art} />
-                  </View>
-                  <Text style={styles.cardName} numberOfLines={1}>
-                    {boost.label}
-                  </Text>
-                  <Text style={styles.cardShort} numberOfLines={2}>
-                    {boost.short}
-                  </Text>
-                  <View style={styles.cardFooter}>
-                    <View style={[styles.check, on && styles.checkOn]} />
-                    <View style={[styles.qty, needsShop && styles.qtyShop]}>
-                      <Text style={[styles.qtyText, needsShop && styles.qtyShopText]}>
-                        {needsShop ? t('levelreadyscreen.get_in_shop') : `x${owned}`}
-                      </Text>
-                    </View>
-                  </View>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t('levelreadyscreen.info_about', {value1: boost.label})}
-                  hitSlop={10}
-                  onPress={() => setInfoId(boost.id)}
-                  style={styles.infoBtn}
-                >
-                  <Text style={styles.infoGlyph}>ⓘ</Text>
-                </Pressable>
-              </View>
-            );
-          })}
-        </View>
-      ) : (
-        <Text style={styles.teaching}>{t('levelreadyscreen.no_boosts_learn_the_throw')}</Text>
-      )}
-
-      <View style={styles.tip}>
-        <Text style={styles.tipIcon}>💡</Text>
-        <Text style={styles.tipText}>{t('levelreadyscreen.footer_tip')}</Text>
-      </View>
-
-      {showBoosts ? (
-        <View style={styles.shopLink}>
-          <Button label={t('levelreadyscreen.shop_get_boosts')} onPress={onShop} />
-        </View>
-      ) : null}
-      <View style={styles.play}>
-        <Button
-          label={
-            Object.values(selected).some(Boolean)
-              ? t('levelreadyscreen.equip_return')
-              : t('levelreadyscreen.return_to_game')
-          }
-          onPress={() => onPlay(selected)}
-        />
       </View>
 
       <Modal
@@ -298,7 +332,7 @@ export function LevelReadyScreen({save, levelNumber, onPlay, onBack, onShop, onS
                       label={t('levelreadyscreen.shop_get_boosts')}
                       onPress={() => {
                         setInfoId(null);
-                        onShop();
+                        onShop(infoBoost.id as ShopBoost);
                       }}
                     />
                   ) : null}
@@ -316,6 +350,9 @@ export function LevelReadyScreen({save, levelNumber, onPlay, onBack, onShop, onS
 }
 
 const styles = StyleSheet.create({
+  body: {flex: 1, minHeight: 0, width: '100%'},
+  scroll: {flex: 1, minHeight: 0},
+  scrollContent: {paddingBottom: space.sm, flexGrow: 1},
   header: {marginTop: space.sm, marginBottom: space.sm, gap: 8},
   title: {
     color: color.white,
@@ -382,7 +419,7 @@ const styles = StyleSheet.create({
     marginBottom: space.sm,
     lineHeight: 17,
   },
-  grid: {flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12},
+  grid: {flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', width: '100%'},
   gridWide: {justifyContent: 'flex-start'},
   card: {
     borderRadius: radius.lg,
@@ -465,7 +502,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   tip: {
-    marginTop: space.lg,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
@@ -477,8 +513,13 @@ const styles = StyleSheet.create({
   },
   tipIcon: {fontSize: 16, marginTop: 1},
   tipText: {flex: 1, color: color.creamMuted, fontFamily: fontUi, fontSize: 12, lineHeight: 17},
-  shopLink: {marginTop: space.md},
-  play: {marginTop: space.sm, marginBottom: space.md},
+  footer: {
+    gap: 10,
+    paddingTop: space.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: color.stroke,
+    backgroundColor: 'rgba(4,12,22,0.97)',
+  },
   modalBackdrop: {
     flex: 1,
     backgroundColor: color.overlayHeavy,

@@ -35,7 +35,7 @@ import { OutOfEnergyScreen } from './src/ui/OutOfEnergyScreen';
 import { ResourceModal } from './src/ui/ResourceModal';
 import { ResultFeedback } from './src/ui/ResultFeedback';
 import { SettingsScreen } from './src/ui/SettingsScreen';
-import { ShopScreen } from './src/ui/ShopScreen';
+import { ShopScreen, type ShopBoost } from './src/ui/ShopScreen';
 import { SparksScreen } from './src/ui/SparksScreen';
 import { StatsScreen } from './src/ui/StatsScreen';
 import { PurchaseService } from './src/services/purchases/PurchaseService';
@@ -191,6 +191,7 @@ function AppShell() {
   const [purchaseBusy, setPurchaseBusy] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
   const [shopReturn,setShopReturn]=useState<AppScreen>('home');
+  const [shopFocusBoost,setShopFocusBoost]=useState<ShopBoost|null>(null);
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
   const [suppliesOpen, setSuppliesOpen] = useState(false);
@@ -561,6 +562,7 @@ function AppShell() {
             gameRef.current?.pause();
           }
           refreshSave();
+          setShopFocusBoost(null);
           setShopReturn(playing ? 'play' : 'home');
           setScreen('shop');
         }}
@@ -573,8 +575,8 @@ function AppShell() {
         <OutOfEnergyScreen
           save={save}
           onWatch={async()=>{await gameRef.current?.watchRewardedEnergy();refreshSave();}}
-          onShop={()=>{refreshSave();setShopReturn(screen);setScreen('shop');}}
-          onOvercharge={()=>{refreshSave();setShopReturn(screen);setScreen('shop');}}
+          onShop={()=>{refreshSave();setShopFocusBoost(null);setShopReturn(screen);setScreen('shop');}}
+          onOvercharge={()=>{refreshSave();setShopFocusBoost(null);setShopReturn(screen);setScreen('shop');}}
           onRetry={() =>
             tap(() => {
               if (screen === 'outOfEnergy') {
@@ -665,6 +667,7 @@ function AppShell() {
           onShop={() =>
             tap(() => {
               syncEnergyAndSave();
+              setShopFocusBoost(null);
               setShopReturn('home');setScreen('shop');
             })
           }
@@ -725,7 +728,12 @@ function AppShell() {
       ) : null}
       {screen === 'levelReady' || (screen==='shop'&&shopReturn==='levelReady') ? (
         <View style={[StyleSheet.absoluteFill,{display:screen==='levelReady'?'flex':'none'}]}><LevelReadyScreen
-          onShop={()=>{refreshSave();setShopReturn('levelReady');setScreen('shop');}}
+          onShop={(boostId)=>{
+            refreshSave();
+            setShopFocusBoost(boostId ?? null);
+            setShopReturn('levelReady');
+            setScreen('shop');
+          }}
           onSparks={()=>{refreshSave();setScreen('sparks');}}
           save={save}
           levelNumber={pendingLevel}
@@ -765,6 +773,7 @@ function AppShell() {
       {screen === 'shop' ? (
         <ShopScreen
           save={save}
+          focusBoost={shopFocusBoost}
           onBuyBoost={(id) => {
             GameHaptics.forUi();
             AudioManager.play('ui');
@@ -772,6 +781,7 @@ function AppShell() {
             refreshSave();
             // Mid-run boost buy: return to boost pick / game so the player can equip and continue.
             if (ok && (shopReturn === 'levelReady' || shopReturn === 'play')) {
+              setShopFocusBoost(null);
               tap(() => setScreen(shopReturn));
             }
           }}
@@ -781,7 +791,7 @@ function AppShell() {
           onOvercharge={async(id)=>{const result=await gameRef.current?.purchaseOvercharge(id)??'unavailable';refreshSave();return result;}}
           onRestoreOvercharge={async()=>{const ok=await gameRef.current?.restoreOverchargePurchases()??false;refreshSave();return ok;}}
           backLabel={shopReturn==='levelReady'?t("app.back_to_boosts"):shopReturn==='home'?'BACK':t("app.back_to_game")}
-          onBack={() => tap(() => {refreshSave();setScreen(shopReturn);})}
+          onBack={() => tap(() => {refreshSave();setShopFocusBoost(null);setScreen(shopReturn);})}
         />
       ) : null}
       {screen === 'graphics' ? (

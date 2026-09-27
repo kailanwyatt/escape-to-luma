@@ -763,6 +763,8 @@
   "shopscreen.flight_kit": "FLIGHT KIT",
   "shopscreen.temporary_boosts_for_your_next_attempt": "TEMPORARY BOOSTS FOR YOUR NEXT ATTEMPT",
   "shopscreen.added_to_your_kit": "{value1} added to your kit.",
+  "shopscreen.focus_boost": "Looking at {value1}",
+  "shopscreen.selected_from_boosts": "FROM YOUR BOOST PICK",
   "shopscreen.in_your_kit": "IN YOUR KIT: ",
   "shopscreen.recharge_spark": "Recharge Spark",
   "shopscreen.energy_returns_automatically_1_every": "Energy returns automatically: 1 every ",
