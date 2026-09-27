@@ -1,6 +1,4 @@
-import {createReadableBlocker} from './ReadableBlockerVisual';
 import * as THREE from 'three';
-
 import type { EnvironmentId } from '../config/ChallengeConfig';
 import type { OrbiterConfig } from '../config/ObstacleConfig';
 import { GAME_TUNING } from '../game/gameTuning';
@@ -11,7 +9,9 @@ import {
   type ObstaclePredictedState,
 } from './GameplayObstacle';
 import { interpolateAtZ } from './SlidingGateObstacle';
+import { OrbiterArt } from './OrbiterArt';
 
+/** Centered root: orbit path stays fixed while the satellite body rides the ring. */
 export class OrbiterObstacle {
   readonly id: string;
   readonly type = 'orbiter' as const;
@@ -21,10 +21,11 @@ export class OrbiterObstacle {
   blockerX = 0;
   blockerY = 3;
   private config: OrbiterConfig | null = null;
-  private mesh: THREE.Mesh | null = null;
+  private art: OrbiterArt | null = null;
 
   constructor(id: string) {
     this.id = id;
+    this.group.name = 'orbiter';
     this.group.visible = false;
   }
 
@@ -33,11 +34,15 @@ export class OrbiterObstacle {
     this.active = true;
     this.group.visible = true;
     this.z = config.z;
-    if (!this.mesh) {
-      this.mesh = createReadableBlocker('drone');
-      this.group.add(this.mesh);
+    this.group.position.set(config.centerX, config.centerY, config.z);
+
+    if (this.art) {
+      this.group.remove(this.art.group);
+      this.art.dispose();
+      this.art = null;
     }
-    this.mesh.scale.setScalar(config.blockerRadius);
+    this.art = new OrbiterArt(config, environment);
+    this.group.add(this.art.group);
     this.update(0, 0);
   }
 
@@ -48,13 +53,13 @@ export class OrbiterObstacle {
   }
 
   update(_dt: number, elapsedTime: number): void {
-    if (!this.active || !this.config) {
+    if (!this.active || !this.config || !this.art) {
       return;
     }
     const pos = orbiterPosition(this.config, elapsedTime);
     this.blockerX = pos.x;
     this.blockerY = pos.y;
-    this.group.position.set(pos.x, pos.y, this.z);
+    this.art.update(elapsedTime);
   }
 
   testProjectileCrossing(

@@ -1,17 +1,17 @@
 /**
- * TestFlight policy.
+ * App Store / production policy.
  *
- * All 150 campaign levels remain playable. The beta disables simulated
- * commerce/tracking surfaces so testers evaluate the game, not mocks.
+ * Ads + ATT are enabled so AdMob serves as soon as the approved build is live.
+ * Analytics stays off until a real analytics backend is wired.
  */
 export const RELEASE_POLICY = {
-  channel: 'testflight',
+  channel: 'production',
   campaignMaxLevel: 150,
   freeRetries: false,
-  adsEnabled: false,
+  adsEnabled: true,
   purchasesEnabled: true,
   analyticsEnabled: false,
-  trackingPromptEnabled: false,
+  trackingPromptEnabled: true,
   showDeveloperGraphicsScreen: typeof __DEV__ !== 'undefined' && __DEV__,
 } as const;
 

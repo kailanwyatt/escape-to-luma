@@ -74,23 +74,24 @@ describe('campaign progression', () => {
     expect(first.worldComplete).toBe(true);
     expect(first.save.campaign.stats.worldsCompleted).toBe(1);
     expect(first.shardsGained).toBeGreaterThanOrEqual(ECONOMY.shards.worldCompletion);
+    expect(first.unlockedSparkId).toBe('reactor');
 
     const replay = applyLevelSuccess(first.save, definition, 'CLEAR', 0);
     expect(replay.worldComplete).toBe(false);
     expect(replay.unlockedSparkId).toBeNull();
-    expect(replay.save.campaign.ownedSparkIds.filter(id => id === WORLDS[0].completionSparkId)).toHaveLength(1);
+    expect(replay.save.campaign.ownedSparkIds.filter(id => id === 'reactor')).toHaveLength(1);
     expect(replay.save.campaign.stats.worldsCompleted).toBe(1);
     expect(replay.save.campaign.shards).toBe(shardsAfterFirst + ECONOMY.shards.repeatClear);
   });
 
-  it('unlocks World 3 normally after level 30', () => {
+  it('unlocks Ascent normally after level 30', () => {
     const save = emptySave();
     save.campaign.highestUnlockedLevel = 30;
     save.campaign.unlockedWorldIds.push('city');
     const result = applyLevelSuccess(save, getCampaignLevel(30)!, 'GREAT', 0);
     expect(result.nextLevel).toBe(31);
     expect(result.save.campaign.highestUnlockedLevel).toBe(31);
-    expect(result.save.campaign.unlockedWorldIds).toContain('sky');
+    expect(result.save.campaign.unlockedWorldIds).toContain('ascent');
   });
 
   it('marks the full campaign complete without level 151', () => {
@@ -107,12 +108,12 @@ describe('campaign progression', () => {
     const first = applyLevelSuccess(emptySave(), finale, 'CLEAR', 0);
     expect(first.campaignComplete).toBe(true);
     expect(first.shardsGained).toBe(ECONOMY.shards.worldCompletion + ECONOMY.shards.levelClear);
-    expect(first.unlockedSparkId).toBe(WORLDS[9].completionSparkId);
+    expect(first.unlockedSparkId).toBe('origin');
     const replay = applyLevelSuccess(first.save, finale, 'CLEAR', 0);
     expect(replay.campaignComplete).toBe(false);
     expect(replay.worldComplete).toBe(false);
     expect(replay.unlockedSparkId).toBeNull();
-    expect(replay.save.campaign.ownedSparkIds.filter(id => id === WORLDS[9].completionSparkId)).toHaveLength(1);
+    expect(replay.save.campaign.ownedSparkIds.filter(id => id === 'origin')).toHaveLength(1);
     expect(replay.shardsGained).toBe(ECONOMY.shards.repeatClear);
     expect(replay.save.campaign.campaignCompleted).toBe(true);
     for (const number of [1, 44, 68, 91, 149]) {

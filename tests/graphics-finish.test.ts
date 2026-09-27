@@ -7,7 +7,7 @@ import {createMoonArt,createSkyClouds} from '../src/environment/SkyMoonArt';
 
 describe('finished scene boundaries and ownership',()=>{
  it('keeps every world housing outside the scoring aperture',()=>{
-  for(const world of ['city','sky','atmosphere','orbit','moon','asteroid','nebula','network','homeward']){
+  for(const world of ['city','ascent','storm','upper_atmosphere','orbit','moon','asteroid_belt','nebula','ancient_network','homeward','luma']){
    const root=createWorldGateHousing(world);let minimum=Infinity;
    root.traverse(o=>{if(o instanceof THREE.Mesh){const p=o.geometry.attributes.position;for(let i=0;i<p.count;i++)minimum=Math.min(minimum,Math.hypot(p.getX(i),p.getY(i)));}});
    expect(minimum).toBeGreaterThan(1);disposeThreeObject(root);

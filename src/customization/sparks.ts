@@ -1,5 +1,9 @@
 import {t} from '../i18n';
 import type { RuntimeAssetId } from '../graphics/assetRegistry';
+import {
+  abilityIdForSpark,
+  type SparkAbilityId,
+} from './sparkAbilities';
 
 export type SkinAcquisition = 'default' | 'shards' | 'world_completion' | 'mastery' | 'premium';
 
@@ -30,6 +34,8 @@ export type SparkDefinition = {
   trailWidth: number;
   trailColor: number;
   visualProfile?: SparkVisualProfile;
+  /** Persistent passive specialization; lookup may also use sparkAbilities catalog. */
+  abilityId?: SparkAbilityId;
 };
 
 const DEFAULT_PROFILE: SparkVisualProfile = {
@@ -40,6 +46,10 @@ const DEFAULT_PROFILE: SparkVisualProfile = {
   glowScale: 1,
   orbitSpeed: 1,
 };
+
+function portrait(id: string): RuntimeAssetId {
+  return `spark.${id}` as RuntimeAssetId;
+}
 
 export const SPARK_CATALOG: SparkDefinition[] = [
   {
@@ -59,7 +69,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
       shellOpacity: 0.24,
       glowScale: 1,
       orbitSpeed: 1,
-      portraitAssetId: 'spark.original',
+      portraitAssetId: portrait('original'),
     },
   },
   {
@@ -80,7 +90,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
       shellOpacity: 0.32,
       glowScale: 1.18,
       orbitSpeed: 1.55,
-      portraitAssetId: 'spark.neon',
+      portraitAssetId: portrait('neon'),
     },
   },
   {
@@ -94,6 +104,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 50,
     trailWidth: 0.09,
     trailColor: 0xffd060,
+    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'hot', glowScale: 1.12, orbitStyle: 'reactor', portraitAssetId: portrait('solar') },
   },
   {
     id: 'frost',
@@ -106,6 +117,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 100,
     trailWidth: 0.07,
     trailColor: 0xb8e4ff,
+    visualProfile: { ...DEFAULT_PROFILE, pulseRate: 0.85, orbitStyle: 'calm', portraitAssetId: portrait('frost') },
   },
   {
     id: 'storm',
@@ -125,19 +137,21 @@ export const SPARK_CATALOG: SparkDefinition[] = [
       shellOpacity: 0.28,
       glowScale: 1.1,
       orbitSpeed: 1.25,
+      portraitAssetId: portrait('storm'),
     },
   },
   {
     id: 'aurora',
     name: t("sparks.aurora"),
     acquisition: 'world_completion',
-    worldId: 'atmosphere',
+    worldId: 'upper_atmosphere',
     color: 0x6dffc8,
     emissive: 0x2bff9a,
     emissiveIntensity: 0.9,
     shininess: 65,
     trailWidth: 0.09,
     trailColor: 0xa0ffe0,
+    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'ribbon', glowScale: 1.15, portraitAssetId: portrait('aurora') },
   },
   {
     id: 'plasma',
@@ -150,6 +164,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 70,
     trailWidth: 0.08,
     trailColor: 0xc9a0ff,
+    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'hot', pulseRate: 1.3, orbitStyle: 'neon', portraitAssetId: portrait('plasma') },
   },
   {
     id: 'lunar',
@@ -162,18 +177,20 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 90,
     trailWidth: 0.06,
     trailColor: 0xc8d0e0,
+    visualProfile: { ...DEFAULT_PROFILE, pulseRate: 0.75, glowScale: 0.92, portraitAssetId: portrait('lunar') },
   },
   {
     id: 'meteor',
     name: t("sparks.meteor"),
     acquisition: 'world_completion',
-    worldId: 'asteroid',
+    worldId: 'asteroid_belt',
     color: 0xff7a2a,
     emissive: 0xff3b00,
     emissiveIntensity: 0.85,
     shininess: 40,
     trailWidth: 0.1,
     trailColor: 0xffb060,
+    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'hot', glowScale: 1.2, portraitAssetId: portrait('meteor') },
   },
   {
     id: 'nebula',
@@ -186,6 +203,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 55,
     trailWidth: 0.09,
     trailColor: 0xe0a0ff,
+    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'ribbon', glowScale: 1.16, portraitAssetId: portrait('nebula') },
   },
   {
     id: 'void',
@@ -198,6 +216,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 30,
     trailWidth: 0.1,
     trailColor: 0xd4b8ff,
+    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'hot', shellOpacity: 0.4, orbitStyle: 'storm', portraitAssetId: portrait('void') },
   },
   {
     id: 'reactor',
@@ -217,7 +236,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
       shellOpacity: 0.3,
       glowScale: 1.14,
       orbitSpeed: 1.35,
-      portraitAssetId: 'spark.reactor',
+      portraitAssetId: portrait('reactor'),
     },
   },
   {
@@ -230,6 +249,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 110,
     trailWidth: 0.07,
     trailColor: 0xffe08a,
+    visualProfile: { ...DEFAULT_PROFILE, pulseRate: 0.9, portraitAssetId: portrait('ancient') },
   },
   {
     id: 'origin',
@@ -242,6 +262,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 120,
     trailWidth: 0.11,
     trailColor: 0xffffff,
+    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'ribbon', glowScale: 1.25, portraitAssetId: portrait('origin') },
   },
   {
     id: 'prism',
@@ -254,6 +275,7 @@ export const SPARK_CATALOG: SparkDefinition[] = [
     shininess: 100,
     trailWidth: 0.09,
     trailColor: 0xffffff,
+    visualProfile: { ...DEFAULT_PROFILE, trailMode: 'hot', pulseRate: 1.35, orbitStyle: 'neon', portraitAssetId: portrait('prism') },
   },
 ];
 
@@ -261,6 +283,10 @@ export const DEFAULT_SPARK_ID = 'original';
 
 export function sparkById(id: string): SparkDefinition {
   return SPARK_CATALOG.find((spark) => spark.id === id) ?? SPARK_CATALOG[0];
+}
+
+export function sparkAbilityId(spark: SparkDefinition): SparkAbilityId {
+  return spark.abilityId ?? abilityIdForSpark(spark.id);
 }
 
 export function sparkVisualProfile(spark: SparkDefinition): SparkVisualProfile {

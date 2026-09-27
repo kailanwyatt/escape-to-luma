@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import {FormationObstacle} from './FormationObstacle';
+import {LibraryObstacle} from './LibraryObstacle';
+import {StoryLibraryObstacle} from './StoryLibraryObstacle';
 
 import type { EnvironmentId } from '../config/ChallengeConfig';
 import {
@@ -21,6 +23,45 @@ import { ShiftingApertureObstacle } from './ShiftingApertureObstacle';
 import { interpolateAtZ, SlidingGateObstacle } from './SlidingGateObstacle';
 import { disposeThreeObject } from '../utils/disposeThree';
 
+const LIBRARY_TYPES = new Set<ObstacleType>([
+  'pistonField',
+  'clockHands',
+  'elevatorBlocks',
+  'pulseRing',
+  'scissorGate',
+  'groundCutLasers',
+  'speedField',
+  'splitShutter',
+  'reactiveGate',
+  'conveyorGate',
+  'rollingAperture',
+  'corkscrewTunnel',
+  'cometCrossing',
+  'billboardFlip',
+  'dockingCollar',
+  'shearLane',
+  'rotatingGate',
+  'energyField',
+  'phaseGate',
+  'repulsor',
+]);
+
+const STORY_TYPES = new Set<ObstacleType>([
+  'orbitingMoons',
+  'sequentialTunnel',
+  'movingSafeZone',
+  'accretionShredder',
+  'pulsarBeam',
+  'solarSail',
+  'magnetopause',
+  'lagrangeNull',
+  'teleportPortal',
+  'entryExitPortal',
+  'theNull',
+  'nullTendril',
+  'nullLash',
+]);
+
 type ObstacleImpl =
   | RotorObstacle
   | SlidingGateObstacle
@@ -32,7 +73,9 @@ type ObstacleImpl =
   | PhaseFieldObstacle
   | ShiftingApertureObstacle
   | LaserGridObstacle
-  | FormationObstacle;
+  | FormationObstacle
+  | LibraryObstacle
+  | StoryLibraryObstacle;
 
 export class ObstacleSlot {
   readonly id: string;
@@ -104,7 +147,13 @@ export class ObstacleSlot {
     currentSimulationTime?: number,
     stepSeconds?: number,
   ): ObstacleCollisionResult | null {
-    if (this.impl instanceof FormationObstacle || this.impl instanceof LaserGridObstacle || this.impl instanceof SlidingGateObstacle) {
+    if (
+      this.impl instanceof FormationObstacle ||
+      this.impl instanceof LaserGridObstacle ||
+      this.impl instanceof SlidingGateObstacle ||
+      this.impl instanceof LibraryObstacle ||
+      this.impl instanceof StoryLibraryObstacle
+    ) {
       return this.impl.testProjectileCrossing(
         previous,
         current,
@@ -114,6 +163,31 @@ export class ObstacleSlot {
       );
     }
     return this.impl.testProjectileCrossing(previous, current, projectileRadius);
+  }
+
+  /** Entry/exit portal warp destination after a successful crossing. */
+  warpTarget(): { x: number; y: number } | null {
+    return this.impl instanceof StoryLibraryObstacle ? this.impl.warpTarget() : null;
+  }
+
+  /** True vs decoy warp from crossing XY (legacy single-disk). */
+  warpAtCrossing(x: number, y: number, time?: number): { x: number; y: number; kind: 'true' | 'false' } | null {
+    return this.impl instanceof StoryLibraryObstacle ? this.impl.warpAtCrossing(x, y, time) : null;
+  }
+
+  entryCrossingAt(
+    x: number,
+    y: number,
+    time?: number,
+    projectileRadius?: number,
+  ): 'true' | 'false' | 'wall' | null {
+    return this.impl instanceof StoryLibraryObstacle
+      ? this.impl.entryCrossingAt(x, y, time, projectileRadius)
+      : null;
+  }
+
+  isMultiEntryRelay(): boolean {
+    return this.impl instanceof StoryLibraryObstacle ? this.impl.isMultiEntryRelay() : false;
   }
 
   laserBeamsAtTime(elapsedTime: number) {
@@ -196,6 +270,41 @@ function createImpl(id: string, type: ObstacleType): ObstacleImpl {
       return new ShiftingApertureObstacle(id);
     case 'laserGrid':
       return new LaserGridObstacle(id);
+    case 'pistonField':
+    case 'clockHands':
+    case 'elevatorBlocks':
+    case 'pulseRing':
+    case 'scissorGate':
+    case 'groundCutLasers':
+    case 'speedField':
+    case 'splitShutter':
+    case 'reactiveGate':
+    case 'conveyorGate':
+    case 'rollingAperture':
+    case 'corkscrewTunnel':
+    case 'cometCrossing':
+    case 'billboardFlip':
+    case 'dockingCollar':
+    case 'shearLane':
+    case 'rotatingGate':
+    case 'energyField':
+    case 'phaseGate':
+    case 'repulsor':
+      return new LibraryObstacle(id);
+    case 'orbitingMoons':
+    case 'sequentialTunnel':
+    case 'movingSafeZone':
+    case 'accretionShredder':
+    case 'pulsarBeam':
+    case 'solarSail':
+    case 'magnetopause':
+    case 'lagrangeNull':
+    case 'teleportPortal':
+    case 'entryExitPortal':
+    case 'theNull':
+    case 'nullTendril':
+    case 'nullLash':
+      return new StoryLibraryObstacle(id);
     default:
       return new RotorObstacle(id);
   }
@@ -206,6 +315,14 @@ function applyTypedConfig(
   config: ObstacleConfig,
   environment: EnvironmentId,
 ): void {
+  if (impl instanceof LibraryObstacle && LIBRARY_TYPES.has(obstacleTypeOf(config))) {
+    impl.applyConfig(config as Parameters<LibraryObstacle['applyConfig']>[0], environment);
+    return;
+  }
+  if (impl instanceof StoryLibraryObstacle && STORY_TYPES.has(obstacleTypeOf(config))) {
+    impl.applyConfig(config as Parameters<StoryLibraryObstacle['applyConfig']>[0], environment);
+    return;
+  }
   if (impl instanceof FormationObstacle && config.type === 'formation') {impl.applyConfig(config,environment);return;}
   if (impl instanceof SlidingGateObstacle && config.type === 'slidingGate') {
     impl.applyConfig(config, environment);

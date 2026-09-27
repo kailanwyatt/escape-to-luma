@@ -29,14 +29,38 @@ describe('authored campaign compositions',()=>{
     const source=getCampaignLevel(37)!;const before=JSON.stringify(source);
     composeCampaignLevel(source);expect(JSON.stringify(source)).toBe(before);
     expect(getCampaignLevel(150)!.challenge.obstacles).toHaveLength(0);
-    for(const n of [147,149])expect(getCampaignLevel(n)!.challenge.obstacles).toHaveLength(2);
-    for(const n of [146,148]){const gates=getCampaignLevel(n)!.challenge.obstacles;expect(gates).toHaveLength(3);expect(gates.every(o=>o.type==='iris')).toBe(true);}
+    for (const n of [147, 148, 149]) {
+      const level = getCampaignLevel(n)!;
+      expect(level.worldId).toBe('luma');
+      expect(level.challenge.obstacles).toHaveLength(1);
+      expect(level.challenge.obstacles[0].type).toBe('iris');
+      expect(level.windX ?? 0).toBe(0);
+      expect(level.gravityWells ?? []).toHaveLength(0);
+    }
+    // L146 is homeward mastery (EncounterProgression tunnel) before Luma ceremony.
+    const homewardFinale = getCampaignLevel(146)!;
+    expect(homewardFinale.worldId).toBe('homeward');
+    expect(homewardFinale.challenge.obstacles.length).toBeGreaterThanOrEqual(2);
   });
-  it('introduces Sky paths alone before paired timing encounters',()=>{
-    const first=[31,32,33].map(n=>getCampaignLevel(n)!.challenge.obstacles);
-    expect(first.every(o=>o.length===1)).toBe(true);
-    expect(first.map(o=>o[0].type==='movingRing'?o[0].movement.type:null)).toEqual(['horizontal','vertical','ellipse']);
-    for(let n=38;n<=45;n++)expect(getCampaignLevel(n)!.challenge.obstacles).toHaveLength(2);
+  it('keeps Ascent library remaps isolated before paired timing encounters', () => {
+    expect(getCampaignLevel(32)!.challenge.obstacles).toHaveLength(1);
+    expect(getCampaignLevel(32)!.challenge.obstacles[0].type).toBe('groundCutLasers');
+    expect(getCampaignLevel(33)!.challenge.obstacles).toHaveLength(1);
+    expect(getCampaignLevel(33)!.challenge.obstacles[0].type).toBe('movingRing');
+    expect(getCampaignLevel(40)!.challenge.obstacles[0].type).toBe('pulseRing');
     expect(Math.abs(getCampaignLevel(45)!.windX!)).toBeGreaterThan(Math.abs(getCampaignLevel(31)!.windX!));
+  });
+  it('keeps Upper Atmosphere mastery on iris and climb rings, not city gates', () => {
+    const mastery = [57, 59, 60].map((n) => getCampaignLevel(n)!);
+    for (const level of mastery) {
+      expect(level.worldId).toBe('upper_atmosphere');
+      const types = level.challenge.obstacles.map((o) => o.type);
+      expect(types).toContain('iris');
+      expect(types).toContain('movingRing');
+      expect(types).not.toContain('slidingGate');
+      expect(types).not.toContain('driftingBlocker');
+      expect(types).not.toContain('solarSail');
+    }
+    expect(getCampaignLevel(47)!.challenge.obstacles[0].type).toBe('rollingAperture');
   });
 });

@@ -3,7 +3,7 @@ import {traceRicochet} from '../reflectors/RicochetTrace';
 import {AimSystem} from '../projectile/AimSystem';
 import {evaluateFormation} from '../obstacles/FormationState';
 import type { ChallengeConfig } from '../config/ChallengeConfig';
-import { sampleMovement } from '../config/MovementConfig';
+import { sampleMovement, teleportTargetPoseAtTime } from '../config/MovementConfig';
 import type { ObstacleConfig } from '../config/ObstacleConfig';
 import { isRotorConfig, obstacleTypeOf } from '../config/ObstacleConfig';
 import { GAME_TUNING } from '../game/gameTuning';
@@ -27,6 +27,44 @@ import { ringPosition } from '../obstacles/MovingRingObstacle';
 import { orbiterPosition } from '../obstacles/OrbiterObstacle';
 import { phaseOpen } from '../obstacles/PhaseFieldObstacle';
 import { apertureState } from '../obstacles/ShiftingApertureObstacle';
+import { evaluateClockHandsCollision } from '../obstacles/ClockHandsState';
+import { evaluateElevatorBlocksCollision } from '../obstacles/ElevatorBlocksState';
+import { evaluatePistonFieldCollision } from '../obstacles/PistonFieldState';
+import { evaluatePulseRingCollision } from '../obstacles/PulseRingState';
+import { evaluateScissorGateCollision } from '../obstacles/ScissorGateState';
+import { evaluateGroundCutLasersCollision } from '../obstacles/GroundCutLasersState';
+import { evaluateSpeedFieldCollision } from '../obstacles/SpeedFieldState';
+import { evaluateBillboardFlipCollision } from '../obstacles/BillboardFlipState';
+import { evaluateDockingCollarCollision } from '../obstacles/DockingCollarState';
+import { evaluateShearLaneCollision } from '../obstacles/ShearLaneState';
+import { evaluateRotatingGateCollision } from '../obstacles/RotatingGateState';
+import { evaluateEnergyFieldCollision } from '../obstacles/EnergyFieldState';
+import { evaluatePhaseGateCollision } from '../obstacles/PhaseGateState';
+import { evaluateRepulsorCollision } from '../obstacles/RepulsorState';
+import { evaluateNullTendrilCollision } from '../obstacles/NullTendrilState';
+import { evaluateNullLashCollision } from '../obstacles/NullLashState';
+import {
+  evaluateCometCrossingCollision,
+  evaluateConveyorGateCollision,
+  evaluateCorkscrewCollision,
+  evaluateReactiveGateCollision,
+  evaluateRollingApertureCollision,
+  evaluateSplitShutterCollision,
+} from '../obstacles/ExtendedLibraryState';
+import {
+  evaluateAccretionCollision,
+  evaluateEntryExitCollision,
+  entryExitWarpTarget,
+  evaluateLagrangeNullCollision,
+  evaluateMagnetopauseCollision,
+  evaluateMovingSafeZoneCollision,
+  evaluateOrbitingMoonsCollision,
+  evaluatePulsarBeamCollision,
+  evaluateSequentialTunnelCollision,
+  evaluateSolarSailCollision,
+  evaluateTeleportPortalCollision,
+  evaluateTheNullCollision,
+} from '../obstacles/StoryLibraryState';
 import { integrateMotion, type PhysicsForces } from '../projectile/physics';
 
 const MIN_HUB_CLEARANCE = 0.08;
@@ -77,24 +115,106 @@ function shotClearsCourse(
   obstacles: ObstacleConfig[],
   target: ChallengeConfig['target'],
 ): boolean {
-
   const targetZ = target.z ?? GAME_TUNING.target.z;
-  const at = simulateToPlane(start, velocity, targetZ, forces);
-  if (!at) {
+  const hasWarp = obstacles.some((obstacle) => obstacle.type === 'entryExitPortal');
+  const ordered = [...obstacles].sort((a, b) => a.z - b.z);
+  const flightForces = corridorFlightForces(forces, ordered);
+
+  if (!hasWarp) {
+    const at = simulateToPlane(start, velocity, targetZ, flightForces);
+    if (!at) return false;
+    const reach = targetReach(target);
+    if (Math.hypot(at.x - target.x, at.y - target.y) > target.radius + reach - MIN_TARGET_MARGIN) {
+      return false;
+    }
+    const crossings = ordered.map((obstacle) => ({
+      obstacle,
+      at: simulateToPlane(start, velocity, obstacle.z, flightForces),
+    }));
+    for (let delay = 0; delay <= 12; delay += 0.2) {
+      if (!crossings.every(({ obstacle, at }) => at && clearsObstacle(obstacle, at.x, at.y, ball, at.time + delay))) {
+        continue;
+      }
+      const future = targetAtTime(target, at.time + delay);
+      if (!future.present) continue;
+      if (Math.hypot(at.x - future.x, at.y - future.y) <= target.radius - MIN_TARGET_MARGIN) return true;
+    }
     return false;
   }
-  const distance = Math.hypot(at.x - target.x, at.y - target.y);
-  if (distance > target.radius + (target.movement?.amplitude ?? 0) - MIN_TARGET_MARGIN) return false;
-  const crossings = obstacles.map(obstacle => ({obstacle, at: simulateToPlane(start, velocity, obstacle.z, forces)}));
-  // Timing courses must be tested after waiting too, not only at launch time zero.
-  // Use one shared clock offset for the entire route so paired gates stay synchronized.
-  for (let delay = 0; delay <= 12; delay += .2) {
-    if (!crossings.every(({obstacle, at}) => at && clearsObstacle(obstacle, at.x, at.y, ball, at.time + delay))) continue;
-    const tx = target.movement?.type === 'horizontal' ? sampleMovement(target.movement, target.x, at.time + delay) : target.x;
-    const ty = target.movement?.type === 'vertical' ? sampleMovement(target.movement, target.y, at.time + delay) : target.y;
-    if (Math.hypot(at.x-tx,at.y-ty) <= target.radius-MIN_TARGET_MARGIN) return true;
+
+  // Entry/Exit: simulate segments and warp XY after a clear entry crossing.
+  for (let delay = 0; delay <= 12; delay += 0.2) {
+    let cursor = { ...start };
+    let cursorVelocity = { ...velocity };
+    let elapsed = 0;
+    let blocked = false;
+    for (const obstacle of ordered) {
+      const at = simulateToPlane(cursor, cursorVelocity, obstacle.z, flightForces);
+      if (!at || !clearsObstacle(obstacle, at.x, at.y, ball, at.time + delay)) {
+        blocked = true;
+        break;
+      }
+      elapsed += at.time;
+      cursorVelocity = { vx: at.vx, vy: at.vy, vz: at.vz };
+      if (obstacle.type === 'entryExitPortal') {
+        const warp = entryExitWarpTarget(obstacle);
+        cursor = { x: warp.x, y: warp.y, z: obstacle.z };
+      } else {
+        cursor = { x: at.x, y: at.y, z: obstacle.z };
+      }
+    }
+    if (blocked) continue;
+    const at = simulateToPlane(cursor, cursorVelocity, targetZ, flightForces);
+    if (!at) continue;
+    const arrivalTime = elapsed + at.time + delay;
+    const future = targetAtTime(target, arrivalTime);
+    if (!future.present) continue;
+    if (Math.hypot(at.x - future.x, at.y - future.y) <= target.radius - MIN_TARGET_MARGIN) return true;
   }
   return false;
+}
+
+function corridorFlightForces(
+  forces: PhysicsForces,
+  obstacles: ObstacleConfig[],
+): PhysicsForces {
+  const lagrangeNulls = obstacles.filter(
+    (obstacle): obstacle is Extract<ObstacleConfig, { type: 'lagrangeNull' }> =>
+      obstacle.type === 'lagrangeNull',
+  );
+  return {
+    ...forces,
+    lagrangeNulls: forces.lagrangeNulls ?? lagrangeNulls,
+    portalWarps: undefined,
+  };
+}
+
+function targetAtTime(
+  target: ChallengeConfig['target'],
+  time: number,
+): { x: number; y: number; present: boolean } {
+  if (target.movement?.type === 'teleport') {
+    return teleportTargetPoseAtTime(target.movement, time);
+  }
+  if (target.movement?.type === 'horizontal') {
+    return { x: sampleMovement(target.movement, target.x, time), y: target.y, present: true };
+  }
+  if (target.movement?.type === 'vertical') {
+    return { x: target.x, y: sampleMovement(target.movement, target.y, time), present: true };
+  }
+  return { x: target.x, y: target.y, present: true };
+}
+
+function targetReach(target: ChallengeConfig['target']): number {
+  if (target.movement?.type === 'teleport') {
+    return Math.max(
+      0,
+      ...(target.movement.anchors ?? []).map((anchor) =>
+        Math.hypot(anchor.x - target.x, anchor.y - target.y),
+      ),
+    );
+  }
+  return target.movement?.amplitude ?? 0;
 }
 
 function simulateToPlane(
@@ -102,7 +222,7 @@ function simulateToPlane(
   velocity: { vx: number; vy: number; vz: number },
   planeZ: number,
   forces: PhysicsForces,
-): { x: number; y: number; time: number } | null {
+): { x: number; y: number; time: number; vx: number; vy: number; vz: number } | null {
   if (velocity.vz <= 0.001 || start.z >= planeZ) {
     return null;
   }
@@ -121,6 +241,9 @@ function simulateToPlane(
     x: previous.x + (state.x - previous.x) * u,
     y: previous.y + (state.y - previous.y) * u,
     time: time - dt + u * dt,
+    vx: state.vx,
+    vy: state.vy,
+    vz: state.vz,
   };
 }
 
@@ -226,6 +349,138 @@ function clearsObstacle(
   if (type === 'shiftingAperture' && obstacle.type === 'shiftingAperture') {
     const state = apertureState(obstacle, arrivalTime);
     const result = evaluateIrisCollision(x, y, ball, state.x, state.y, state.radius);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'pistonField' && obstacle.type === 'pistonField') {
+    const result = evaluatePistonFieldCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'clockHands' && obstacle.type === 'clockHands') {
+    const result = evaluateClockHandsCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.04;
+  }
+  if (type === 'elevatorBlocks' && obstacle.type === 'elevatorBlocks') {
+    const result = evaluateElevatorBlocksCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'pulseRing' && obstacle.type === 'pulseRing') {
+    const result = evaluatePulseRingCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.04;
+  }
+  if (type === 'scissorGate' && obstacle.type === 'scissorGate') {
+    const result = evaluateScissorGateCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'groundCutLasers' && obstacle.type === 'groundCutLasers') {
+    const result = evaluateGroundCutLasersCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'speedField' && obstacle.type === 'speedField') {
+    const result = evaluateSpeedFieldCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit;
+  }
+  if (type === 'splitShutter' && obstacle.type === 'splitShutter') {
+    const result = evaluateSplitShutterCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'reactiveGate' && obstacle.type === 'reactiveGate') {
+    const result = evaluateReactiveGateCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'conveyorGate' && obstacle.type === 'conveyorGate') {
+    const result = evaluateConveyorGateCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'rollingAperture' && obstacle.type === 'rollingAperture') {
+    const result = evaluateRollingApertureCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'corkscrewTunnel' && obstacle.type === 'corkscrewTunnel') {
+    const result = evaluateCorkscrewCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.04;
+  }
+  if (type === 'cometCrossing' && obstacle.type === 'cometCrossing') {
+    const result = evaluateCometCrossingCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'billboardFlip' && obstacle.type === 'billboardFlip') {
+    const result = evaluateBillboardFlipCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'dockingCollar' && obstacle.type === 'dockingCollar') {
+    const result = evaluateDockingCollarCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'shearLane' && obstacle.type === 'shearLane') {
+    const result = evaluateShearLaneCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'rotatingGate' && obstacle.type === 'rotatingGate') {
+    const result = evaluateRotatingGateCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'energyField' && obstacle.type === 'energyField') {
+    const result = evaluateEnergyFieldCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'phaseGate' && obstacle.type === 'phaseGate') {
+    const result = evaluatePhaseGateCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'repulsor' && obstacle.type === 'repulsor') {
+    const result = evaluateRepulsorCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'nullTendril' && obstacle.type === 'nullTendril') {
+    const result = evaluateNullTendrilCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'nullLash' && obstacle.type === 'nullLash') {
+    const result = evaluateNullLashCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'orbitingMoons' && obstacle.type === 'orbitingMoons') {
+    const result = evaluateOrbitingMoonsCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'sequentialTunnel' && obstacle.type === 'sequentialTunnel') {
+    const result = evaluateSequentialTunnelCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'movingSafeZone' && obstacle.type === 'movingSafeZone') {
+    const result = evaluateMovingSafeZoneCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'accretionShredder' && obstacle.type === 'accretionShredder') {
+    const result = evaluateAccretionCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'pulsarBeam' && obstacle.type === 'pulsarBeam') {
+    const result = evaluatePulsarBeamCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.04;
+  }
+  if (type === 'solarSail' && obstacle.type === 'solarSail') {
+    const result = evaluateSolarSailCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'magnetopause' && obstacle.type === 'magnetopause') {
+    const result = evaluateMagnetopauseCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.04;
+  }
+  if (type === 'lagrangeNull' && obstacle.type === 'lagrangeNull') {
+    const result = evaluateLagrangeNullCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit;
+  }
+  if (type === 'teleportPortal' && obstacle.type === 'teleportPortal') {
+    const result = evaluateTeleportPortalCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'entryExitPortal' && obstacle.type === 'entryExitPortal') {
+    const result = evaluateEntryExitCollision(obstacle, arrivalTime, x, y, ball);
+    return !result.hit && result.clearance >= 0.05;
+  }
+  if (type === 'theNull' && obstacle.type === 'theNull') {
+    const result = evaluateTheNullCollision(obstacle, arrivalTime, x, y, ball);
     return !result.hit && result.clearance >= 0.05;
   }
   if (!isRotorConfig(obstacle)) {

@@ -4,6 +4,14 @@ import {integrateMotion,type MotionState,type PhysicsForces} from '../projectile
 export const RICOCHET_STEP=1/120;
 export type Bounce={id:string;point:Vec3;normal:Vec3;incoming:Vec3;outgoing:Vec3;time:number};
 export type RicochetState={bounces:number;blocked:boolean};
+
+/** Frame/backing contact before the required bounce count is a Miss, not Blocked. */
+export function ricochetBlockResult(
+  status: RicochetState,
+  requiredBounces: number,
+): 'MISS' | 'ROTOR_HIT' {
+  return status.bounces < requiredBounces ? 'MISS' : 'ROTOR_HIT';
+}
 export function reflectVelocity(v:Vec3,n:Vec3):Vec3 {
   const length=Math.hypot(n.x,n.y,n.z);if(length<1e-8)throw new Error('Reflector normal cannot be zero');
   const x=n.x/length,y=n.y/length,z=n.z/length,d=2*(v.x*x+v.y*y+v.z*z);

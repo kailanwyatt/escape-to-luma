@@ -2,20 +2,25 @@ import {t, displayLabel} from '../i18n';
 import {MenuBackBar} from '../design/components/MenuBackBar';
 import {CurrencyIcon} from './CurrencyIcon';
 import {useEffect,useRef,useState} from 'react';
-import {Animated,Easing,Pressable,ScrollView,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
+import {Animated,Easing,Image,Pressable,ScrollView,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {SPARK_CATALOG,sparkById,type SparkDefinition} from '../customization/sparks';
+import {SPARK_CATALOG,sparkById,sparkVisualProfile,type SparkDefinition} from '../customization/sparks';
+import {abilityDefinitionForSpark} from '../customization/sparkAbilities';
+import {getAssetSource} from '../graphics/assetRegistry';
 import {worldById} from '../campaign/worlds';
-import {color} from '../design';
-import {HOME_BRAND} from '../config/branding';
+import {color,BrandWordmark} from '../design';
 import {SPARK_DESCRIPTIONS} from './sparkPresentation';
 import type {PersistentGameData} from '../persistence/GameSave';
 type Props={save:PersistentGameData;onEquip:(id:string)=>void;onBuy:(id:string)=>void;onBack:()=>void;reduceMotion?:boolean};
 const filters=['ALL','OWNED','LOCKED','SPECIAL'] as const;
 const hex=(n:number)=>`#${n.toString(16).padStart(6,'0')}`;
-/** Lightweight living-light preview; uses the actual cosmetic colors and no orbit rings. */
+/** Catalog portrait image when present; procedural living-light fallback otherwise. */
 export function SparkPortrait({spark,size}:{spark:SparkDefinition;size:number}){
+ const source=getAssetSource(sparkVisualProfile(spark).portraitAssetId ?? 'spark.original');
+ if(source){
+  return <Image accessible={false} source={source} resizeMode="contain" style={{width:size,height:size}}/>;
+ }
  const tint=hex(spark.color),halo=hex(spark.trailColor);
  return <View accessible={false} style={{width:size,height:size,alignItems:'center',justifyContent:'center'}}>
  {[.95,.78,.61].map((scale,i)=><View key={scale} style={{position:'absolute',width:size*scale,height:size*scale,borderRadius:size,backgroundColor:halo,opacity:.025+i*.025,shadowColor:halo,shadowRadius:size*.1,shadowOpacity:.6,shadowOffset:{width:0,height:0}}}/>)}
@@ -40,10 +45,10 @@ export function SparksScreen({save,onEquip,onBuy,onBack,reduceMotion=false}:Prop
  return <View style={s.root}><LinearGradient colors={['#031322','#071e30','#020a12']} style={StyleSheet.absoluteFill}/>
  <MenuBackBar onBack={onBack} label={t("journeyscreen.back_to_home")}/>
  <ScrollView style={{flex:1}} ref={scroll} contentContainerStyle={{paddingTop:12,paddingBottom:Math.max(insets.bottom,20),paddingLeft:Math.max(insets.left,16),paddingRight:Math.max(insets.right,16),alignItems:'center'}}>
- <View style={s.column}><View style={s.top}><View><Text style={s.wordmark}>{HOME_BRAND.title}</Text><Text style={s.brandSub}>{HOME_BRAND.subtitle}</Text></View><View accessible accessibilityLabel={t("sparksscreen.shards_available", {value1: c.shards.toLocaleString()})} style={s.wallet}><View style={{flexDirection:"row",alignItems:"center",gap:5}}><CurrencyIcon kind="shard" size={27}/><Text style={s.balance}>{c.shards.toLocaleString()}</Text></View><Text style={s.walletLabel}>{t("statuspanel.shards")}</Text></View></View>
+ <View style={s.column}><View style={s.top}><BrandWordmark size="header"/><View accessible accessibilityLabel={t("sparksscreen.shards_available", {value1: c.shards.toLocaleString()})} style={s.wallet}><View style={{flexDirection:"row",alignItems:"center",gap:5}}><CurrencyIcon kind="shard" size={27}/><Text style={s.balance}>{c.shards.toLocaleString()}</Text></View><Text style={s.walletLabel}>{t("statuspanel.shards")}</Text></View></View>
  <View style={s.heading}><Text accessibilityRole="header" style={s.title}>{t("homescreen.sparks")}</Text><Text style={s.subtitle}>{t("sparksscreen.same_physics_a_brighter_journey")}</Text></View>
  <View style={[s.hero,contentWidth<580&&{flexDirection:'column-reverse'}]}>
- <View style={s.heroCopy}><Text style={s.badge}>{equipped?t("sparksscreen.equipped"):owned?t('labels.OWNED'):buyable?t("sparksscreen.shard_collection"):t('labels.LOCKED')}</Text><Text accessibilityRole="header" style={s.heroName}>{preview.name.toUpperCase()}</Text><Text style={s.description}>{SPARK_DESCRIPTIONS[preview.id]}</Text><Text style={s.heroNote}>{owned?t("sparksscreen.a_different_light_the_same_skill_timing_and_physics"):buyable?t("sparksscreen.unlock_for_shards", {value1: preview.shardCost!.toLocaleString()}):unlockText(preview)}</Text>
+ <View style={s.heroCopy}><Text style={s.badge}>{equipped?t("sparksscreen.equipped"):owned?t('labels.OWNED'):buyable?t("sparksscreen.shard_collection"):t('labels.LOCKED')}</Text><Text accessibilityRole="header" style={s.heroName}>{preview.name.toUpperCase()}</Text><Text style={s.description}>{SPARK_DESCRIPTIONS[preview.id]}</Text><Text style={s.heroNote}>{t("sparksscreen.passive_label")}: {abilityDefinitionForSpark(preview.id).summary}</Text><Text style={s.heroNote}>{owned?t("sparksscreen.a_different_light_the_same_skill_timing_and_physics"):buyable?t("sparksscreen.unlock_for_shards", {value1: preview.shardCost!.toLocaleString()}):unlockText(preview)}</Text>
  {owned||buyable?<Pressable accessibilityRole="button" accessibilityLabel={equipped?t("sparksscreen.equipped_2", {value1: preview.name}):owned?t("sparksscreen.equip", {value1: preview.name}):t("sparksscreen.buy_for_shards", {value1: preview.name, value2: preview.shardCost})} accessibilityState={{disabled:equipped||!owned&&!affordable}} disabled={equipped||!owned&&!affordable} onPress={()=>owned?onEquip(preview.id):onBuy(preview.id)} style={({pressed})=>[s.heroAction,(!owned&&!affordable)&&s.disabled,pressed&&{opacity:.7}]}><Text style={s.heroActionText}>{equipped?t("sparksscreen.equipped_3"):owned?t("sparksscreen.equip_spark"):affordable?t("sparksscreen.buy", {value1: preview.shardCost!.toLocaleString()}):t("sparksscreen.need_more_shards", {value1: (preview.shardCost!-c.shards).toLocaleString()})}</Text></Pressable>:null}
  </View><Animated.View style={{alignItems:'center',justifyContent:'center',transform:[{scale:pulse}]}}><SparkPortrait spark={preview} size={contentWidth<580?170:260}/></Animated.View></View>
  <View accessibilityRole="tablist" style={s.filters}>{filters.map(f=><Pressable key={f} accessibilityRole="tab" accessibilityState={{selected:filter===f}} onPress={()=>setFilter(f)} style={[s.filter,filter===f&&s.filterSelected]}><Text style={[s.filterText,filter===f&&{color:color.cyanBright}]}>{displayLabel(f)}</Text></Pressable>)}</View>

@@ -13,10 +13,9 @@ const phases=[.07,.23,.43,.61,.81,.97];
 const witnesses:Record<number,number[][]>={
   44:[[0,-.12,-.1],[0,-.12,-.06],[3,-.1,-.1],[0,-.12,-.1],[0,-.08,-.08],[0,-.06,-.08]],
   68:[[0,.12,.18],[.5,.1,.18],[0,.1,.18],[0,.08,.16],[1,.12,.18],[0,.1,.18]],
-  86:[[0,.06,.06],[0,.06,.06],[0,.08,.1],[0,.06,.06],[0,.08,.1],[1,.08,.12]],
 };
 describe('precision benchmark routes',()=>{
-  for(const n of [44,68,86]) it(`level ${n} remains reachable across six starts with phone touch input`,()=>{
+  for(const n of [44,68]) it(`level ${n} remains reachable across six starts with phone touch input`,()=>{
     const level=getCampaignLevel(n)!;
     const aim=new AimSystem(), target=new Target(), slots=[new ObstacleSlot('A'),new ObstacleSlot('B')];
     try {
@@ -35,7 +34,7 @@ describe('precision benchmark routes',()=>{
     } finally {slots.forEach(o=>o.dispose());target.dispose();}
   });
   it('leaves levels outside the requested scope untouched',()=>{
-    for(let n=1;n<=150;n++) if(![44,68,86].includes(n)){
+    for(let n=1;n<=150;n++) if(![44,68].includes(n)){
       const level=getCampaignLevel(n)!;expect(applyPrecisionBenchmark(level)).toBe(level);
     }
   });

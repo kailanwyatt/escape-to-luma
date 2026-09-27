@@ -81,4 +81,73 @@ describe('projectile forces', () => {
     expect(projectile.position.x).toBeGreaterThan(0);
     projectile.dispose();
   });
+
+  it('applies Speed Field multiplier identically in flight and prediction', () => {
+    const start = { x: 0, y: 3, z: 0 };
+    const velocity = { vx: 0, vy: 2.2, vz: 6 };
+    const field = {
+      type: 'speedField' as const,
+      z: 2.5,
+      centerX: 0,
+      centerY: 3,
+      width: 3,
+      height: 3,
+      speedMultiplier: 1.5,
+    };
+    const forces = { speedFields: [field], speedFieldTime: 0 };
+    const withField = simulateToZ(start, velocity, 5, 1 / 120, forces)!;
+    const without = simulateToZ(start, velocity, 5, 1 / 120, {})!;
+    expect(withField.time).toBeLessThan(without.time);
+
+    const projectile = new Projectile();
+    projectile.position.set(start.x, start.y, start.z);
+    projectile.velocity.set(velocity.vx, velocity.vy, velocity.vz);
+    const system = new ProjectileSystem();
+    system.speedFields = [field];
+    while (!system.crossedPlane(projectile, 5)) {
+      system.integrate(projectile, 1 / 120);
+    }
+    const actual = system.interpolateAtZ(projectile, 5);
+    expect(actual.x).toBeCloseTo(withField.x, 5);
+    expect(actual.y).toBeCloseTo(withField.y, 5);
+    projectile.dispose();
+  });
+
+  it('cancels wind and wells inside a Lagrange Null', () => {
+    const start = { x: 0, y: 3, z: 0 };
+    const velocity = { vx: 0, vy: 2.2, vz: 6 };
+    const nullPocket = {
+      type: 'lagrangeNull' as const,
+      z: 2.5,
+      centerX: 0,
+      centerY: 3,
+      radius: 1.4,
+    };
+    const well = { x: 1.2, y: 3, z: 2.5, strength: 1.4, radius: 3.5 };
+    const exposed = simulateToZ(start, velocity, 5, 1 / 120, {
+      windX: 0.4,
+      wells: [well],
+    })!;
+    const sheltered = simulateToZ(start, velocity, 5, 1 / 120, {
+      windX: 0.4,
+      wells: [well],
+      lagrangeNulls: [nullPocket],
+    })!;
+    expect(Math.abs(sheltered.x)).toBeLessThan(Math.abs(exposed.x));
+
+    const projectile = new Projectile();
+    projectile.position.set(start.x, start.y, start.z);
+    projectile.velocity.set(velocity.vx, velocity.vy, velocity.vz);
+    const system = new ProjectileSystem();
+    system.windX = 0.4;
+    system.wells = [well];
+    system.lagrangeNulls = [nullPocket];
+    while (!system.crossedPlane(projectile, 5)) {
+      system.integrate(projectile, 1 / 120);
+    }
+    const actual = system.interpolateAtZ(projectile, 5);
+    expect(actual.x).toBeCloseTo(sheltered.x, 5);
+    expect(actual.y).toBeCloseTo(sheltered.y, 5);
+    projectile.dispose();
+  });
 });

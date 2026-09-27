@@ -48,6 +48,8 @@ describe('save integrity', () => {
           secondChance: Number.NaN,
           hyperjump: 2,
           portalBloom: 3,
+          phaseShield: 4,
+          timeLock: -2,
         },
         stats: undefined as never,
       },
@@ -58,8 +60,31 @@ describe('save integrity', () => {
     expect(migrated.campaign.shards).toBe(0);
     expect(migrated.campaign.boostInventory.guidance).toBe(0);
     expect(migrated.campaign.boostInventory.slowField).toBe(999);
+    expect(migrated.campaign.boostInventory.phaseShield).toBe(4);
+    expect(migrated.campaign.boostInventory.timeLock).toBe(0);
     expect(migrated.campaign.ownedSparkIds).toContain('original');
     expect(migrated.campaign.equippedSparkId).toBe('original');
+    expect(migrated.saveVersion).toBe(SAVE_VERSION);
+    expect(migrated.campaign.contentEpoch).toBe(2);
+    expect(migrated.campaign.previewRefactoredChapterIds.length).toBeGreaterThan(0);
+  });
+
+  it('stamps dual-layout scaffolding when upgrading to save v6', () => {
+    const old = emptySave();
+    old.saveVersion = 5;
+    old.campaign.unlockedWorldIds = ['containment', 'city'];
+    old.campaign.highestUnlockedLevel = 20;
+    delete (old.campaign as { contentEpoch?: number }).contentEpoch;
+    delete (old.campaign as { previewRefactoredChapterIds?: string[] }).previewRefactoredChapterIds;
+    const migrated = migrateSaveData(5, old);
+    expect(migrated.saveVersion).toBe(6);
+    expect(migrated.campaign.contentEpoch).toBe(2);
+    expect(migrated.campaign.previewRefactoredChapterIds).toEqual(
+      expect.arrayContaining(['containment', 'lockdown', 'city']),
+    );
+    expect(migrated.campaign.unlockedWorldIds).toEqual(
+      expect.arrayContaining(['containment', 'lockdown', 'city']),
+    );
   });
 
   it('preserves story acknowledgements across saving and loading, and supports older saves', async () => {

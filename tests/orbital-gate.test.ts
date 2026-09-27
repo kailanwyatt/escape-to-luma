@@ -17,10 +17,10 @@ describe('orbital sliding door',()=>{
  }
  disposeObject3D(g);
  });
- it('explains the pair even when individual obstacles and the old arrival were acknowledged',()=>{
- const seen=['arrival.level-57','mechanic.iris.v2','mechanic.slidingGate.v2'];
+ it('explains the iris and climb-ring pair even when individual obstacles and the old arrival were acknowledged',()=>{
+ const seen=['arrival.level-57','mechanic.iris.v2','mechanic.movingRing.v2'];
  const story=storyForLevel(57,seen)!;
- expect(story.instruction).toContain('cyan circle');expect(story.instruction).toContain('amber rectangle');
+ expect(story.instruction).toContain('cyan iris');expect(story.instruction).toContain('climbing ring');
  expect(storyForLevel(57,[...seen,story.id,...story.acknowledgements??[]])).toBeNull();
  });
 });

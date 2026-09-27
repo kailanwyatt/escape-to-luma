@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } fro
 
 import { color, radius, space } from '../tokens';
 import { textStyles } from '../typography';
+import { fontDisplay, fontUi } from '../fonts';
 
 export function ScreenTitle({
   title,
@@ -44,7 +45,7 @@ const styles = StyleSheet.create({
     marginTop: space.xs,
     color: color.white,
     fontSize: 26,
-    fontWeight: '900',
+    fontFamily: fontDisplay,
     letterSpacing: 3,
     textAlign: 'center',
   },
@@ -52,7 +53,7 @@ const styles = StyleSheet.create({
     marginTop: space.xs,
     color: color.cyanBright,
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: fontUi,
     letterSpacing: 1,
     textAlign: 'center',
   },
@@ -71,7 +72,7 @@ const styles = StyleSheet.create({
   backText: {
     color: color.cyanBright,
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: fontUi,
     letterSpacing: 2,
   },
 });

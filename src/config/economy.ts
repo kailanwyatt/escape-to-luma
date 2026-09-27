@@ -4,7 +4,12 @@ export const ECONOMY = {
   maxEnergy: 15,
   energyRegenMinutes: 10,
   rewardedAdEnergyAmount: 5,
-  energyRefillCost: 60,
+  /** Shard cost per missing energy unit (empty tank = 15 × this). */
+  energyRefillCostPerEnergy: 12,
+  /** Soft daily cap so ads stay the preferred free top-up, not infinite fuel. */
+  maxRewardedEnergyAdsPerDay: 4,
+  /** Containment onboarding / practice: no energy cost through this level (inclusive). */
+  energyFreeThroughLevel: 5,
   portalBloomMultiplier: 1.25,
 
   score: {
@@ -30,9 +35,13 @@ export const ECONOMY = {
     slowField: 50,
     secondChance: 65,
     portalBloom: 45,
+    phaseShield: 55,
+    timeLock: 60,
   },
 
   boostSlowFieldMultiplier: 0.6,
+  /** Launch-triggered Time Lock duration (seconds). */
+  boostTimeLockDuration: 1.25,
   helpAfterFailures: 5,
 
   skinCosts: {
@@ -56,32 +65,52 @@ export const ECONOMY = {
 
   mockUnlimitedEnergy24hLabel: 'MOCK · 24 HOURS',
   mockUnlimitedEnergy7dLabel: 'MOCK · 7 DAYS',
+  unlimitedEnergy2hMs: 2 * 60 * 60 * 1000,
   unlimitedEnergy24hMs: 24 * 60 * 60 * 1000,
   unlimitedEnergy7dMs: 7 * 24 * 60 * 60 * 1000,
 } as const;
 
-export type BoostId = 'guidance' | 'slowField' | 'secondChance' | 'hyperjump' | 'portalBloom';
+export type BoostId =
+  | 'guidance'
+  | 'slowField'
+  | 'secondChance'
+  | 'hyperjump'
+  | 'portalBloom'
+  | 'phaseShield'
+  | 'timeLock';
+
+/** Attempt loadout limit until playtests justify a change. */
+export const BOOST_LOADOUT_LIMIT = 2;
+
+export const SELECTABLE_BOOST_IDS: BoostId[] = [
+  'guidance',
+  'slowField',
+  'secondChance',
+  'portalBloom',
+  'phaseShield',
+  'timeLock',
+];
 
 export const SHARD_PACKS = [
   {
     id: 'pocket',
     name: 'Pocket of light',
     shards: 250,
-    productId: 'com.kurt.sparkescapetoluma.shards250',
+    productId: 'com.escapetoluma.spark.shards250',
     fallbackPrice: '$0.99',
   },
   {
     id: 'journey',
     name: 'Journey supply',
     shards: 700,
-    productId: 'com.kurt.sparkescapetoluma.shards700',
+    productId: 'com.escapetoluma.spark.shards700',
     fallbackPrice: '$2.99',
   },
   {
     id: 'voyage',
     name: 'Voyage reserve',
     shards: 1600,
-    productId: 'com.kurt.sparkescapetoluma.shards1600',
+    productId: 'com.escapetoluma.spark.shards1600',
     fallbackPrice: '$5.99',
   },
 ] as const;

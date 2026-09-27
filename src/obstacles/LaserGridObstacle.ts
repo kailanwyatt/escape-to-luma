@@ -35,6 +35,8 @@ export class LaserGridObstacle {
   private meshes: THREE.Mesh[] = [];
   private elapsed = 0;
   private emitters: THREE.Group[][] = [];
+  /** Space grids have no walls to mount on — stationkeeping thrusters sell the hover. */
+  private space = false;
 
   constructor(id: string) {
     this.id = id;
@@ -46,6 +48,7 @@ export class LaserGridObstacle {
 
   applyConfig(config: LaserGridConfig, environment: EnvironmentId): void {
     this.config = config;
+    this.space = environment === 'space';
     this.active = true;
     this.group.visible = true;
     this.z = config.z;
@@ -76,7 +79,14 @@ export class LaserGridObstacle {
       glow.name='BeamHalo';glow.position.z=-.018;
       glow.scale.set(beam.orientation==='vertical'?10:1,beam.orientation==='vertical'?1:10,1);mesh.add(glow);
       const core=new THREE.Mesh(new THREE.BoxGeometry(1,1,.008),new THREE.MeshBasicMaterial({color:0xffece0,toneMapped:false}));
-      core.name='HotCore';core.scale.set(beam.orientation==='vertical'?.24:1,beam.orientation==='vertical'?1:.24,1);core.position.z=-.012;mesh.add(core);
+      core.name='HotCore';core.scale.set(beam.orientation==='vertical'?.28:1,beam.orientation==='vertical'?1:.28,1);core.position.z=-.012;mesh.add(core);
+      // Dim channel when pulsed off — gap stays readable without looking live.
+      const ghost=new THREE.Mesh(new THREE.BoxGeometry(1,1,.006),new THREE.MeshBasicMaterial({
+        color:0x3a6a78,transparent:true,opacity:0,depthWrite:false,toneMapped:false,
+      }));
+      ghost.name='SafeGhost';
+      ghost.scale.set(beam.orientation==='vertical'?.55:1,beam.orientation==='vertical'?1:.55,1);
+      ghost.position.z=-.01;ghost.visible=false;mesh.add(ghost);
       const pair=[this.createEmitter(),this.createEmitter()];
       this.emitters.push(pair);this.group.add(...pair);
       this.laserLayer.add(mesh);
@@ -85,6 +95,12 @@ export class LaserGridObstacle {
 
     // The obstacle root and frame are fixed. Only beam child positions change.
     this.group.position.set(0, 0, config.z);
+    if (!this.group.getObjectByName('laser-grid-accent')) {
+      const accent = new THREE.PointLight(0xff6a40, 8, 10, 2);
+      accent.name = 'laser-grid-accent';
+      accent.position.set(config.centerX ?? 0, config.centerY ?? 3, -1.05);
+      this.group.add(accent);
+    }
     this.update(0, 0);
   }
 
@@ -105,6 +121,12 @@ export class LaserGridObstacle {
     this.lasersOn = this.lasersActiveAt(elapsedTime);
     this.beams = laserBeamsAtTime(this.config, elapsedTime);
     this.syncBeamMeshes(this.beams, this.lasersOn, elapsedTime);
+    const accent = this.group.getObjectByName('laser-grid-accent') as THREE.PointLight | undefined;
+    if (accent) {
+      accent.color.setHex(this.lasersOn ? 0xff6a40 : 0x476b72);
+      accent.intensity = this.lasersOn ? 10 : 4;
+      accent.position.set(this.config.centerX ?? 0, this.config.centerY ?? 3, -1.05);
+    }
   }
 
   testProjectileCrossing(
@@ -222,32 +244,155 @@ export class LaserGridObstacle {
       mesh.scale.set(vertical?config.thickness*2:config.span,vertical?config.span:config.thickness*2,1);
       mesh.position.set(vertical?beam.position:beam.centerX,vertical?beam.centerY:beam.position,0);
       const material=mesh.material as THREE.MeshBasicMaterial;
-      material.color.setHex(on?LASER_ON:LASER_OFF);material.opacity=on?.12:.04;
+      material.color.setHex(on?LASER_ON:LASER_OFF);material.opacity=on?.55:.08;
       mesh.getObjectByName('HotCore')!.visible=on;
-      (mesh.getObjectByName('BeamHalo') as THREE.Mesh<THREE.PlaneGeometry,THREE.ShaderMaterial>).material.uniforms.strength.value=on?1:0;
+      (mesh.getObjectByName('BeamHalo') as THREE.Mesh<THREE.PlaneGeometry,THREE.ShaderMaterial>).material.uniforms.strength.value=on?1.35:0;
+      const ghost=mesh.getObjectByName('SafeGhost') as THREE.Mesh|undefined;
+      if(ghost){
+        ghost.visible=!on;
+        (ghost.material as THREE.MeshBasicMaterial).opacity=on?0:.22;
+      }
       this.emitters[index].forEach((emitter,j)=>{
         const sign=j===0?-1:1;
-        emitter.position.set(vertical?beam.position:beam.centerX+sign*(config.span/2+.08),vertical?beam.centerY+sign*(config.span/2+.08):beam.position,0);
+        emitter.position.set(
+          vertical?beam.position:beam.centerX+sign*(config.span/2+.08),
+          vertical?beam.centerY+sign*(config.span/2+.08):beam.position,
+          0,
+        );
         emitter.rotation.z=vertical?Math.PI/2:0;
-        const lens=emitter.getObjectByName('EmitterLens') as THREE.Mesh<THREE.SphereGeometry,THREE.MeshBasicMaterial>;
-        lens.material.color.setHex(on?0xffae8c:0x476b72);
+        const lens=emitter.getObjectByName('EmitterLens') as THREE.Mesh<THREE.SphereGeometry,THREE.MeshStandardMaterial>;
+        if(lens.material instanceof THREE.MeshStandardMaterial){
+          lens.material.color.setHex(on?0xffae8c:0x476b72);
+          lens.material.emissive.setHex(on?0xff6a40:0x1a3038);
+          lens.material.emissiveIntensity=on?1.15:.2;
+        }else{
+          (lens.material as THREE.MeshBasicMaterial).color.setHex(on?0xffae8c:0x476b72);
+        }
         emitter.getObjectByName('ContactFlare')!.visible=on;
       });
     }
+    this.pulseCornerRockets(elapsedTime);
   }
 
   private createEmitter():THREE.Group {
     const root=new THREE.Group();root.name='LaserEmitter';
-    const steel=new THREE.MeshPhongMaterial({color:0x536578,shininess:65});
-    const body=new THREE.Mesh(new THREE.BoxGeometry(.25,.31,.3),steel);root.add(body);
-    const face=new THREE.Mesh(new THREE.BoxGeometry(.2,.23,.04),new THREE.MeshPhongMaterial({color:0x121f2c}));face.position.z=-.17;root.add(face);
-    const lens=new THREE.Mesh(new THREE.SphereGeometry(.065,12,8),new THREE.MeshBasicMaterial({color:0xffae8c,toneMapped:false}));lens.name='EmitterLens';lens.position.z=-.2;root.add(lens);
+    const steel=new THREE.MeshStandardMaterial({color:0x536578,metalness:.78,roughness:.32});
+    const dark=new THREE.MeshStandardMaterial({color:0x0e1822,metalness:.55,roughness:.55});
+    const body=new THREE.Mesh(new THREE.BoxGeometry(.28,.34,.34),steel);root.add(body);
+    const collar=new THREE.Mesh(new THREE.BoxGeometry(.3,.08,.36),steel);collar.position.y=.16;root.add(collar);
+    const face=new THREE.Mesh(new THREE.BoxGeometry(.22,.26,.05),dark);face.position.z=-.19;root.add(face);
+    const lens=new THREE.Mesh(new THREE.SphereGeometry(.07,14,10),new THREE.MeshStandardMaterial({
+      color:0xffae8c,emissive:0xff6a40,emissiveIntensity:1.1,metalness:.05,roughness:.25,toneMapped:false,
+    }));lens.name='EmitterLens';lens.position.z=-.22;root.add(lens);
     const flare=new THREE.Mesh(new THREE.PlaneGeometry(.9,.9),new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,toneMapped:false,
       vertexShader:`varying vec2 v;void main(){v=uv-.5;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
       fragmentShader:`varying vec2 v;void main(){float r=length(v);float a=exp(-r*r*60.)*.65+exp(-abs(v.x)*95.-abs(v.y)*12.)*.2;gl_FragColor=vec4(1.,.13,.035,a*(1.-smoothstep(.3,.5,r)));}`
-    }));flare.name='ContactFlare';flare.position.z=-.22;root.add(flare);
-    for(const y of [-.11,.11]){const fin=new THREE.Mesh(new THREE.BoxGeometry(.32,.035,.22),steel);fin.position.set(0,y,.015);root.add(fin);}
+    }));flare.name='ContactFlare';flare.position.z=-.24;root.add(flare);
+    for(const y of [-.13,.13]){const fin=new THREE.Mesh(new THREE.BoxGeometry(.34,.04,.24),steel);fin.position.set(0,y,.02);root.add(fin);}
+    const status=new THREE.Mesh(new THREE.BoxGeometry(.12,.04,.03),new THREE.MeshStandardMaterial({
+      color:0xffb449,emissive:0xff9b32,emissiveIntensity:.9,metalness:.1,roughness:.3,
+    }));status.position.set(0,-.14,-.2);root.add(status);
     return root;
+  }
+
+  private pulseCornerRockets(elapsedTime: number): void {
+    if (!this.space) return;
+    this.fixedFrame.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      if (obj.name !== 'CornerRocketPlume' && obj.name !== 'CornerRocketCore') return;
+      if (!(obj.material instanceof THREE.ShaderMaterial)) return;
+      const phase = (obj.userData.phase as number) ?? 0;
+      const flicker = 0.72 + 0.28 * Math.sin(elapsedTime * 11 + phase * 2.3);
+      const surge = 0.85 + 0.15 * Math.sin(elapsedTime * 3.1 + phase);
+      obj.material.uniforms.strength.value = flicker * surge;
+      if (obj.name === 'CornerRocketPlume') {
+        obj.scale.y = 0.92 + 0.14 * Math.sin(elapsedTime * 9.5 + phase);
+      }
+    });
+  }
+
+  /** One diagonal rocket at a frame corner — exhaust points outward for stationkeeping. */
+  private addCornerRocket(cx: number, cy: number, sx: number, sy: number, phase: number): void {
+    const steel = new THREE.MeshStandardMaterial({ color: 0x7a8fa3, metalness: 0.82, roughness: 0.28 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x0c141c, metalness: 0.55, roughness: 0.5 });
+    const pod = new THREE.Group();
+    pod.name = 'CornerRocket';
+    pod.position.set(cx + sx * 0.06, cy + sy * 0.06, 0.08);
+    // Point nozzle diagonally outward from frame center.
+    pod.rotation.z = Math.atan2(sy, sx);
+
+    const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.22, 10), dark);
+    housing.rotation.z = Math.PI / 2;
+    housing.position.x = -0.04;
+    pod.add(housing);
+
+    const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.12, 0.16, 12), steel);
+    bell.name = 'CornerRocketBell';
+    bell.rotation.z = Math.PI / 2;
+    bell.position.x = 0.12;
+    pod.add(bell);
+
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.018, 6, 16), steel);
+    ring.rotation.y = Math.PI / 2;
+    ring.position.x = 0.2;
+    pod.add(ring);
+
+    const plumeMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+      uniforms: { strength: { value: 1 } },
+      vertexShader: `varying vec2 v;void main(){v=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+      fragmentShader: `varying vec2 v;uniform float strength;void main(){
+        float x=abs(v.x-.5)*2.;
+        float y=v.y;
+        // Long rocket column: bright core + hotter orange sheath + soft tip fade.
+        float core=exp(-x*x*55.)*pow(1.-y,0.55);
+        float sheath=exp(-x*x*12.)*pow(1.-y,1.1)*.75;
+        float tip=exp(-x*x*4.)*pow(1.-y,2.4)*.35;
+        float a=clamp((core*1.15+sheath+tip)*strength,0.,1.)*(1.-smoothstep(.88,1.,y));
+        vec3 col=mix(vec3(1.,.55,.12),vec3(1.,.95,.75),core);
+        col=mix(col,vec3(1.,.28,.05),sheath*.45);
+        gl_FragColor=vec4(col,a);
+      }`,
+    });
+    const plume = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 1.35), plumeMat);
+    plume.name = 'CornerRocketPlume';
+    plume.userData.phase = phase;
+    plume.position.set(0.95, 0, 0);
+    plume.rotation.z = -Math.PI / 2;
+    pod.add(plume);
+
+    // Second crossed plane for volume.
+    const plumeB = plume.clone();
+    plumeB.rotation.y = Math.PI / 2;
+    pod.add(plumeB);
+
+    const core = new THREE.Mesh(
+      new THREE.ConeGeometry(0.07, 0.55, 10, 1, true),
+      new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+        uniforms: { strength: { value: 1 } },
+        vertexShader: `varying float along;void main(){along=uv.y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+        fragmentShader: `varying float along;uniform float strength;void main(){
+          float a=pow(1.-along,1.2)*strength*.85;
+          gl_FragColor=vec4(1.,.92,.7,a);
+        }`,
+      }),
+    );
+    core.name = 'CornerRocketCore';
+    core.userData.phase = phase + 0.4;
+    core.rotation.z = -Math.PI / 2;
+    core.position.set(0.55, 0, 0);
+    pod.add(core);
+
+    this.fixedFrame.add(pod);
   }
 
   private buildFixedFrame(
@@ -258,14 +403,15 @@ export class LaserGridObstacle {
     const centerX = config.centerX ?? 0;
     const centerY = config.centerY ?? 3;
     const frameSpan = config.span + 0.32;
-    const postWidth = 0.24;
+    const postWidth = 0.28;
     const color =
       environment === 'space' ? 0x2a3c50 : environment === 'rooftop' ? 0x667b89 : 0x1c2836;
-    const material = new THREE.MeshPhongMaterial({
+    const material = new THREE.MeshStandardMaterial({
       color,
-      shininess: 65,
+      metalness: 0.72,
+      roughness: 0.38,
     });
-    const verticalGeometry = new THREE.BoxGeometry(postWidth, frameSpan, 0.3);
+    const verticalGeometry = new THREE.BoxGeometry(postWidth, frameSpan, 0.36);
     const half = frameSpan / 2;
 
     const left = new THREE.Mesh(verticalGeometry, material);
@@ -279,19 +425,40 @@ export class LaserGridObstacle {
     if(horizontal)this.fixedFrame.add(left,right);
     else {verticalGeometry.dispose();material.dispose();}
     if(vertical){
-      const railMaterial=new THREE.MeshPhongMaterial({color,shininess:65});
+      const railMaterial=new THREE.MeshStandardMaterial({color,metalness:.72,roughness:.38});
       for(const side of [-1,1]){
-        const rail=new THREE.Mesh(new THREE.BoxGeometry(frameSpan,postWidth,.3),railMaterial);
+        const rail=new THREE.Mesh(new THREE.BoxGeometry(frameSpan,postWidth,.36),railMaterial);
         rail.name=side<0?'FixedBottomPost':'FixedTopPost';rail.position.set(centerX,centerY+side*half,0);this.fixedFrame.add(rail);
       }
     }
     for(const rail of this.fixedFrame.children){
       const isVertical=rail.name==='FixedLeftPost'||rail.name==='FixedRightPost';
-      const channel=new THREE.Mesh(new THREE.BoxGeometry(isVertical?.055:frameSpan-.2,isVertical?frameSpan-.2:.055,.02),new THREE.MeshBasicMaterial({color:0x718494}));
-      channel.position.z=-.16;rail.add(channel);
+      const channel=new THREE.Mesh(new THREE.BoxGeometry(isVertical?.06:frameSpan-.2,isVertical?frameSpan-.2:.06,.025),new THREE.MeshStandardMaterial({color:0x7a8f9f,metalness:.55,roughness:.4}));
+      channel.position.z=-.18;rail.add(channel);
       for(const sign of [-1,1]){
-        const cap=new THREE.Mesh(new THREE.BoxGeometry(isVertical?.34:.24,isVertical?.24:.34,.38),new THREE.MeshPhongMaterial({color:0x263647}));
+        const cap=new THREE.Mesh(new THREE.BoxGeometry(isVertical?.38:.28,isVertical?.28:.38,.42),new THREE.MeshStandardMaterial({color:0x263647,metalness:.7,roughness:.4}));
         cap.position.set(isVertical?0:sign*(half-.12),isVertical?sign*(half-.12):0,0);rail.add(cap);
+      }
+    }
+    // Corner brackets mark the playable gap through the frame without changing beam collision.
+    if(horizontal&&vertical){
+      const bracketMat=new THREE.MeshStandardMaterial({color:0x8bdde7,emissive:0x1a4a55,emissiveIntensity:.35,metalness:.4,roughness:.45});
+      const gap=config.spacing*0.45;
+      for(const sx of [-1,1])for(const sy of [-1,1]){
+        const bracket=new THREE.Mesh(new THREE.BoxGeometry(.14,.14,.05),bracketMat);
+        bracket.name='GapBracket';
+        bracket.position.set(centerX+sx*gap,centerY+sy*gap,-.2);
+        this.fixedFrame.add(bracket);
+      }
+    }
+
+    // Space only: four corner rockets with outward exhaust — stationkeeping, not wall-mounted.
+    if (this.space) {
+      let phase = 0;
+      for (const sx of [-1, 1] as const) {
+        for (const sy of [-1, 1] as const) {
+          this.addCornerRocket(centerX + sx * half, centerY + sy * half, sx, sy, phase++);
+        }
       }
     }
   }

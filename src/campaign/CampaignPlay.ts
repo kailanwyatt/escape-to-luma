@@ -22,6 +22,11 @@ export function syncCampaignEnergy(campaign: CampaignSave, now = Date.now()): Ca
   };
 }
 
+/** Containment practice (L1–energyFreeThroughLevel): failures do not spend energy. */
+export function isEnergyFreePracticeLevel(levelNumber: number): boolean {
+  return levelNumber >= 1 && levelNumber <= ECONOMY.energyFreeThroughLevel;
+}
+
 export function canStartLevel(campaign: CampaignSave, levelNumber: number, now = Date.now()): {
   ok: boolean;
   reason?: 'locked' | 'missing' | 'energy' | 'stub';
@@ -45,6 +50,7 @@ export function canStartLevel(campaign: CampaignSave, levelNumber: number, now =
   if (
     !RELEASE_POLICY.freeRetries &&
     !replay &&
+    !isEnergyFreePracticeLevel(levelNumber) &&
     !hasUnlimitedEnergy(synced, now) &&
     synced.currentEnergy <= 0
   ) {
@@ -58,6 +64,7 @@ export function applyLevelSuccess(
   definition: CampaignLevelDefinition,
   rank: PrecisionRank,
   closeCalls: number,
+  options?: { firstClearValueBonus?: number },
 ): {
   save: PersistentGameData;
   shardsGained: number;
@@ -69,7 +76,13 @@ export function applyLevelSuccess(
 } {
   const campaign = syncCampaignEnergy(structuredClone(save.campaign));
   const prev = campaign.completedLevels[definition.id] ?? emptyLevelProgress();
-  const { shards, next } = computeShardReward(prev, rank);
+  const { shards: baseShards, next } = computeShardReward(prev, rank);
+  let shards = baseShards;
+  // Solar Energy Harvest: modest first-clear only bonus (never replays).
+  const bonusMult = options?.firstClearValueBonus ?? 1;
+  if (!prev.cleared && bonusMult > 1 && shards > 0) {
+    shards += Math.min(3, Math.max(1, Math.round(baseShards * (bonusMult - 1))));
+  }
   next.attempts = prev.attempts + 1;
   campaign.completedLevels[definition.id] = next;
   campaign.shards += shards;
@@ -151,6 +164,7 @@ export function applyLevelFailure(
   if (
     !RELEASE_POLICY.freeRetries &&
     options.consumeEnergy &&
+    !isEnergyFreePracticeLevel(definition.levelNumber) &&
     !hasUnlimitedEnergy(campaign) &&
     !options.usedSecondChance
   ) {
@@ -168,19 +182,17 @@ export function consumeBoosts(campaign: CampaignSave, boosts: SelectedBoosts): C
     ...campaign,
     boostInventory: { ...campaign.boostInventory },
   };
-  if (boosts.guidance) {
-    next.boostInventory.guidance = Math.max(0, next.boostInventory.guidance - 1);
+  const spend = (id: keyof CampaignSave['boostInventory']) => {
+    if (!boosts[id as keyof SelectedBoosts]) return;
+    next.boostInventory[id] = Math.max(0, next.boostInventory[id] - 1);
     next.stats = { ...next.stats, boostsUsed: next.stats.boostsUsed + 1 };
-  }
-  if (boosts.slowField) {
-    next.boostInventory.slowField = Math.max(0, next.boostInventory.slowField - 1);
-    next.stats = { ...next.stats, boostsUsed: next.stats.boostsUsed + 1 };
-  }
-  if (boosts.secondChance) {
-    next.boostInventory.secondChance = Math.max(0, next.boostInventory.secondChance - 1);
-    next.stats = { ...next.stats, boostsUsed: next.stats.boostsUsed + 1 };
-  }
-  if(boosts.portalBloom){next.boostInventory.portalBloom=Math.max(0,next.boostInventory.portalBloom-1);next.stats={...next.stats,boostsUsed:next.stats.boostsUsed+1};}
+  };
+  spend('guidance');
+  spend('slowField');
+  spend('secondChance');
+  spend('portalBloom');
+  spend('phaseShield');
+  spend('timeLock');
   return next;
 }
 

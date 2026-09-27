@@ -9,12 +9,46 @@ export function createOrbitalGate():THREE.Group {
  const wall=containmentMetal();wall.color.setHex(0x536475);wall.map!.repeat.set(2,2);
  const dark=new THREE.MeshPhongMaterial({color:0x111e2a,shininess:25});
  const steel=new THREE.MeshPhongMaterial({color:0x82949e,shininess:65});
+ const inset=new THREE.MeshPhongMaterial({color:0x2a3c4c,shininess:35});
  const amber=new THREE.MeshBasicMaterial({color:0xf6b85a});
  const unit=new THREE.BoxGeometry(1,1,1);
  const part=(name:string,mat:THREE.Material)=>{const m=new THREE.Mesh(unit,mat);m.name=name;root.add(m);return m;};
- for(const name of ['left','right','top','bottom'])part(name,wall);
+ for(const name of ['left','right','top','bottom']){
+  const panel=part(name,wall);
+  // Face ribs stay as children so they stretch with the moving slab.
+  if(name==='left'||name==='right'){
+   for(let i=0;i<5;i++){
+    const rib=new THREE.Mesh(unit,inset);
+    rib.position.set(0,(i-2)*1.05,-.55);
+    rib.scale.set(.7,.12,.08);
+    panel.add(rib);
+   }
+   const seal=new THREE.Mesh(unit,steel);
+   seal.position.set(name==='left'?.42:-.42,0,-.6);
+   seal.scale.set(.08,.95,.1);
+   panel.add(seal);
+  }else{
+   for(let i=0;i<7;i++){
+    const rib=new THREE.Mesh(unit,inset);
+    rib.position.set((i-3)*1.15,0,-.55);
+    rib.scale.set(.14,.65,.08);
+    panel.add(rib);
+   }
+   const seal=new THREE.Mesh(unit,steel);
+   seal.position.set(0,name==='top'?-.42:.42,-.6);
+   seal.scale.set(.95,.08,.1);
+   panel.add(seal);
+  }
+ }
  for(const name of ['jambLeft','jambRight','lintel','sill'])part(name,dark);
- for(const name of ['edgeLeft','edgeRight','edgeTop','edgeBottom'])part(name,amber);
+ for(const name of ['edgeLeft','edgeRight','edgeTop','edgeBottom']){
+  const edge=part(name,amber);
+  // Promote to emissive status lip so open/tight teach matches security gates.
+  edge.material=new THREE.MeshStandardMaterial({
+   color:0xf6b85a,emissive:0xf6b85a,emissiveIntensity:.9,metalness:.1,roughness:.35,
+  });
+ }
+ root.userData.orbitalEdgeMats=true;
  for(const s of [-1,1]){
   const column=part(`column${s}`,steel);column.position.set(s*4.6,3,.05);column.scale.set(.28,6.7,.45);
   for(let i=0;i<5;i++){
@@ -50,4 +84,15 @@ export function layoutOrbitalGate(root:THREE.Group,x:number,y:number,w:number,h:
  put('lintel',x,top+.13,-.09,w,.26,.22);put('sill',x,bottom-.13,-.09,w,.26,.22);
  put('edgeTop',x,top+.028,-.215,w,.055,.025);put('edgeBottom',x,bottom-.028,-.215,w,.055,.025);
  for(let i=0;i<4;i++)put(`roller${i}`,x+(i%2?1:-1)*(w/2+.18),i<2?6.3:-.15,-.3,.26,.34,.18);
+ if(root.userData.orbitalEdgeMats){
+  const area=w*h;
+  const teach=area>3.3?0x70e5ed:area<1.8?0xff7562:0xffb449;
+  for(const name of ['edgeLeft','edgeRight','edgeTop','edgeBottom']){
+   const edge=root.getObjectByName(name) as THREE.Mesh|undefined;
+   const mat=edge?.material as THREE.MeshStandardMaterial|undefined;
+   if(!mat?.emissive)continue;
+   mat.color.setHex(teach);mat.emissive.setHex(teach);
+   mat.emissiveIntensity=teach===0xff7562?1.35:teach===0xffb449?1.05:.85;
+  }
+ }
 }

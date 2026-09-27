@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import {createOrbitalIris,layoutOrbitalIris} from '../src/obstacles/OrbitalIrisVisual';
 import {evaluateIrisCollision} from '../src/obstacles/ObstacleCollision';
 import {disposeObject3D} from '../src/obstacles/RotorGeometry';
+import {getCampaignLevel} from '../src/campaign/levels';
+import {irisRadiusAt} from '../src/obstacles/IrisObstacle';
 describe('orbital iris visible boundary',()=>{
  it('places the shutter and illuminated inner edge at the collision opening throughout its travel',()=>{
   const root=createOrbitalIris();
@@ -21,4 +23,27 @@ describe('orbital iris visible boundary',()=>{
   }
   disposeObject3D(root);
  });
+});
+
+describe('upper atmosphere iris teach (L49)', () => {
+  it('seals small enough that a center throw can fail', () => {
+    const level = getCampaignLevel(49)!;
+    const iris = level.challenge.obstacles.find((o) => o.type === 'iris');
+    expect(iris?.type).toBe('iris');
+    if (!iris || iris.type !== 'iris') return;
+    expect(iris.minRadius).toBeLessThan(0.22);
+    const cx = iris.centerX ?? 0;
+    const cy = iris.centerY ?? 3;
+    let hits = 0;
+    let clears = 0;
+    for (let t = 0; t < 10; t += 0.05) {
+      const r = irisRadiusAt(iris, t);
+      if (evaluateIrisCollision(cx, cy, 0.22, cx, cy, r).hit) hits++;
+      else clears++;
+    }
+    expect(hits).toBeGreaterThan(0);
+    expect(clears).toBeGreaterThan(0);
+    // Must not be a free throw — sealed share should be meaningful.
+    expect(hits / (hits + clears)).toBeGreaterThan(0.15);
+  });
 });

@@ -1,8 +1,10 @@
 import type {CampaignLevelDefinition} from '../types';
 
-/** Three playtest benchmarks. Keep identity/rewards and shared physics unchanged. */
+/** Two playtest benchmarks. Keep identity/rewards and shared physics unchanged.
+ * L86 is a corkscrew library encounter (LibraryEncounters) — not a dual-orbiter bench.
+ */
 export function applyPrecisionBenchmark(source: CampaignLevelDefinition): CampaignLevelDefinition {
-  if (![44, 68, 86].includes(source.levelNumber)) return source;
+  if (![44, 68].includes(source.levelNumber)) return source;
   const level: CampaignLevelDefinition = JSON.parse(JSON.stringify(source));
   const {target, obstacles} = level.challenge;
   target.radius = .78;
@@ -21,13 +23,6 @@ export function applyPrecisionBenchmark(source: CampaignLevelDefinition): Campai
       Object.assign(near, {z: 4.8, pivotX: -.52, pivotY: 3.7, length: 1.6, blockerRadius: .61, maxAngle: .56, speed: .88, phase: 1});
       Object.assign(far, {z: 9.1, pivotX: -.98, pivotY: 4.05, length: 1.6, blockerRadius: .61, maxAngle: .5, speed: 1.07, phase: 1});
     }
-  } else {
-    Object.assign(target, {x: -1.28, y: 3.7});
-    const orbiter = obstacles[0];
-    if (orbiter.type === 'orbiter') {
-      Object.assign(orbiter, {z: 5.3, centerX: .15, centerY: 2.7, orbitRadius: .98, blockerRadius: .6, speed: -.8});
-    }
-    obstacles[1].z = 8.8;
   }
   return level;
 }

@@ -123,7 +123,7 @@ export class RunManager {
   }
 
   grantContinue(): void {
-    this.lives = 1;
+    this.lives = GAME_TUNING.run.lives;
     this.currentStreak = 0;
     this.multiplier = 1;
     this.hasUsedRewardedContinue = true;

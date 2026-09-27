@@ -2,6 +2,7 @@
   "expo": {
     "name": "SPARK",
     "slug": "escape-to-luma",
+    "owner": "suiteplugins",
     "version": "0.1.0",
     "scheme": "spark",
     "orientation": "portrait",
@@ -9,12 +10,16 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#050B15",
     "ios": {
-      "bundleIdentifier": "com.kurt.sparkescapetoluma",
-      "buildNumber": "2",
+      "bundleIdentifier": "com.escapetoluma.spark",
+      "buildNumber": "24",
       "supportsTablet": true,
       "requireFullScreen": true,
       "config": {
         "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "GCSupportsGameMode": true,
+        "LSApplicationCategoryType": "public.app-category.games"
       }
     },
     "android": {
@@ -29,7 +34,7 @@
       "permissions": [
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
-      "package": "com.kurt.sparkescapetoluma"
+      "package": "com.escapetoluma.spark"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -67,11 +72,41 @@
             "image": "./assets/splash-icon.png"
           }
         }
+      ],
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "enableSceneSupport": true
+          }
+        }
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "Spark uses this identifier to show you relevant ads and measure ad performance. You can still play and watch rewarded ads if you decline."
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-1715335515944327~9693302939",
+          "iosAppId": "ca-app-pub-1715335515944327~5238132731"
+        }
       ]
     ],
     "extra": {
       "eas": {
         "projectId": "06bd8d18-81fe-4e5a-bcfe-c7f46d834c98"
+      },
+      "admob": {
+        "iosAppId": "ca-app-pub-1715335515944327~5238132731",
+        "androidAppId": "ca-app-pub-1715335515944327~9693302939",
+        "iosRewardedUnitId": "ca-app-pub-1715335515944327/4154035794",
+        "androidRewardedUnitId": "ca-app-pub-1715335515944327/1914974559",
+        "iosInterstitialUnitId": "ca-app-pub-1715335515944327/5038822187",
+        "androidInterstitialUnitId": "ca-app-pub-1715335515944327/8380221265"
       }
     }
   }

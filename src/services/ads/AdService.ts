@@ -1,29 +1,59 @@
 import { getCommercialConfig, patchCommercialConfig } from '../../config/commercial';
 import { ANALYTICS_EVENTS, Analytics } from '../analytics/Analytics';
 import { PurchaseService } from '../purchases/PurchaseService';
+import { AdMobController, adMobNativeAvailable, initializeMobileAds } from './AdMobController';
 import { InterstitialPolicy, type InterstitialContext } from './InterstitialPolicy';
 import { SimulatedAdController } from './SimulatedAdController';
-import type { AdShowResult, AdStatus } from './AdTypes';
+import type { AdController, AdShowResult, AdStatus } from './AdTypes';
 
 export type AdServiceHooks = {
   onPresentationChange?: (showing: boolean) => void;
 };
 
+function createSimulatedControllers(): { rewarded: AdController; interstitial: AdController } {
+  return {
+    rewarded: new SimulatedAdController('rewarded'),
+    interstitial: new SimulatedAdController('interstitial'),
+  };
+}
+
 class AdServiceImpl {
-  private rewarded = new SimulatedAdController('rewarded');
-  private interstitial = new SimulatedAdController('interstitial');
+  private rewarded: AdController = createSimulatedControllers().rewarded;
+  private interstitial: AdController = createSimulatedControllers().interstitial;
   private hooks: AdServiceHooks = {};
-  private testPresenter:(()=>Promise<AdShowResult>)|null=null;
-  setTestRewardedPresenter(p:(()=>Promise<AdShowResult>)|null){this.testPresenter=p;}
+  private testPresenter: (() => Promise<AdShowResult>) | null = null;
+  private usingLive = false;
+  private startPromise: Promise<void> | null = null;
   adsEnabledOverride: boolean | null = null;
+
+  setTestRewardedPresenter(p: (() => Promise<AdShowResult>) | null) {
+    this.testPresenter = p;
+  }
 
   configure(hooks: AdServiceHooks): void {
     this.hooks = hooks;
   }
 
-  start(): void {
+  /** Initialize AdMob when native is available; otherwise keep the simulated path (tests / Expo Go). */
+  start(): Promise<void> {
     if (!this.adsOn()) {
-      return;
+      return Promise.resolve();
+    }
+    if (this.startPromise) {
+      return this.startPromise;
+    }
+    this.startPromise = this.bootstrap();
+    return this.startPromise;
+  }
+
+  private async bootstrap(): Promise<void> {
+    if (!this.usingLive && adMobNativeAvailable()) {
+      const ok = await initializeMobileAds();
+      if (ok) {
+        this.rewarded = new AdMobController('rewarded');
+        this.interstitial = new AdMobController('interstitial');
+        this.usingLive = true;
+      }
     }
     this.rewarded.preload();
     this.interstitial.preload();
@@ -81,7 +111,12 @@ class AdServiceImpl {
     }
     this.hooks.onPresentationChange?.(true);
     Analytics.track(ANALYTICS_EVENTS.continueAdStarted, { runId: Analytics.runId });
-    const result = typeof __DEV__!=='undefined'&&__DEV__&&this.testPresenter ? await this.testPresenter() : this.rewardedReady()?await this.rewarded.show():'failed';
+    const result =
+      typeof __DEV__ !== 'undefined' && __DEV__ && this.testPresenter
+        ? await this.testPresenter()
+        : this.rewardedReady()
+          ? await this.rewarded.show()
+          : 'failed';
     this.hooks.onPresentationChange?.(false);
     if (result === 'completed') {
       Analytics.track(ANALYTICS_EVENTS.continueAdCompleted, { runId: Analytics.runId });
@@ -111,12 +146,23 @@ class AdServiceImpl {
     this.adsEnabledOverride = enabled;
     patchCommercialConfig({ adsEnabled: enabled });
     if (enabled) {
-      this.start();
+      this.startPromise = null;
+      void this.start();
     }
   }
 
   setUseTestAds(enabled: boolean): void {
     patchCommercialConfig({ useTestAds: enabled });
+    if (this.usingLive) {
+      this.rewarded = new AdMobController('rewarded');
+      this.interstitial = new AdMobController('interstitial');
+      if (this.adsOn()) {
+        this.rewarded.preload();
+        this.interstitial.preload();
+      }
+    } else {
+      this.resetControllers();
+    }
   }
 
   forceRewardedReady(): void {
