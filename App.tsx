@@ -768,11 +768,15 @@ function AppShell() {
           onBuyBoost={(id) => {
             GameHaptics.forUi();
             AudioManager.play('ui');
-            gameRef.current?.buyBoostWithShards(id);
+            const ok = !!gameRef.current?.buyBoostWithShards(id);
             refreshSave();
+            // Mid-run boost buy: return to boost pick / game so the player can equip and continue.
+            if (ok && (shopReturn === 'levelReady' || shopReturn === 'play')) {
+              tap(() => setScreen(shopReturn));
+            }
           }}
           onWatchEnergy={async()=>{await gameRef.current?.watchRewardedEnergy();refreshSave();}}
-          onBuyEnergy={()=>{gameRef.current?.buyEnergyRefill();refreshSave();}}
+          onBuyEnergy={()=>{const ok=!!gameRef.current?.buyEnergyRefill();refreshSave();return ok;}}
           onShardPack={async(id)=>{const result=await gameRef.current?.purchaseShardPack(id)??'unavailable';refreshSave();return result;}}
           onOvercharge={async(id)=>{const result=await gameRef.current?.purchaseOvercharge(id)??'unavailable';refreshSave();return result;}}
           onRestoreOvercharge={async()=>{const ok=await gameRef.current?.restoreOverchargePurchases()??false;refreshSave();return ok;}}

@@ -28,6 +28,11 @@ import { getCommercialConfig } from '../config/commercial';
 import { ECONOMY, SELECTABLE_BOOST_IDS, SHARD_PACKS, type ShardPackId, BOOST_LOADOUT_LIMIT } from '../config/economy';
 import type { OverchargeProductId } from '../config/overcharge';
 import { applyOverchargePurchase } from '../economy/overcharge';
+import {
+  bumpRewardedEnergyAdCount,
+  canWatchRewardedEnergyAd,
+  energyRefillShardCost,
+} from '../economy/energy';
 import { evaluateSparkPassive, sparkPassiveDebugLine, type SparkPassiveAttemptState } from '../customization/sparkAbilities';
 import {
   obstacleDeltaSeconds,
@@ -293,7 +298,7 @@ export class Game {
       Analytics.markOnboardingStarted();
     }
     await requestTrackingIfNeeded();
-    AdService.start();
+    await AdService.start();
   }
 
   start(): void {
@@ -948,8 +953,9 @@ export class Game {
       return;
     }
     if (this.campaignDef.levelNumber >= RELEASE_POLICY.campaignMaxLevel) {
-      // A replay of the final level offers another attempt, not another ending.
-      this.retryCampaignLevel();
+      // Replaying L150 always offers the ending scene again.
+      this.state.set('CAMPAIGN_COMPLETE');
+      this.emitHud();
       return;
     }
     const nextLevel = this.campaignDef.levelNumber + 1;
@@ -1337,8 +1343,14 @@ export class Game {
   }
   buyEnergyRefill():boolean {
     this.syncCampaignEnergyOnSave();
-    if(this.save.campaign.currentEnergy>=ECONOMY.maxEnergy||this.save.campaign.shards<ECONOMY.energyRefillCost)return false;
-    this.save.campaign.shards-=ECONOMY.energyRefillCost;this.save.campaign.currentEnergy=ECONOMY.maxEnergy;this.save.campaign.energyUpdatedAt=Date.now();void saveGameSave(this.save);this.emitHud();return true;
+    const cost = energyRefillShardCost(this.save.campaign.currentEnergy);
+    if(cost<=0||this.save.campaign.shards<cost)return false;
+    this.save.campaign.shards-=cost;
+    this.save.campaign.currentEnergy=ECONOMY.maxEnergy;
+    this.save.campaign.energyUpdatedAt=Date.now();
+    void saveGameSave(this.save);
+    this.emitHud();
+    return true;
   }
   async purchaseShardPack(packId: ShardPackId): Promise<'completed' | 'cancelled' | 'failed' | 'unavailable' | 'already'> {
     const result = await PurchaseService.purchaseShardPack(packId);
@@ -1431,17 +1443,26 @@ export class Game {
     if (this.continueBusy || this.adShowing) {
       return;
     }
+    this.syncCampaignEnergyOnSave();
+    if (!canWatchRewardedEnergyAd(this.save.campaign, this.save.campaign.currentEnergy)) {
+      return;
+    }
     this.continueBusy = true;
     this.emitHud();
     const result = await AdService.showRewarded();
     this.continueBusy = false;
     if (result === 'completed') {
       this.syncCampaignEnergyOnSave();
+      if (!canWatchRewardedEnergyAd(this.save.campaign, this.save.campaign.currentEnergy)) {
+        this.emitHud();
+        return;
+      }
       this.save.campaign.currentEnergy = Math.min(
         ECONOMY.maxEnergy,
         this.save.campaign.currentEnergy + ECONOMY.rewardedAdEnergyAmount,
       );
       if(this.save.campaign.currentEnergy===ECONOMY.maxEnergy)this.save.campaign.energyUpdatedAt = Date.now();
+      bumpRewardedEnergyAdCount(this.save.campaign);
       this.syncCampaignEnergyOnSave();
       void saveGameSave(this.save);
 
@@ -2360,15 +2381,23 @@ export class Game {
       shardsGained: outcome.shardsGained,
       worldComplete: outcome.worldComplete,
     });
+    // L150 always shows the ending scene on clear — including replays.
+    // First clear still goes WORLD_COMPLETE → spark unlock → CAMPAIGN_COMPLETE.
+    const showEnding = def.levelNumber === RELEASE_POLICY.campaignMaxLevel;
     this.state.set(
       outcome.worldComplete
         ? 'WORLD_COMPLETE'
-        : outcome.campaignComplete
+        : showEnding || outcome.campaignComplete
           ? 'CAMPAIGN_COMPLETE'
           : 'LEVEL_COMPLETE',
     );
     const milestone = storyAfterWorld(def.levelNumber, this.save.campaign.seenStoryIds ?? []);
-    if (milestone) this.showCampaignStory(milestone, outcome.worldComplete ? 'WORLD_COMPLETE' : outcome.campaignComplete ? 'CAMPAIGN_COMPLETE' : 'LEVEL_COMPLETE');
+    const storyReturn = outcome.worldComplete
+      ? 'WORLD_COMPLETE'
+      : showEnding || outcome.campaignComplete
+        ? 'CAMPAIGN_COMPLETE'
+        : 'LEVEL_COMPLETE';
+    if (milestone) this.showCampaignStory(milestone, storyReturn);
     if (def.levelNumber === 1 && !(this.save.campaign.seenStoryIds ?? []).includes(FIRST_ESCAPE.id)) {
       this.showCampaignStory(FIRST_ESCAPE, 'LEVEL_COMPLETE');
     }

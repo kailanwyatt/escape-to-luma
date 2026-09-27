@@ -2,8 +2,16 @@ import {t} from '../i18n';
 import {useEffect,useState} from 'react';
 import {Modal,Pressable,StyleSheet,Text,View} from 'react-native';
 import {ContinueJourneyButton,fontDisplay,fontUi} from '../design';
+import {getCommercialConfig} from '../config/commercial';
 import {ECONOMY} from '../config/economy';
-import {formatCountdown,msUntilFullEnergy,msUntilNextEnergy,regenerateEnergy} from '../economy/energy';
+import {
+  canWatchRewardedEnergyAd,
+  formatCountdown,
+  msUntilFullEnergy,
+  msUntilNextEnergy,
+  regenerateEnergy,
+  rewardedEnergyAdsRemaining,
+} from '../economy/energy';
 import {hasUnlimitedEnergy,type PersistentGameData} from '../persistence/GameSave';
 import {CurrencyIcon} from './CurrencyIcon';
 
@@ -25,7 +33,9 @@ export function ResourceModal({visible,save,onClose,onShop,onWatch}:Props){
  const fullMs=msUntilFullEnergy(energy.energy,energy.energyUpdatedAt,now);
  const fullMinutes=Math.max(0,Math.ceil(fullMs/60000));
  const full=unlimited||energy.energy>=ECONOMY.maxEnergy;
- const dev=typeof __DEV__!=='undefined'&&__DEV__;
+ const adsOn=getCommercialConfig().adsEnabled;
+ const adsLeft=rewardedEnergyAdsRemaining(c,now);
+ const canAd=!full&&adsOn&&canWatchRewardedEnergyAd(c,energy.energy,now);
  const watch=()=>{setBusy(true);void onWatch().finally(()=>setBusy(false));};
  return <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
   <Pressable accessibilityRole="button" accessibilityLabel={t('resourcemodal.close')} onPress={onClose} style={s.backdrop}>
@@ -48,15 +58,16 @@ export function ResourceModal({visible,save,onClose,onShop,onWatch}:Props){
      <Text style={s.meterCopy}>{unlimited?t('homescreen.unlimited'):full?t('resourcemodal.energy_is_full'):t('resourcemodal.full_in_minutes',{value1:fullMinutes})}</Text>
     </View>
     <ContinueJourneyButton
-     disabled={busy||full||!dev}
-     label={busy?t('outofenergyscreen.please_wait'):t('outofenergyscreen.watch_ad_5_energy',{value1:dev?t('debugoverlay.test'):''})}
+     disabled={busy||!canAd}
+     label={busy?t('outofenergyscreen.please_wait'):t('outofenergyscreen.watch_ad_5_energy',{value1:'',value2:ECONOMY.rewardedAdEnergyAmount})}
      playIcon={false}
      onPress={watch}
     />
+    {adsOn&&!unlimited?<Text style={s.footnote}>{canAd?t('outofenergyscreen.energy_ads_left_today',{value1:adsLeft}):t('outofenergyscreen.energy_ad_limit_reached')}</Text>:null}
     <Pressable accessibilityRole="button" accessibilityLabel={t('resourcemodal.buy_shards')} onPress={()=>{onClose();onShop();}} style={s.shop}>
      <View style={s.shopRow}><CurrencyIcon kind="shard" size={22}/><Text style={s.shopText}>{t('resourcemodal.buy_shards')}</Text></View>
     </Pressable>
-    <Text style={s.footnote}>{dev?t('outofenergyscreen.development_test_ad_no_live_advertising_or_real_payments'):t('outofenergyscreen.ads_are_not_available_yet_wait_for_energy_or_visit_the_shop')}</Text>
+    {!adsOn?<Text style={s.footnote}>{t('outofenergyscreen.ads_are_not_available_yet_wait_for_energy_or_visit_the_shop')}</Text>:null}
     <Pressable accessibilityRole="button" onPress={onClose} style={s.close}><Text style={s.closeText}>{t('hud.cancel')}</Text></Pressable>
    </Pressable>
   </Pressable>

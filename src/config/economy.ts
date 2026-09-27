@@ -4,7 +4,10 @@ export const ECONOMY = {
   maxEnergy: 15,
   energyRegenMinutes: 10,
   rewardedAdEnergyAmount: 5,
-  energyRefillCost: 60,
+  /** Shard cost per missing energy unit (empty tank = 15 × this). */
+  energyRefillCostPerEnergy: 12,
+  /** Soft daily cap so ads stay the preferred free top-up, not infinite fuel. */
+  maxRewardedEnergyAdsPerDay: 4,
   /** Containment onboarding / practice: no energy cost through this level (inclusive). */
   energyFreeThroughLevel: 5,
   portalBloomMultiplier: 1.25,

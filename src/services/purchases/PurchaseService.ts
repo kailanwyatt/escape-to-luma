@@ -1,7 +1,11 @@
 import { Platform } from 'react-native';
 import Purchases, { PRODUCT_CATEGORY, type PurchasesError, type PurchasesStoreProduct } from 'react-native-purchases';
 
-import { getCommercialConfig, REMOVE_ADS_PRODUCT_ID } from '../../config/commercial';
+import {
+  getCommercialConfig,
+  REMOVE_ADS_ENTITLEMENT_ID,
+  REMOVE_ADS_PRODUCT_ID,
+} from '../../config/commercial';
 import { OVERCHARGE_PRODUCTS, type OverchargeProductId } from '../../config/overcharge';
 import { SHARD_PACKS, type ShardPackId } from '../../config/economy';
 import { ANALYTICS_EVENTS, Analytics } from '../analytics/Analytics';
@@ -40,19 +44,31 @@ class PurchaseServiceImpl {
   private mockOverchargeReceipts: { productId: OverchargeProductId; transactionId: string }[] = [];
 
   async initialize(): Promise<void> {
-    if (this.initialized || !getCommercialConfig().purchasesEnabled || Platform.OS !== 'ios') return;
-    const apiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY?.trim();
+    if (this.initialized || !getCommercialConfig().purchasesEnabled) return;
+    const apiKey =
+      Platform.OS === 'ios'
+        ? process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY?.trim()
+        : Platform.OS === 'android'
+          ? process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY?.trim()
+          : undefined;
     if (!apiKey) return;
     try {
       if (!(await Purchases.isConfigured())) {
         Purchases.configure({ apiKey });
       }
       this.initialized = true;
+      await this.refreshCustomerInfo();
       await this.refreshShardProducts();
       await this.refreshOverchargeProducts();
     } catch {
       this.initialized = false;
     }
+  }
+
+  private async refreshCustomerInfo(): Promise<void> {
+    if (!this.initialized) return;
+    const customerInfo = await Purchases.getCustomerInfo();
+    this.removeAds = Boolean(customerInfo.entitlements.active[REMOVE_ADS_ENTITLEMENT_ID]);
   }
 
   async refreshShardProducts(): Promise<ShardProduct[]> {
@@ -176,8 +192,9 @@ class PurchaseServiceImpl {
     }
 
     // Dev/mock path when store products are unavailable.
-    const allowMock = (typeof __DEV__ !== 'undefined' && __DEV__) || getCommercialConfig().purchasesEnabled;
-    if (this.forceFail || !allowMock) {
+    const allowMock = typeof __DEV__ !== 'undefined' && __DEV__;
+    if (!allowMock) return { status: 'unavailable', productId };
+    if (this.forceFail) {
       Analytics.track(ANALYTICS_EVENTS.purchaseFailed, { productId: catalog.productId });
       return { status: 'failed', productId };
     }
@@ -222,23 +239,54 @@ class PurchaseServiceImpl {
   }
 
   async purchaseRemoveAds(): Promise<'completed' | 'cancelled' | 'failed' | 'already'> {
-    Analytics.track(ANALYTICS_EVENTS.purchaseStarted, { productId: REMOVE_ADS_PRODUCT_ID });
+    await this.initialize();
     if (this.removeAds) {
       Analytics.track(ANALYTICS_EVENTS.purchaseCompleted, { productId: REMOVE_ADS_PRODUCT_ID, already: true });
       return 'already';
     }
-    if (!getCommercialConfig().purchasesEnabled || this.forceFail) {
+    if (!this.initialized || this.forceFail) {
       Analytics.track(ANALYTICS_EVENTS.purchaseFailed, { productId: REMOVE_ADS_PRODUCT_ID });
       return 'failed';
     }
-    await new Promise((resolve) => setTimeout(resolve, 280));
-    this.removeAds = true;
-    Analytics.track(ANALYTICS_EVENTS.purchaseCompleted, { productId: REMOVE_ADS_PRODUCT_ID });
-    return 'completed';
+    Analytics.track(ANALYTICS_EVENTS.purchaseStarted, { productId: REMOVE_ADS_PRODUCT_ID });
+    try {
+      let product = this.products.get(REMOVE_ADS_PRODUCT_ID);
+      if (!product) {
+        const products = await Purchases.getProducts([REMOVE_ADS_PRODUCT_ID], PRODUCT_CATEGORY.NON_SUBSCRIPTION);
+        product = products[0];
+        if (product) this.products.set(product.identifier, product);
+      }
+      if (!product) {
+        Analytics.track(ANALYTICS_EVENTS.purchaseFailed, { productId: REMOVE_ADS_PRODUCT_ID });
+        return 'failed';
+      }
+      const result = await Purchases.purchaseStoreProduct(product);
+      this.removeAds = Boolean(result.customerInfo.entitlements.active[REMOVE_ADS_ENTITLEMENT_ID]);
+      if (!this.removeAds) {
+        Analytics.track(ANALYTICS_EVENTS.purchaseFailed, { productId: REMOVE_ADS_PRODUCT_ID, reason: 'missing_entitlement' });
+        return 'failed';
+      }
+      Analytics.track(ANALYTICS_EVENTS.purchaseCompleted, { productId: REMOVE_ADS_PRODUCT_ID });
+      return 'completed';
+    } catch (error) {
+      const purchaseError = error as Partial<PurchasesError>;
+      if (purchaseError.code === Purchases.PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR || purchaseError.userCancelled) {
+        return 'cancelled';
+      }
+      Analytics.track(ANALYTICS_EVENTS.purchaseFailed, { productId: REMOVE_ADS_PRODUCT_ID });
+      return 'failed';
+    }
   }
 
   async restorePurchases(): Promise<boolean> {
-    await new Promise((resolve) => setTimeout(resolve, 180));
+    await this.initialize();
+    if (!this.initialized) return false;
+    try {
+      const customerInfo = await Purchases.restorePurchases();
+      this.removeAds = Boolean(customerInfo.entitlements.active[REMOVE_ADS_ENTITLEMENT_ID]);
+    } catch {
+      return false;
+    }
     Analytics.track(ANALYTICS_EVENTS.purchaseRestored, {
       productId: REMOVE_ADS_PRODUCT_ID,
       entitled: this.removeAds,

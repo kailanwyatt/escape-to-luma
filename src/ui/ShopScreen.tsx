@@ -4,12 +4,19 @@ import {useEffect,useState} from 'react';
 import {Pressable,ScrollView,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {LinearGradient} from 'expo-linear-gradient';
+import {getCommercialConfig} from '../config/commercial';
 import {ECONOMY,SHARD_PACKS,type ShardPackId} from '../config/economy';
 import {OVERCHARGE_PRODUCTS,type OverchargeProductId} from '../config/overcharge';
 import {PurchaseService,type OverchargeStoreProduct,type ShardProduct} from '../services/purchases/PurchaseService';
 import {hasUnlimitedEnergy,type PersistentGameData} from '../persistence/GameSave';
 import {formatOverchargeRemaining,overchargeRemainingMs} from '../economy/overcharge';
-import {regenerateEnergy} from '../economy/energy';
+import {
+  canWatchRewardedEnergyAd,
+  energyRefillShardCost,
+  missingEnergy,
+  regenerateEnergy,
+  rewardedEnergyAdsRemaining,
+} from '../economy/energy';
 import {CurrencyIcon} from './CurrencyIcon';
 import {ShopArt} from './ShopArt';
 export type ShopBoost='guidance'|'slowField'|'secondChance'|'portalBloom'|'phaseShield'|'timeLock';
@@ -21,14 +28,18 @@ const boosts:readonly [ShopBoost,string,string,number][]=[
   ['phaseShield',t("shopscreen.phase_shield"),t("shopscreen.phase_shield_desc"),2],
   ['timeLock',t("shopscreen.time_lock"),t("shopscreen.time_lock_desc"),1],
 ];
-export function ShopScreen({save,onBuyBoost,onWatchEnergy,onBuyEnergy,onShardPack,onOvercharge,onRestoreOvercharge,onBack,backLabel=t("screenchrome.back")}:{save:PersistentGameData;onBuyBoost:(id:ShopBoost)=>void;onWatchEnergy:()=>Promise<void>;onBuyEnergy:()=>void;onShardPack:(id:ShardPackId)=>Promise<'completed'|'cancelled'|'failed'|'unavailable'|'already'>;onOvercharge:(id:OverchargeProductId)=>Promise<'completed'|'cancelled'|'failed'|'unavailable'|'already'>;onRestoreOvercharge:()=>Promise<boolean>;onBack:()=>void;backLabel?:string}){
+export function ShopScreen({save,onBuyBoost,onWatchEnergy,onBuyEnergy,onShardPack,onOvercharge,onRestoreOvercharge,onBack,backLabel=t("screenchrome.back")}:{save:PersistentGameData;onBuyBoost:(id:ShopBoost)=>void;onWatchEnergy:()=>Promise<void>;onBuyEnergy:()=>boolean;onShardPack:(id:ShardPackId)=>Promise<'completed'|'cancelled'|'failed'|'unavailable'|'already'>;onOvercharge:(id:OverchargeProductId)=>Promise<'completed'|'cancelled'|'failed'|'unavailable'|'already'>;onRestoreOvercharge:()=>Promise<boolean>;onBack:()=>void;backLabel?:string}){
  const [busy,setBusy]=useState(false),[busyPack,setBusyPack]=useState<ShardPackId|null>(null),[busyOvercharge,setBusyOvercharge]=useState<OverchargeProductId|null>(null),[products,setProducts]=useState<ShardProduct[]>([]),[overchargeProducts,setOverchargeProducts]=useState<OverchargeStoreProduct[]>([]),[notice,setNotice]=useState(''),[now,setNow]=useState(Date.now()),[showDurations,setShowDurations]=useState(false);const {width}=useWindowDimensions(),insets=useSafeAreaInsets(),c=save.campaign;
  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
  useEffect(()=>{let active=true;void PurchaseService.getShardProducts().then((next)=>{if(active)setProducts(next);});void PurchaseService.getOverchargeProducts().then((next)=>{if(active)setOverchargeProducts(next);});return()=>{active=false;};},[]);
- const dev=typeof __DEV__!=='undefined'&&__DEV__,wide=width>=800,columns=wide?4:width>=360?2:1;
+ const wide=width>=800,columns=wide?4:width>=360?2:1;
  const unlimited=hasUnlimitedEnergy(c,now),energy=regenerateEnergy(c.currentEnergy,c.energyUpdatedAt,now,unlimited).energy;
+ const refillMissing=missingEnergy(energy),refillCost=energyRefillShardCost(energy);
+ const adsOn=getCommercialConfig().adsEnabled;
+ const adsLeft=rewardedEnergyAdsRemaining(c,now);
+ const canAd=!unlimited&&adsOn&&canWatchRewardedEnergyAd(c,energy,now);
  const remaining=formatOverchargeRemaining(overchargeRemainingMs(c,now));
- const watch=async()=>{setBusy(true);setNotice('');try{await onWatchEnergy();}catch{setNotice(t("shopscreen.the_ad_could_not_complete_please_try_again"));}finally{setBusy(false);}};
+ const watch=async()=>{setBusy(true);setNotice('');try{if(!canAd){setNotice(t("shopscreen.energy_ad_limit_reached"));return;}await onWatchEnergy();}catch{setNotice(t("shopscreen.the_ad_could_not_complete_please_try_again"));}finally{setBusy(false);}};
  const buyPack=async(id:ShardPackId)=>{setBusyPack(id);setNotice('');try{const result=await onShardPack(id);if(result==='completed')setNotice(t("shopscreen.shards_added"));else if(result==='already')setNotice(t("shopscreen.purchase_already_applied"));else if(result!=='cancelled')setNotice(t("shopscreen.purchase_unavailable"));}finally{setBusyPack(null);}};
  const buyOvercharge=async(id:OverchargeProductId)=>{setBusyOvercharge(id);setNotice('');try{const result=await onOvercharge(id);if(result==='completed'){setNotice(t("shopscreen.overcharge_granted",{value1:remaining}));setShowDurations(false);}else if(result==='already')setNotice(t("shopscreen.purchase_already_applied"));else if(result!=='cancelled')setNotice(t("shopscreen.purchase_unavailable"));}finally{setBusyOvercharge(null);}};
  const restore=async()=>{setBusy(true);setNotice('');try{const ok=await onRestoreOvercharge();setNotice(ok?t("shopscreen.overcharge_restore"):t("shopscreen.purchase_unavailable"));}finally{setBusy(false);}};
@@ -40,7 +51,7 @@ export function ShopScreen({save,onBuyBoost,onWatchEnergy,onBuyEnergy,onShardPac
  <View style={s.sectionRow}><Text style={s.section}>{t("shopscreen.flight_kit")}</Text><Text style={s.micro}>{t("shopscreen.temporary_boosts_for_your_next_attempt")}</Text></View>
  <View style={s.grid}>{boosts.map(([id,name,description,tile])=><View key={id} style={[s.boost,{width:columns===4?'23.8%':columns===2?'48%':'100%'}]}><ShopArt tile={tile} style={{height:wide?155:145,width:'100%'}}/><View style={s.cardCopy}><Text style={s.cardTitle}>{name}</Text><Text style={[s.description,{minHeight:wide?80:88}]}>{description}</Text>{button(`◆ ${ECONOMY.boostCosts[id]}`,()=>{onBuyBoost(id);setNotice(t("shopscreen.added_to_your_kit", {value1: name}));},c.shards<ECONOMY.boostCosts[id])}<Text style={s.owned}>{t("shopscreen.in_your_kit")}{c.boostInventory[id]}</Text></View></View>)}</View>
  {notice?<Text accessibilityLiveRegion="polite" style={s.notice}>{notice}</Text>:null}
- <View style={[s.recharge,{minHeight:wide?245:310}]}><ShopArt tile={5} style={{position:'absolute',right:0,top:0,bottom:0,width:wide?'46%':'100%',opacity:wide?1:.35}}/><LinearGradient colors={['#041522','#041522cc','#04152200']} start={{x:0,y:0}} end={{x:1,y:0}} style={StyleSheet.absoluteFill}/><View style={{padding:24,width:wide?'65%':'100%'}}><Text style={s.cardHeading}>{t("shopscreen.recharge_spark")}</Text><Text style={s.copy}>{t("shopscreen.energy_returns_automatically_1_every")}{ECONOMY.energyRegenMinutes} {t("shopscreen.minutes_or_choose_a_refill_now")}</Text><View style={{flexDirection:wide?'row':'column',gap:12,marginTop:8}}><View style={{flex:1}}>{button(busy?t("outofenergyscreen.please_wait"):t("shopscreen.watch_ad_energy", {value1: dev?t("debugoverlay.test"):'', value2: ECONOMY.rewardedAdEnergyAmount}),()=>void watch(),busy||energy>=ECONOMY.maxEnergy||!dev,true)}</View><View style={{flex:1}}>{button(t("shopscreen.full_refill", {value1: ECONOMY.energyRefillCost}),()=>{onBuyEnergy();setNotice(t("shopscreen.energy_refilled_spark_is_ready"));},energy>=ECONOMY.maxEnergy||c.shards<ECONOMY.energyRefillCost)}</View></View></View></View>
+ <View style={[s.recharge,{minHeight:wide?245:310}]}><ShopArt tile={5} style={{position:'absolute',right:0,top:0,bottom:0,width:wide?'46%':'100%',opacity:wide?1:.35}}/><LinearGradient colors={['#041522','#041522cc','#04152200']} start={{x:0,y:0}} end={{x:1,y:0}} style={StyleSheet.absoluteFill}/><View style={{padding:24,width:wide?'65%':'100%'}}><Text style={s.cardHeading}>{t("shopscreen.recharge_spark")}</Text><Text style={s.copy}>{t("shopscreen.energy_returns_automatically_1_every")}{ECONOMY.energyRegenMinutes} {t("shopscreen.minutes_or_choose_a_refill_now")}</Text>{adsOn&&!unlimited?<Text style={s.copy}>{t("outofenergyscreen.energy_ads_left_today",{value1:adsLeft})}</Text>:null}<View style={{flexDirection:wide?'row':'column',gap:12,marginTop:8}}><View style={{flex:1}}>{button(busy?t("outofenergyscreen.please_wait"):t("shopscreen.watch_ad_energy", {value1: '', value2: ECONOMY.rewardedAdEnergyAmount}),()=>void watch(),busy||!canAd,true)}</View><View style={{flex:1}}>{button(t("shopscreen.full_refill", {value1: refillCost, value2: refillMissing}),()=>{if(onBuyEnergy())setNotice(t("shopscreen.energy_refilled_spark_is_ready"));else setNotice(t("shopscreen.energy_refill_unavailable"));},refillCost<=0||c.shards<refillCost)}</View></View></View></View>
  <View style={s.sectionRow}><Text style={s.section}>{t("shopscreen.optional_shard_packs")}</Text><Text style={s.micro}>{products.length?t("shopscreen.secure_apple_purchase"):t("shopscreen.connecting_to_store")}</Text></View>
  <View style={s.grid}>{SHARD_PACKS.map((pack,i)=>{const product=products.find((item)=>item.packId===pack.id);const purchasing=busyPack===pack.id;return <View key={pack.id} style={[s.pack,{width:width>=700?'32%':'100%'}]}><View style={s.packHeading}><Text style={s.cardTitle}>{pack.name}</Text><Text style={s.copy}>{[t("shopscreen.a_small_boost_for_your_journey"),t("shopscreen.for_those_who_explore_further"),t("shopscreen.for_the_long_road_to_luma")][i]}</Text></View><ShopArt tile={6+i} style={{height:width>=700?220:240,width:'100%'}}/><View style={{padding:14,paddingTop:0}}>{button(`◆ ${pack.shards.toLocaleString()}\n${purchasing?t("shopscreen.processing"):product?.localizedPrice??pack.fallbackPrice}`,()=>void buyPack(pack.id),busyPack!==null||!product)}</View></View>;})}</View>
  <View style={s.earn}><ShopArt tile={6} style={{width:70,height:85,borderRadius:12}}/><View style={{flex:1}}><Text style={[s.copy,{color:'#72ecf5'}]}>{t("shopscreen.first_clear")}{ECONOMY.shards.levelClear} {t("shopscreen.shards_replays")}{ECONOMY.shards.repeatClear} {t("shopscreen.shards")}</Text><Text style={s.copy}>{t("shopscreen.precision_bonuses_and_world_rewards_add_more_equip_boosts_from_th")}</Text></View></View>

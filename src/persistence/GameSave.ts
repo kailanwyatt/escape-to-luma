@@ -89,6 +89,9 @@ export type CampaignSave = {
   processedPurchaseIds: string[];
   currentEnergy: number;
   energyUpdatedAt: number;
+  /** UTC YYYY-MM-DD for daily rewarded energy-ad counter. */
+  rewardedEnergyAdsDayKey: string;
+  rewardedEnergyAdsToday: number;
   ownedSparkIds: string[];
   equippedSparkId: string;
   ownedTrailIds: string[];
@@ -190,6 +193,8 @@ export const EMPTY_CAMPAIGN: CampaignSave = {
   processedPurchaseIds: [],
   currentEnergy: ECONOMY.maxEnergy,
   energyUpdatedAt: Date.now(),
+  rewardedEnergyAdsDayKey: '',
+  rewardedEnergyAdsToday: 0,
   ownedSparkIds: [DEFAULT_SPARK_ID],
   equippedSparkId: DEFAULT_SPARK_ID,
   ownedTrailIds: [DEFAULT_TRAIL_ID],
@@ -353,6 +358,9 @@ function normalizeSave(data: Partial<PersistentGameData>): PersistentGameData {
       processedPurchaseIds: stringArray(campaign.processedPurchaseIds, []).slice(-200),
       currentEnergy: integer(campaign.currentEnergy, ECONOMY.maxEnergy, 0, ECONOMY.maxEnergy),
       energyUpdatedAt: finiteNumber(campaign.energyUpdatedAt, Date.now(), 0, Number.MAX_SAFE_INTEGER),
+      rewardedEnergyAdsDayKey:
+        typeof campaign.rewardedEnergyAdsDayKey === 'string' ? campaign.rewardedEnergyAdsDayKey : '',
+      rewardedEnergyAdsToday: integer(campaign.rewardedEnergyAdsToday, 0, 0, 99),
       ownedSparkIds: stringArray(campaign.ownedSparkIds, [DEFAULT_SPARK_ID]),
       equippedSparkId:
         typeof campaign.equippedSparkId === 'string'

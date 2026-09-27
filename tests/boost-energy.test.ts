@@ -2,7 +2,17 @@ import {describe,it,expect} from 'vitest';
 import {emptySave} from '../src/persistence/GameSave';
 import {applyLevelFailure,consumeBoosts,canStartLevel} from '../src/campaign/CampaignPlay';
 import {getCampaignLevel} from '../src/campaign/levels';
-import {regenerateEnergy,msUntilFullEnergy,msUntilNextEnergy} from '../src/economy/energy';
+import {
+  bumpRewardedEnergyAdCount,
+  canWatchRewardedEnergyAd,
+  energyRefillShardCost,
+  missingEnergy,
+  regenerateEnergy,
+  rewardedEnergyAdsRemaining,
+  msUntilFullEnergy,
+  msUntilNextEnergy,
+  utcDayKey,
+} from '../src/economy/energy';
 import {ECONOMY} from '../src/config/economy';
 describe('consumable economy',()=>{
  it('consumes Portal Bloom alongside other boosts without mutating the original save',()=>{
@@ -42,5 +52,28 @@ describe('consumable economy',()=>{
   const def=getCampaignLevel(6)!;
   expect(applyLevelFailure(s,def,{consumeEnergy:true,usedSecondChance:false}).campaign.currentEnergy).toBe(14);
   expect(canStartLevel({...s.campaign,currentEnergy:0,highestUnlockedLevel:6},6).ok).toBe(false);
+ });
+ it('prices shard refill by missing energy only',()=>{
+  expect(missingEnergy(ECONOMY.maxEnergy)).toBe(0);
+  expect(energyRefillShardCost(ECONOMY.maxEnergy)).toBe(0);
+  expect(energyRefillShardCost(0)).toBe(ECONOMY.maxEnergy*ECONOMY.energyRefillCostPerEnergy);
+  expect(energyRefillShardCost(10)).toBe(5*ECONOMY.energyRefillCostPerEnergy);
+  expect(energyRefillShardCost(0)).toBe(180);
+ });
+ it('caps rewarded energy ads per UTC day',()=>{
+  const tracker={rewardedEnergyAdsDayKey:'',rewardedEnergyAdsToday:0};
+  const now=Date.parse('2026-09-27T12:00:00.000Z');
+  expect(utcDayKey(now)).toBe('2026-09-27');
+  expect(rewardedEnergyAdsRemaining(tracker,now)).toBe(ECONOMY.maxRewardedEnergyAdsPerDay);
+  expect(canWatchRewardedEnergyAd(tracker,0,now)).toBe(true);
+  for(let i=0;i<ECONOMY.maxRewardedEnergyAdsPerDay;i++)bumpRewardedEnergyAdCount(tracker,now);
+  expect(tracker.rewardedEnergyAdsToday).toBe(ECONOMY.maxRewardedEnergyAdsPerDay);
+  expect(canWatchRewardedEnergyAd(tracker,0,now)).toBe(false);
+  expect(rewardedEnergyAdsRemaining(tracker,now)).toBe(0);
+  const nextDay=Date.parse('2026-09-28T01:00:00.000Z');
+  expect(canWatchRewardedEnergyAd(tracker,0,nextDay)).toBe(true);
+  bumpRewardedEnergyAdCount(tracker,nextDay);
+  expect(tracker.rewardedEnergyAdsDayKey).toBe('2026-09-28');
+  expect(tracker.rewardedEnergyAdsToday).toBe(1);
  });
 });

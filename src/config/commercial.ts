@@ -18,6 +18,8 @@ export const INTERSTITIAL_CONFIG = {
 } as const;
 
 export const REMOVE_ADS_PRODUCT_ID = 'aperture_remove_ads';
+/** RevenueCat entitlement granted by the non-consumable Remove Ads product. */
+export const REMOVE_ADS_ENTITLEMENT_ID = 'remove_ads';
 
 /** Google sample / test IDs — used while useTestAds is true. */
 export const ADMOB_TEST = {
@@ -64,7 +66,8 @@ const runtime: CommercialConfig = {
   rewardedContinueEnabled: RELEASE_POLICY.adsEnabled,
   interstitialEnabled: RELEASE_POLICY.adsEnabled,
   purchasesEnabled: RELEASE_POLICY.purchasesEnabled,
-  useTestAds: true,
+  // Google sample units in __DEV__; production unit IDs in store builds.
+  useTestAds: typeof __DEV__ !== 'undefined' && __DEV__,
 };
 
 export function getCommercialConfig(): CommercialConfig {

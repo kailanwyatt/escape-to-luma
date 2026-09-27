@@ -11,7 +11,7 @@
     "backgroundColor": "#050B15",
     "ios": {
       "bundleIdentifier": "com.escapetoluma.spark",
-      "buildNumber": "18",
+      "buildNumber": "24",
       "supportsTablet": true,
       "requireFullScreen": true,
       "config": {
@@ -87,6 +87,13 @@
         {
           "userTrackingPermission": "Spark uses this identifier to show you relevant ads and measure ad performance. You can still play and watch rewarded ads if you decline."
         }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-1715335515944327~9693302939",
+          "iosAppId": "ca-app-pub-1715335515944327~5238132731"
+        }
       ]
     ],
     "extra": {
@@ -102,9 +109,5 @@
         "androidInterstitialUnitId": "ca-app-pub-1715335515944327/8380221265"
       }
     }
-  },
-  "react-native-google-mobile-ads": {
-    "android_app_id": "ca-app-pub-1715335515944327~9693302939",
-    "ios_app_id": "ca-app-pub-1715335515944327~5238132731"
   }
 }
