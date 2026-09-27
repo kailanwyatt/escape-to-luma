@@ -97,6 +97,48 @@ export function laserBeamsAtTime(
     ];
   }
 
+  if (pattern === 'CROSSING_PHASED') {
+    const horizontalCount = Math.max(2, Math.ceil(count / 2));
+    const verticalCount = Math.max(2, Math.floor(count / 2));
+    // Slow regime cycle: H moves alone → both together → V moves alone.
+    const regimePeriod = 5.2;
+    const cycle = regimePeriod * 3;
+    const t =
+      (((elapsedTime + (config.phase ?? 0) * 1.7) % cycle) + cycle) % cycle;
+    const regime = Math.floor(t / regimePeriod);
+    const hMotion = regime === 0 || regime === 1 ? 'wave' : 'static';
+    const vMotion = regime === 1 || regime === 2 ? 'wave' : 'static';
+    // Together phase shares the same wave angle (no bias) so axes drift as one grate.
+    const vBias = regime === 1 ? 0 : phaseOffset / 2;
+    return [
+      ...buildAxisBeams(
+        config,
+        'horizontal',
+        horizontalCount,
+        elapsedTime,
+        speed,
+        amplitude,
+        phaseOffset,
+        centerX,
+        centerY,
+        hMotion,
+      ),
+      ...buildAxisBeams(
+        config,
+        'vertical',
+        verticalCount,
+        elapsedTime,
+        speed,
+        amplitude,
+        phaseOffset,
+        centerX,
+        centerY,
+        vMotion,
+        vBias,
+      ),
+    ];
+  }
+
   const orientation =
     pattern === 'HORIZONTAL_WAVE'
       ? 'horizontal'
@@ -136,7 +178,7 @@ function buildAxisBeams(
   phaseOffset: number,
   centerX: number,
   centerY: number,
-  motion: 'wave' | 'openClose' | 'alternating' | 'sequential',
+  motion: 'wave' | 'openClose' | 'alternating' | 'sequential' | 'static',
   phaseBias = 0,
 ): LaserBeam[] {
   const center = orientation === 'vertical' ? centerX : centerY;
@@ -146,7 +188,9 @@ function buildAxisBeams(
   for (let index = 0; index < count; index += 1) {
     const baseOffset = (index - (count - 1) / 2) * config.spacing;
     let offset: number;
-    if (motion === 'openClose') {
+    if (motion === 'static') {
+      offset = 0;
+    } else if (motion === 'openClose') {
       const direction = baseOffset < 0 ? -1 : 1;
       offset = direction * Math.sin(angle) * amplitude;
     } else if (motion === 'alternating') {

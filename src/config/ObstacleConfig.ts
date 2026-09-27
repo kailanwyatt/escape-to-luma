@@ -157,13 +157,15 @@ export type LaserGridPattern =
   | 'OPEN_CLOSE'
   | 'ALTERNATING'
   | 'CROSSING'
+  /** Criss-cross: H-only motion, then both together, then V-only — cycles for varied openings. */
+  | 'CROSSING_PHASED'
   | 'SEQUENTIAL';
 
 /** Fixed security frame containing independently animated laser beams. */
 export interface LaserGridConfig {
   type: 'laserGrid';
   z: number;
-  /** Primary beam direction; CROSSING uses both directions. */
+  /** Primary beam direction; CROSSING / CROSSING_PHASED use both directions. */
   orientation: 'vertical' | 'horizontal' | 'both';
   pattern?: LaserGridPattern;
   /** Number of independently animated beams. */

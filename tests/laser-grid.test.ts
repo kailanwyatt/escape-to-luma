@@ -15,9 +15,14 @@ function config(
     type: 'laserGrid',
     z: 5,
     orientation:
-      pattern === 'VERTICAL_WAVE' ? 'vertical' : pattern === 'CROSSING' ? 'both' : 'horizontal',
+      pattern === 'VERTICAL_WAVE'
+        ? 'vertical'
+        : pattern === 'CROSSING' || pattern === 'CROSSING_PHASED' || pattern === 'ALTERNATING'
+          ? 'both'
+          : 'horizontal',
     pattern,
-    beamCount: pattern === 'CROSSING' ? 6 : 4,
+    beamCount:
+      pattern === 'CROSSING' || pattern === 'CROSSING_PHASED' || pattern === 'ALTERNATING' ? 6 : 4,
     spacing: 1.12,
     span: 4.2,
     thickness: 0.06,
@@ -121,6 +126,7 @@ describe('fixed-frame laser grid', () => {
       'OPEN_CLOSE',
       'ALTERNATING',
       'CROSSING',
+      'CROSSING_PHASED',
       'SEQUENTIAL',
     ];
     for (const pattern of patterns) {
@@ -132,5 +138,49 @@ describe('fixed-frame laser grid', () => {
         laserConfig.beamCount ?? 4,
       );
     }
+  });
+
+  it('phases criss-cross motion between H-only, together, and V-only', () => {
+    const laserConfig = config('CROSSING_PHASED');
+    const regimePeriod = 5.2;
+    const sample = (t: number) => {
+      const a = laserBeamsAtTime(laserConfig, t);
+      const b = laserBeamsAtTime(laserConfig, t + 0.35);
+      const hDelta = a
+        .filter((beam) => beam.orientation === 'horizontal')
+        .some(
+          (beam, i) =>
+            Math.abs(
+              beam.position -
+                b.filter((x) => x.orientation === 'horizontal')[i].position,
+            ) > 0.015,
+        );
+      const vDelta = a
+        .filter((beam) => beam.orientation === 'vertical')
+        .some(
+          (beam, i) =>
+            Math.abs(
+              beam.position -
+                b.filter((x) => x.orientation === 'vertical')[i].position,
+            ) > 0.015,
+        );
+      return {
+        h: a.filter((beam) => beam.orientation === 'horizontal').length,
+        v: a.filter((beam) => beam.orientation === 'vertical').length,
+        hDelta,
+        vDelta,
+      };
+    };
+    // Regime 0: H only
+    expect(sample(1).hDelta).toBe(true);
+    expect(sample(1).vDelta).toBe(false);
+    // Regime 1: both
+    expect(sample(regimePeriod + 1).hDelta).toBe(true);
+    expect(sample(regimePeriod + 1).vDelta).toBe(true);
+    // Regime 2: V only
+    expect(sample(regimePeriod * 2 + 1).hDelta).toBe(false);
+    expect(sample(regimePeriod * 2 + 1).vDelta).toBe(true);
+    expect(sample(1).h).toBe(3);
+    expect(sample(1).v).toBe(3);
   });
 });

@@ -612,18 +612,21 @@ function securitySweep(z: number): ObstacleConfig {
   return {
     type: 'laserGrid',
     z,
-    orientation: 'vertical',
-    pattern: 'VERTICAL_WAVE',
-    beamCount: 4,
-    spacing: 1.2,
-    span: 4.2,
-    thickness: 0.06,
+    orientation: 'both',
+    pattern: 'CROSSING_PHASED',
+    // Dense 4H + 4V grate; spacing keeps a legal seam while filling the old open front.
+    beamCount: 8,
+    spacing: 1.08,
+    span: 4.6,
+    thickness: 0.055,
     amplitude: 0.22,
     speed: 0.55,
     phaseOffset: 0.7,
     mode: 'pulse',
-    pulseSpeed: 0.85,
-    onRatio: 0.48,
+    pulseSpeed: 0.72,
+    onRatio: 0.5,
+    centerX: 0,
+    centerY: 3.05,
   };
 }
 
