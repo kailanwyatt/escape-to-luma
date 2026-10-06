@@ -241,12 +241,20 @@ export function HUD({
 
       {hud.phase === 'LEVEL_FAILED' ? (
         <View style={styles.overlay}>
-          <Text style={styles.endTitle}>{t("hud.level_failed")}</Text>
-          {hud.lastFail ? <Text style={styles.continueCopy}>{hud.lastFail}</Text> : null}
-          <ContinueJourneyButton label={t("apperrorboundary.retry")} playIcon={false} style={styles.overlayCta} onPress={onRetryLevel} />
-          {hud.helpOffer?<Pressable accessibilityRole="button" onPress={onUseHelp} style={styles.homeButton}><Text style={styles.helpCopy}>{t("hud.need_a_hand_try_a_free_slow_field")}</Text></Pressable>:null}
-          <Pressable style={styles.homeButton} onPress={onHome}><Text style={styles.homeText}>{t("worldspack.home")}</Text></Pressable>
-
+          <View style={styles.failureContent}>
+            <Text style={styles.endTitle}>{t("hud.level_failed")}</Text>
+            {hud.lastFail ? <Text style={styles.continueCopy}>{hud.lastFail}</Text> : null}
+          </View>
+          <View style={styles.failureActions}>
+            {hud.helpOffer ? <Pressable accessibilityRole="button" onPress={onUseHelp} style={styles.failureSecondary}><Text style={styles.helpCopy}>{t("hud.need_a_hand_try_a_free_slow_field")}</Text></Pressable> : null}
+            <Pressable style={styles.failureSecondary} onPress={onHome}><Text style={styles.homeText}>{t("worldspack.home")}</Text></Pressable>
+            <ContinueJourneyButton
+              label={t("apperrorboundary.retry")}
+              playIcon={false}
+              style={[styles.failureRetryCta, { marginBottom: Math.max(insets.bottom, 16) + 12 }]}
+              onPress={onRetryLevel}
+            />
+          </View>
         </View>
       ) : null}
 
@@ -1018,6 +1026,28 @@ const styles = StyleSheet.create({
   },
   overlayCta: {
     marginTop: 28,
+    width: '100%',
+    maxWidth: 360,
+  },
+  failureContent: {
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingBottom: 140,
+  },
+  failureActions: {
+    position: 'absolute',
+    left: 36,
+    right: 36,
+    bottom: 0,
+    alignItems: 'center',
+  },
+  failureSecondary: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 4,
+  },
+  failureRetryCta: {
+    marginTop: 10,
     width: '100%',
     maxWidth: 360,
   },

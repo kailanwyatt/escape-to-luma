@@ -80,13 +80,6 @@ export class LaserGridObstacle {
       glow.scale.set(beam.orientation==='vertical'?10:1,beam.orientation==='vertical'?1:10,1);mesh.add(glow);
       const core=new THREE.Mesh(new THREE.BoxGeometry(1,1,.008),new THREE.MeshBasicMaterial({color:0xffece0,toneMapped:false}));
       core.name='HotCore';core.scale.set(beam.orientation==='vertical'?.28:1,beam.orientation==='vertical'?1:.28,1);core.position.z=-.012;mesh.add(core);
-      // Dim channel when pulsed off — gap stays readable without looking live.
-      const ghost=new THREE.Mesh(new THREE.BoxGeometry(1,1,.006),new THREE.MeshBasicMaterial({
-        color:0x3a6a78,transparent:true,opacity:0,depthWrite:false,toneMapped:false,
-      }));
-      ghost.name='SafeGhost';
-      ghost.scale.set(beam.orientation==='vertical'?.55:1,beam.orientation==='vertical'?1:.55,1);
-      ghost.position.z=-.01;ghost.visible=false;mesh.add(ghost);
       const pair=[this.createEmitter(),this.createEmitter()];
       this.emitters.push(pair);this.group.add(...pair);
       this.laserLayer.add(mesh);
@@ -247,11 +240,6 @@ export class LaserGridObstacle {
       material.color.setHex(on?LASER_ON:LASER_OFF);material.opacity=on?.55:.08;
       mesh.getObjectByName('HotCore')!.visible=on;
       (mesh.getObjectByName('BeamHalo') as THREE.Mesh<THREE.PlaneGeometry,THREE.ShaderMaterial>).material.uniforms.strength.value=on?1.35:0;
-      const ghost=mesh.getObjectByName('SafeGhost') as THREE.Mesh|undefined;
-      if(ghost){
-        ghost.visible=!on;
-        (ghost.material as THREE.MeshBasicMaterial).opacity=on?0:.22;
-      }
       this.emitters[index].forEach((emitter,j)=>{
         const sign=j===0?-1:1;
         emitter.position.set(

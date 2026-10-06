@@ -54,10 +54,10 @@ export class EnvironmentManager {
       for(const skin of Object.values(this.skins))skin.visible=false;
       this.journeyKit.visible=true;
       const look=JOURNEY_LOOKS[worldId];this.scene.background=new THREE.Color(look.background);this.scene.fog=new THREE.Fog(look.background,worldId==='sky'||worldId==='ascent'||worldId==='storm'?28:38,78);
-      this.ambient.color.setHex(look.ambient);this.ambient.intensity=worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?1.2:.8;this.key.color.setHex(look.key);
+      this.ambient.color.setHex(look.ambient);this.ambient.intensity=worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?1.2:worldId==='the_null'?1.15:.8;this.key.color.setHex(look.key);
       // Broad front fill reveals rock relief without flattening it into emissive art.
-      this.fill.color.setHex(worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?0x9bcaff:0xffb060);
-      this.fill.intensity=worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?.65:.18;
+      this.fill.color.setHex(worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?0x9bcaff:worldId==='the_null'?0xb090e8:0xffb060);
+      this.fill.intensity=worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?.65:worldId==='the_null'?.45:.18;
       this.fill.position.set(worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?5:4.2,3.4,worldId==='asteroid'||worldId==='asteroid_belt'||worldId==='drift'?-6:5);
       if(worldId==='asteroid_belt'||worldId==='asteroid'){
         this.key.position.set(-14,7,20);this.key.color.setHex(0xffc58a);

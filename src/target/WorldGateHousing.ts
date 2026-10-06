@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 /** Decorative housings remain outside the unit scoring aperture. */
-export function createWorldGateHousing(world:string):THREE.Group {
+ export function createWorldGateHousing(world:string):THREE.Group {
  const root=new THREE.Group();root.name=`gate-housing-${world}`;
- const organic=world==='homeward',ancient=world==='network',crystal=world==='nebula';
+ const organic=world==='homeward',ancient=world==='network',crystal=world==='nebula'||world==='the_null';
  const color=organic?0x437f7b:ancient?0x8b7049:crystal?0x635084:world==='moon'?0x92979c:0x344654;
  const shell=new THREE.MeshPhongMaterial({color,shininess:organic?100:65,specular:0x7d9ea8});
- const trim=new THREE.MeshPhongMaterial({color:ancient?0xc09b59:world==='orbit'?0xad8850:0x172a36,shininess:80});
+ const trim=new THREE.MeshPhongMaterial({color:ancient?0xc09b59:world==='orbit'?0xad8850:world==='the_null'?0x3a1858:0x172a36,shininess:80});
  const glow=new THREE.MeshBasicMaterial({color:ancient?0xffd281:organic?0xb2ffe0:crystal?0xc19afa:0x8adeee});
  const batches=new Map<THREE.Material,THREE.BufferGeometry[]>(),t=new THREE.Object3D();
  const put=(g:THREE.BufferGeometry,m:THREE.Material,x=0,y=0,z=0,sx=1,sy=sx,sz=sx,rz=0)=>{
@@ -14,7 +14,10 @@ export function createWorldGateHousing(world:string):THREE.Group {
   const list=batches.get(m)??[];list.push(copy);batches.set(m,list);
  };
  const block=new THREE.BoxGeometry(1,1,1);
- const ring=new THREE.TorusGeometry(1.19,.075,8,64);put(ring,trim);
+ // Skip continuous trim torus on Null / False Home — reads as a green/olive portal collar.
+ if(world!=='the_null'&&world!=='false_home'){
+  const ring=new THREE.TorusGeometry(1.19,.075,8,64);put(ring,trim);ring.dispose();
+ }
  if(organic){
   for(let i=0;i<3;i++){
    const points=Array.from({length:49},(_,j)=>{const a=j/48*Math.PI*2,r=1.28+.065*Math.sin(a*3+i*2.1);return new THREE.Vector3(Math.cos(a)*r,Math.sin(a)*r,.06*Math.sin(a*3+i));});
@@ -49,5 +52,5 @@ export function createWorldGateHousing(world:string):THREE.Group {
   const arc=new THREE.TorusGeometry(1.38,.07,6,36,Math.PI*.7);put(arc,shell,0,0,.08,1,1,1,.4);put(arc,shell,0,0,.08,1,1,1,3.4);arc.dispose();
  }
  for(const [m,gs] of batches){root.add(new THREE.Mesh(mergeGeometries(gs,false)!,m));gs.forEach(g=>g.dispose());}
- for(const m of [shell,trim,glow])if(!batches.has(m))m.dispose();block.dispose();ring.dispose();return root;
+ for(const m of [shell,trim,glow])if(!batches.has(m))m.dispose();block.dispose();return root;
 }

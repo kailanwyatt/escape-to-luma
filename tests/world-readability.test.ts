@@ -35,12 +35,11 @@ describe('world and obstacle readability',()=>{
   o.update(0,0);expect(o.open).toBe(true);expect(solid.visible).toBe(false);expect(ghost.visible).toBe(true);
   o.update(0,Math.PI*1.5);expect(o.open).toBe(false);expect(solid.visible).toBe(true);expect(ghost.visible).toBe(false);disposeThreeObject(o.group);
  });
- it('keeps aperture wash outside iris petal geometry',()=>{
+ it('ships shifting aperture without leftover wash overlays',()=>{
   const config=getCampaignLevel(121)!.challenge.obstacles.find(o=>o.type==='shiftingAperture')!;
   if(config.type!=='shiftingAperture')throw new Error('Expected aperture');
   const o=new ShiftingApertureObstacle('wash');o.applyConfig(config,'space');
-  expect(o.group.getObjectByName('aperture-wash')).toBeTruthy();
-  expect(o.group.children[0].children.some(c=>c.name==='aperture-wash')).toBe(false);
+  expect(o.group.getObjectByName('aperture-wash')).toBeFalsy();
   disposeThreeObject(o.group);
  });
  it('uses a circular unit collision silhouette for every solid blocker body',()=>{

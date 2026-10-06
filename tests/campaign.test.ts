@@ -75,6 +75,7 @@ describe('campaign progression', () => {
     expect(first.save.campaign.stats.worldsCompleted).toBe(1);
     expect(first.shardsGained).toBeGreaterThanOrEqual(ECONOMY.shards.worldCompletion);
     expect(first.unlockedSparkId).toBe('reactor');
+    expect(first.save.campaign.equippedSparkId).toBe('reactor');
 
     const replay = applyLevelSuccess(first.save, definition, 'CLEAR', 0);
     expect(replay.worldComplete).toBe(false);
@@ -109,6 +110,7 @@ describe('campaign progression', () => {
     expect(first.campaignComplete).toBe(true);
     expect(first.shardsGained).toBe(ECONOMY.shards.worldCompletion + ECONOMY.shards.levelClear);
     expect(first.unlockedSparkId).toBe('origin');
+    expect(first.save.campaign.equippedSparkId).toBe('origin');
     const replay = applyLevelSuccess(first.save, finale, 'CLEAR', 0);
     expect(replay.campaignComplete).toBe(false);
     expect(replay.worldComplete).toBe(false);
@@ -127,11 +129,14 @@ describe('campaign progression', () => {
     expect(world.campaignComplete).toBe(false);
   });
 
-  it('enforces energy for new levels and preserves level locks', () => {
+  it('allows energy-free practice, then enforces energy and level locks', () => {
     const save = emptySave();
     save.campaign.currentEnergy = 0;
-    expect(canStartLevel(save.campaign, 1)).toEqual({ ok: false, reason:'energy' });
-    expect(canStartLevel(save.campaign, 2).reason).toBe('locked');
+    expect(canStartLevel(save.campaign, 1)).toEqual({ ok: true });
+    const firstPaidLevel = ECONOMY.energyFreeThroughLevel + 1;
+    save.campaign.highestUnlockedLevel = firstPaidLevel;
+    expect(canStartLevel(save.campaign, firstPaidLevel)).toEqual({ ok: false, reason:'energy' });
+    expect(canStartLevel(save.campaign, firstPaidLevel + 1).reason).toBe('locked');
     expect(canStartLevel(save.campaign, 151).reason).toBe('missing');
   });
 });

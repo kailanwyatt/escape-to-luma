@@ -48,9 +48,11 @@ export function evaluateNullTendrilCollision(
   const dy = y - state.centerY;
   const dist = Math.hypot(dx, dy);
 
+  // Open hub inside the coil roots.
   if (dist + radius < state.innerRadius) {
     return { hit: false, clearance: state.innerRadius - dist - radius, nearMiss: false };
   }
+  // Outside the coil ring.
   if (dist - radius > state.outerRadius) {
     return { hit: false, clearance: dist - state.outerRadius - radius, nearMiss: false };
   }
@@ -59,10 +61,10 @@ export function evaluateNullTendrilCollision(
   const half = state.gapWidth / 2;
   const delta = Math.abs(wrapPi(ang - state.gapAngle));
   if (delta <= half) {
-    const edge = (half - delta) * Math.max(dist, 0.01);
-    const radialIn = dist - state.innerRadius;
-    const radialOut = state.outerRadius - dist;
-    const clearance = Math.min(edge, radialIn, radialOut) - radius;
+    // Open pie through the whole annulus — only the sector edge rays block.
+    // (Do NOT treat inner/outer rims as walls here; that false-hits the corridor.)
+    const edge = dist * Math.sin(Math.max(0, half - delta));
+    const clearance = edge - radius;
     return {
       hit: clearance < 0,
       clearance,
@@ -70,6 +72,7 @@ export function evaluateNullTendrilCollision(
     };
   }
 
+  // Solid tendril mass in the annulus.
   const intoOuter = state.outerRadius - (dist - radius);
   const intoInner = dist + radius - state.innerRadius;
   const clearance = -Math.min(intoOuter, intoInner);

@@ -9,10 +9,7 @@ import { energyFieldStateAtTime } from './EnergyFieldState';
 export class EnergyFieldArt {
   readonly group = new THREE.Group();
   private readonly membrane: THREE.Mesh;
-  private readonly holeRing: THREE.Mesh;
-  private readonly innerRing: THREE.Mesh;
   private readonly membraneMat: THREE.ShaderMaterial;
-  private readonly ringMat: THREE.MeshStandardMaterial;
   private readonly accent: THREE.PointLight;
   private readonly geometries: THREE.BufferGeometry[] = [];
   /** Visual plane is slightly larger than collision so the curtain reads edge-to-edge. */
@@ -107,31 +104,6 @@ export class EnergyFieldArt {
     this.membrane.position.z = -0.02;
     this.group.add(this.membrane);
 
-    this.ringMat = new THREE.MeshStandardMaterial({
-      color: 0x7ef0ff,
-      emissive: 0x2ec8e0,
-      emissiveIntensity: 1.1,
-      metalness: 0.1,
-      roughness: 0.25,
-      transparent: true,
-      opacity: 0.95,
-    });
-    const ringGeo = new THREE.TorusGeometry(1, 0.045, 8, 48);
-    this.geometries.push(ringGeo);
-    this.holeRing = new THREE.Mesh(ringGeo, this.ringMat);
-    this.holeRing.name = 'energy-hole-ring';
-    this.group.add(this.holeRing);
-
-    const innerMat = this.ringMat.clone();
-    innerMat.emissiveIntensity = 0.55;
-    innerMat.opacity = 0.55;
-    const innerGeo = new THREE.TorusGeometry(1, 0.02, 6, 40);
-    this.geometries.push(innerGeo);
-    this.innerRing = new THREE.Mesh(innerGeo, innerMat);
-    this.innerRing.name = 'energy-hole-inner';
-    this.innerRing.position.z = -0.01;
-    this.group.add(this.innerRing);
-
     this.accent = new THREE.PointLight(0x8a5cff, 14, 14, 2);
     this.accent.name = 'energy-accent';
     this.group.add(this.accent);
@@ -153,14 +125,7 @@ export class EnergyFieldArt {
     this.uniforms.uHoleR.value = state.holeRadius;
     this.uniforms.uHalf.value.set(visW, visH);
 
-    this.holeRing.position.set(state.openingX, state.openingY, -0.04);
-    this.holeRing.scale.setScalar(Math.max(0.25, state.holeRadius));
-    this.innerRing.position.set(state.openingX, state.openingY, -0.03);
-    this.innerRing.scale.setScalar(Math.max(0.2, state.holeRadius * 0.82));
-
     const pulse = 0.5 + 0.5 * Math.sin(time * 2.4);
-    this.ringMat.emissiveIntensity = 0.95 + pulse * 0.45;
-
     this.accent.color.setHex(0x6a90ff);
     this.accent.intensity = 11 + pulse * 6;
     this.accent.position.set(state.openingX, state.openingY, -1.15);
@@ -173,8 +138,6 @@ export class EnergyFieldArt {
   dispose() {
     for (const g of this.geometries) g.dispose();
     this.membraneMat.dispose();
-    this.ringMat.dispose();
-    if (this.innerRing.material instanceof THREE.Material) this.innerRing.material.dispose();
     this.group.clear();
     this.group.removeFromParent();
   }

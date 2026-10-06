@@ -56,9 +56,6 @@ export class FormationAlternatingDoorsArt {
       void p;
     });
 
-    // Center throat guide between the two lanes.
-    this.kit.box(this.group, 'door-gap-guide', 0.04, 3.6, 0.02, 0, this.centerY, -0.1, this.glow, 0);
-
     this.accent = new THREE.PointLight(0x70e5ed, 8, 10, 2);
     this.accent.name = 'doors-accent';
     this.group.add(this.accent);

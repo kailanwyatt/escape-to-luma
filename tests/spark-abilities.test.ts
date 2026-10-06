@@ -32,7 +32,7 @@ describe('Spark passive data model', () => {
   it('exposes modest, presentation-first effects for named sparks', () => {
     expect(evaluateSparkPassive('neon').predictionClarity).toBeGreaterThan(1);
     expect(evaluateSparkPassive('solar').firstClearValueBonus).toBeGreaterThan(1);
-    expect(evaluateSparkPassive('aurora').highlightSafeOpening).toBe(true);
+    expect(evaluateSparkPassive('aurora').highlightSafeOpening).toBe(false);
     expect(evaluateSparkPassive('lunar').showForceVectors).toBe(true);
     expect(evaluateSparkPassive('frost').localSlowScale).toBeLessThan(1);
     expect(evaluateSparkPassive('plasma').showPhaseWindows).toBe(true);

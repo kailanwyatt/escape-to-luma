@@ -49,7 +49,10 @@ aperture-web-test.zip
 *.xcresult
 *.log
 
-# secrets / credentials (never upload)
+# secrets / credentials (never upload to EAS workers)
+# NOTE: credentialsSource:"local" cannot work with --local while these are ignored,
+# because the build archive omits the keystore. Use credentialsSource:"remote"
+# (production / production-local profiles) so EAS injects the keystore at build time.
 .env
 .env.*
 !.env.example
@@ -58,6 +61,7 @@ auth.json
 .secrets/
 secrets/
 ios/certs/
+credentials/
 **/GoogleService-Info.plist
 **/google-services.json
 

@@ -7,7 +7,8 @@ const COURSES:Record<number,{base:number;pace:number;side:number;targetX:number;
  27:{base:24,pace:1.08,side:-1,targetX:-1.1,hint:t("encounterprogression.left_lane_read_the_quicker_door_change")},
  53:{base:22,pace:1.18,side:1,targetX:1.05,hint:t("encounterprogression.transfer_lock_aim_right_and_time_the_open_lane")},
  56:{base:24,pace:1.15,side:-1,targetX:-1.15,hint:t("encounterprogression.left_transfer_lock_watch_the_amber_warning")},
- 81:{base:78,pace:1.08,side:-1,targetX:1.05,hint:t("encounterprogression.aim_beside_the_rock_allow_for_the_rightward_pull")},
+ // Keep left of L78 — flipping onto the right duplicated authored L83's static rock.
+ 81:{base:78,pace:1.12,side:1,targetX:-1.05,hint:t("encounterprogression.aim_beside_the_rock_allow_for_the_leftward_pull")},
  89:{base:83,pace:1.08,side:-1,targetX:-1.15,hint:t("encounterprogression.strong_leftward_pull_curve_around_the_solid_core")},
  94:{base:92,pace:1.12,side:-1,targetX:.85,hint:t("encounterprogression.reversed_current_lead_the_gap_to_the_right")},
  98:{base:96,pace:1.1,side:-1,targetX:.55,hint:t("encounterprogression.aim_right_of_center_as_the_cluster_expands")},

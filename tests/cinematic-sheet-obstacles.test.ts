@@ -223,6 +223,9 @@ describe('phaseGate', () => {
 
   it('disposes cinematic art', () => {
     const art = new PhaseGateArt(config);
+    expect(art.group.getObjectByName('phase-membrane')).toBeTruthy();
+    expect(art.group.getObjectByName('phase-rim')).toBeTruthy();
+    expect(art.group.getObjectByName('phase-rim-lip')).toBeTruthy();
     art.update(0.2);
     art.dispose();
     expect(art.group.children).toHaveLength(0);
@@ -268,39 +271,61 @@ describe('nullTendril', () => {
     z: 6,
     centerX: 0,
     centerY: 3,
-    outerRadius: 2.15,
-    innerRadius: 0.45,
+    outerRadius: 2.35,
+    innerRadius: 1.4,
     tendrilCount: 5,
-    gapWidth: 0.95,
-    speed: 0.55,
+    gapWidth: 1.35,
+    speed: 0.38,
   };
 
   it('keeps a rotating corridor through the tendrils', () => {
     const state = nullTendrilStateAtTime(config, 0.4);
     expect(evaluateNullTendrilCollision(config, 0.4, 0, 3, BALL).hit).toBe(false);
-    const gapX = Math.cos(state.gapAngle) * 1.3;
-    const gapY = 3 + Math.sin(state.gapAngle) * 1.3;
+    const gapX = Math.cos(state.gapAngle) * 1.85;
+    const gapY = 3 + Math.sin(state.gapAngle) * 1.85;
     expect(evaluateNullTendrilCollision(config, 0.4, gapX, gapY, BALL).hit).toBe(false);
     const solidAng = state.gapAngle + Math.PI;
     expect(
       evaluateNullTendrilCollision(
         config,
         0.4,
-        Math.cos(solidAng) * 1.3,
-        3 + Math.sin(solidAng) * 1.3,
+        Math.cos(solidAng) * 1.85,
+        3 + Math.sin(solidAng) * 1.85,
         BALL,
       ).hit,
     ).toBe(true);
   });
 
-  it('ships as the_null pre-boss on L111', () => {
+  it('does not false-hit the gap near the annulus rims', () => {
+    const state = nullTendrilStateAtTime(config, 0);
+    for (const r of [1.55, 1.85, 2.15]) {
+      const x = Math.cos(state.gapAngle) * r;
+      const y = 3 + Math.sin(state.gapAngle) * r;
+      expect(evaluateNullTendrilCollision(config, 0, x, y, BALL).hit).toBe(false);
+    }
+  });
+
+  it('ships as a throwable the_null teach on L111 with a portal-sized hub', () => {
     const level = getCampaignLevel(111)!;
     expect(level.worldId).toBe('the_null');
-    expect(level.challenge.obstacles[0]?.type).toBe('nullTendril');
+    const o = level.challenge.obstacles[0];
+    expect(o?.type).toBe('nullTendril');
+    if (o?.type === 'nullTendril') {
+      expect(o.gapWidth).toBeGreaterThanOrEqual(1.25);
+      expect(o.speed).toBeLessThanOrEqual(0.42);
+      // Hub must clear the destination portal aperture so the gate stays visible.
+      expect(o.innerRadius).toBeGreaterThanOrEqual(level.challenge.target.radius);
+    }
   });
 
   it('disposes cinematic art', () => {
     const art = new NullTendrilArt(config);
+    expect(art.group.getObjectByName('living-tendril-0')).toBeTruthy();
+    expect(art.group.getObjectByName('tendril-seg-0-1')).toBeTruthy();
+    expect(art.group.getObjectByName('corridor-lip-a')).toBeTruthy();
+    expect(art.group.getObjectByName('corridor-glow')).toBeTruthy();
+    expect(art.group.getObjectByName('tendril-flesh')).toBeFalsy();
+    expect(art.group.getObjectByName('null-wash')).toBeFalsy();
     art.update(1.1);
     art.dispose();
     expect(art.group.children).toHaveLength(0);

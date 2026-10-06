@@ -12,7 +12,7 @@ describe('finishing graphics kits', () => {
       'workshop',
     );
     expect(o.group.getObjectByName('formation-alternating-doors-art')).toBeTruthy();
-    expect(o.group.getObjectByName('door-gap-guide')).toBeTruthy();
+    expect(o.group.getObjectByName('door-gap-guide')).toBeFalsy();
     o.update(0.016, 0.4);
     o.hide();
   });

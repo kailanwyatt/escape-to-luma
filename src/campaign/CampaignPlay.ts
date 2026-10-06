@@ -121,6 +121,8 @@ export function applyLevelSuccess(
       campaign.stats.worldsCompleted += 1;
       if (world.completionSparkId && !campaign.ownedSparkIds.includes(world.completionSparkId)) {
         campaign.ownedSparkIds.push(world.completionSparkId);
+        // A world-completion Spark is the player's active look for the next level.
+        campaign.equippedSparkId = world.completionSparkId;
         unlockedSparkId = world.completionSparkId;
       }
       const nextWorld = worldForLevel(world.lastLevel + 1);

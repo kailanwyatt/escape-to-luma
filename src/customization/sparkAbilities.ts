@@ -54,7 +54,7 @@ export const SPARK_ABILITIES: Record<SparkAbilityId, SparkAbilityDefinition> = {
   },
   guiding_light: {
     id: 'guiding_light',
-    summary: 'Highlights the authored safe opening — not aim assist.',
+    summary: 'Soft presentation spark — no aim assist or opening overlays.',
     category: 'presentation',
   },
   phase_charge: {
@@ -166,7 +166,8 @@ export function evaluateSparkPassive(sparkId: string): SparkPassiveAttemptState 
     case 'limited_forgiveness':
       return { ...base, limitedForgivenessArmed: false };
     case 'guiding_light':
-      return { ...base, highlightSafeOpening: true };
+      // Opening overlay ring removed — was reading as a leftover green collar.
+      return base;
     case 'phase_charge':
       return { ...base, showPhaseWindows: true };
     case 'gravity_sense':

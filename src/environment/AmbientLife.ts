@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {GRAPHICS_QUALITY} from '../config/graphicsQuality';
 import {disposeThreeObject} from '../utils/disposeThree';
 
 type Floater={object:THREE.Object3D;x:number;y:number;z:number;phase:number;amplitude:number};
@@ -11,6 +12,7 @@ export class AmbientLife {
  private stars:THREE.ShaderMaterial|null=null;
  private comet:THREE.Group|null=null;private cometMaterial:THREE.LineBasicMaterial|null=null;
  private reduced=false;
+ private ambientFrame=0;
  private asteroids:{object:THREE.Object3D;x:number;y:number;z:number;px:number;py:number;pz:number;phase:number;speed:number}[]=[];
  constructor(){this.group.name='ambient-life';}
  setWorld(world:string,source:THREE.Object3D):void {
@@ -65,6 +67,9 @@ export class AmbientLife {
  update(dt:number,reduceMotion:boolean):void {
   this.reduced=reduceMotion;
   if(!reduceMotion)this.time+=Math.max(0,Math.min(dt,.1));
+  const everyN=Math.max(1,GRAPHICS_QUALITY.ambientUpdateEveryN);
+  // Keep advancing the clock above; skip decorative transforms on Android every other frame.
+  if(dt>0&&everyN>1&&(++this.ambientFrame%everyN)!==0)return;
   const t=this.time;
   this.source?.userData.updateWindows?.(t,reduceMotion);
   this.source?.userData.updateAtmosphere?.(t,reduceMotion);

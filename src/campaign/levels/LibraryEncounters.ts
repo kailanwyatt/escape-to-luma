@@ -552,11 +552,13 @@ function nullTendrils(z: number): ObstacleConfig {
     z,
     centerX: 0,
     centerY: 3,
-    outerRadius: 2.15,
-    innerRadius: 0.45,
+    // Outer coil ring — hub stays open so the destination portal remains framed.
+    outerRadius: 2.35,
+    innerRadius: 1.4,
     tendrilCount: 5,
-    gapWidth: 0.95,
-    speed: 0.55,
+    // Teach gap — wide + slow so the violet corridor is throwable on first contact.
+    gapWidth: 1.35,
+    speed: 0.38,
   };
 }
 
@@ -715,9 +717,18 @@ export function applyLibraryEncounters(source: CampaignLevelDefinition): Campaig
     target.radius = 1.05;
   } else if (n === 33) obstacles = [climbRing(6)];
   else if (n === 40) obstacles = [pulse(6)];
-  else if (n === 47) obstacles = [rollingAperture(6.1)];
-  else if (n === 48) obstacles = [dockingCollar(6)];
-  else if (n === 64) obstacles = [orbitalDebris(6)];
+  else if (n === 47) {
+    obstacles = [rollingAperture(6.1)];
+    // Enter from the high-left lane; the following collar uses the opposite route.
+    target.x = -1.08;
+    target.y = 3.55;
+    target.radius = 0.95;
+  } else if (n === 48) {
+    obstacles = [dockingCollar(6)];
+    target.x = 1.05;
+    target.y = 2.55;
+    target.radius = 0.95;
+  } else if (n === 64) obstacles = [orbitalDebris(6)];
   else if (n === 70) obstacles = [deadAirlock(6)];
   else if (n === 71) obstacles = [movingSafeZone(6)];
   else if (n === 76) {
@@ -733,22 +744,44 @@ export function applyLibraryEncounters(source: CampaignLevelDefinition): Campaig
     obstacles = [corkscrew(6)];
     target.radius = 1.12;
     target.y = 3.05;
-  } else if (n === 92) obstacles = [beltRock(6.2)];
-  else if (n === 93) obstacles = [accretion(6)];
-  else if (n === 94) obstacles = [shearLane(6)];
-  else if (n === 100) {
+  } else if (n === 92) {
+    obstacles = [beltRock(6.2)];
+    target.x = -1.05;
+    target.y = 3.55;
+    target.radius = 0.95;
+  } else if (n === 93) {
+    obstacles = [accretion(6)];
+    target.x = 0.75;
+    target.y = 2.55;
+    target.radius = 0.95;
+  } else if (n === 94) {
+    obstacles = [shearLane(6)];
+    target.x = -0.85;
+    target.y = 3.6;
+    target.radius = 0.95;
+  } else if (n === 100) {
     obstacles = [pushOrb(5.8)];
     target.x = -0.85;
     target.radius = 1.05;
   } else if (n === 101) obstacles = [securitySweep(6)];
-  else if (n === 111) obstacles = [nullTendrils(6)];
-  else if (n === 112) {
+  else if (n === 111) {
+    obstacles = [nullTendrils(6)];
+    // Keep the portal inside the open tendril hub, but require a right-side lead.
+    target.x = 0.95;
+    target.y = 3.55;
+    target.radius = 0.95;
+  } else if (n === 112) {
     obstacles = [nullLash(6)];
     // Aim through the open arc while coiled — left of the resting tip.
-    target.x = -0.55;
+    target.x = -1.15;
+    target.y = 2.55;
+    target.radius = 0.9;
+  } else if (n === 113) {
+    obstacles = [theNull(6)];
+    target.x = 0.85;
     target.y = 3.05;
-  } else if (n === 113) obstacles = [theNull(6)];
-  else if (n === 117) {
+    target.radius = 0.95;
+  } else if (n === 117) {
     // No mid-course hazard — the destination portal itself vanishes and reappears.
     obstacles = [];
     target.x = 0;

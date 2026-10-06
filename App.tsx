@@ -16,6 +16,7 @@ import { canStartLevel } from './src/campaign/CampaignPlay';
 import { getCampaignLevel } from './src/campaign/levels';
 import { WORLDS } from './src/campaign/worlds';
 import { ECONOMY } from './src/config/economy';
+import { GRAPHICS_QUALITY } from './src/config/graphicsQuality';
 import { useAppFonts } from './src/design';
 import { Game } from './src/game/Game';
 import { preloadAssetGroup } from './src/graphics/assetRegistry';
@@ -212,9 +213,36 @@ function AppShell() {
       game.setScreenSize(screenSizeRef.current.width, screenSizeRef.current.height);
     }
     game.setSystemReduceMotion(systemReduceMotion);
+    let lastHudAt = 0;
+    let lastHudPhase: HudSnapshot['phase'] | null = null;
     unsubscribeRef.current = game.subscribeHud((snapshot) => {
+      const now = Date.now();
+      const phaseChanged = snapshot.phase !== lastHudPhase;
+      const minInterval = GRAPHICS_QUALITY.hudMinIntervalMs;
+      if (
+        !phaseChanged &&
+        minInterval > 0 &&
+        now - lastHudAt < minInterval
+      ) {
+        return;
+      }
+      lastHudAt = now;
+      lastHudPhase = snapshot.phase;
       setHud(snapshot);
-      setSave(game.getSave());
+      // Save is the live game object; only push React save state when economy fields move.
+      setSave((prev) => {
+        const next = game.getSave();
+        if (
+          prev === next ||
+          (prev.campaign.shards === next.campaign.shards &&
+            prev.campaign.currentEnergy === next.campaign.currentEnergy &&
+            prev.campaign.equippedSparkId === next.campaign.equippedSparkId &&
+            prev.campaign.stats.levelsCompleted === next.campaign.stats.levelsCompleted)
+        ) {
+          return prev;
+        }
+        return next;
+      });
     });
     if (playingRef.current) {
       game.start();
@@ -438,7 +466,7 @@ function AppShell() {
       <StatusBar style="light" hidden />
       <GLView
         style={styles.gl}
-        msaaSamples={4}
+        msaaSamples={GRAPHICS_QUALITY.msaaSamples}
         onContextCreate={onContextCreate}
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;

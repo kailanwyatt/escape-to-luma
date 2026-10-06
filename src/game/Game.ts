@@ -1,22 +1,23 @@
-import {voyageReward} from '../progression/voyage';
-import {t} from '../i18n';
-import {failTip} from './failTips';
-import {ReflectorField} from '../reflectors/ReflectorField';
-import {stepRicochet,RICOCHET_STEP,ricochetBlockResult} from '../reflectors/Reflection';
-import type {Vec3} from '../reflectors/ReflectorConfig';
-import {campaignEncounterStart} from '../campaign/EncounterStart';
-import {FIRST_ESCAPE, storyForLevel, storyAfterWorld, pendingWorldStory, type StoryMoment} from '../campaign/StoryMoments';
+import { voyageReward } from '../progression/voyage';
+import { t } from '../i18n';
+import { failTip } from './failTips';
+import { ReflectorField } from '../reflectors/ReflectorField';
+import { stepRicochet, RICOCHET_STEP, ricochetBlockResult } from '../reflectors/Reflection';
+import type { Vec3 } from '../reflectors/ReflectorConfig';
+import { campaignEncounterStart } from '../campaign/EncounterStart';
+import { FIRST_ESCAPE, storyForLevel, storyAfterWorld, pendingWorldStory, type StoryMoment } from '../campaign/StoryMoments';
 import { sparkStateFor } from '../projectile/SparkVisualState';
 import { OpeningScene } from '../scene/OpeningScene';
 import { OPENING_DURATION, OPENING_BEATS, sampleOpening } from '../scene/OpeningSequence';
 import type { ExpoWebGLRenderingContext } from 'expo-gl';
-import {Vector3, type WebGLRenderer} from 'three';
+import { Vector3, type WebGLRenderer } from 'three';
 
 import { AuthoredRunTracker } from '../challenge/AuthoredRunTracker';
 import { RunDirector } from '../challenge/RunDirector';
 import type { ChallengeConfig, EnvironmentId } from '../config/ChallengeConfig';
 import { obstacleTypeOf } from '../config/ObstacleConfig';
 import type { ObstacleConfig } from '../config/ObstacleConfig';
+import { GRAPHICS_QUALITY } from '../config/graphicsQuality';
 import { repulsorAsWell } from '../obstacles/RepulsorState';
 import { AudioManager } from '../feedback/AudioManager';
 import { GameHaptics } from '../feedback/Haptics';
@@ -138,6 +139,8 @@ export class Game {
   private ricochetAccumulator=0;
   private ricochetPreviewAt=-Infinity;
   private ricochetPreviewVelocity={vx:Infinity,vy:Infinity,vz:Infinity};
+  private aimPredictAt=-Infinity;
+  private aimPredictVelocity={vx:Infinity,vy:Infinity,vz:Infinity};
   private readonly obstacles = [new ObstacleSlot('A'), new ObstacleSlot('B'), new ObstacleSlot('C')];
   private readonly target = new Target();
   private readonly particles = new ParticleSystem();
@@ -870,6 +873,8 @@ export class Game {
     this.applyChallenge(def.challenge, true);
     this.reflectors.setReflectors(def.challenge.ricochet?.reflectors ?? []);
     this.ricochetAccumulator=0;this.ricochetPreviewAt=-Infinity;
+    this.aimPredictAt=-Infinity;
+    this.aimPredictVelocity={vx:Infinity,vy:Infinity,vz:Infinity};
     this.resetProjectile();
     this.aim.cancel();
     this.trajectory.setVisible(false);
@@ -1969,21 +1974,26 @@ export class Game {
   private updateDiagnostics(): void {
     if (this.state.phase === 'AIMING' && this.aim.hasEnteredAim && !this.aim.isCancelReady) {
       this.syncTrajectory();
-      if(!this.campaignDef?.challenge.ricochet)this.livePrediction = predictShot(
-        {
-          x: this.projectile.position.x,
-          y: this.projectile.position.y,
-          z: this.projectile.position.z,
-        },
-        this.aim.getLaunchVelocity(),
-        this.obstacles,
-        this.target,
-        this.obstacleTime,
-        this.obstacleTimeScale(),
-        this.predictionForces(),
-        this.simTime,
-        this.campaignDef?.challenge.ricochet,
-      );
+      if (!this.campaignDef?.challenge.ricochet) {
+        // syncTrajectory stamps aimPredictAt when the preview actually refreshes.
+        if (this.aimPredictAt === this.simTime) {
+          this.livePrediction = predictShot(
+            {
+              x: this.projectile.position.x,
+              y: this.projectile.position.y,
+              z: this.projectile.position.z,
+            },
+            this.aim.getLaunchVelocity(),
+            this.obstacles,
+            this.target,
+            this.obstacleTime,
+            this.obstacleTimeScale(),
+            this.predictionForces(),
+            this.simTime,
+            this.campaignDef?.challenge.ricochet,
+          );
+        }
+      }
     } else if (this.state.phase !== 'PROJECTILE_ACTIVE' && this.state.phase !== 'RESULT') {
       this.livePrediction = null;
     }
@@ -2366,6 +2376,10 @@ export class Game {
       firstClearValueBonus: this.sparkPassive.firstClearValueBonus,
     });
     this.save = outcome.save;
+    if (outcome.unlockedSparkId) {
+      this.sparkPassive = evaluateSparkPassive(this.save.campaign.equippedSparkId);
+      this.applySparkLook();
+    }
     void saveGameSave(this.save);
     this.lastShardsGained = outcome.shardsGained;
     this.lastPrecisionRank = rank;
@@ -2795,17 +2809,28 @@ export class Game {
   private syncTrajectory(): void {
     this.syncTrajectoryDebugFull();
     const ricochet=this.sessionMode==='campaign'?this.campaignDef?.challenge.ricochet:undefined;
+    const velocity=this.aim.getLaunchVelocity();
+    const minStep=1/Math.max(1,GRAPHICS_QUALITY.aimPredictHz);
     if(ricochet){
-      const velocity=this.aim.getLaunchVelocity(),old=this.ricochetPreviewVelocity;
-      if(this.simTime-this.ricochetPreviewAt<1/30&&Math.abs(velocity.vx-old.vx)+Math.abs(velocity.vy-old.vy)+Math.abs(velocity.vz-old.vz)<.025)return;
+      const old=this.ricochetPreviewVelocity;
+      if(this.simTime-this.ricochetPreviewAt<minStep&&Math.abs(velocity.vx-old.vx)+Math.abs(velocity.vy-old.vy)+Math.abs(velocity.vz-old.vz)<.025)return;
       this.ricochetPreviewAt=this.simTime;this.ricochetPreviewVelocity=velocity;
-      const prediction=predictShot(this.projectile.position,this.aim.getLaunchVelocity(),this.obstacles,this.target,this.obstacleTime,this.obstacleTimeScale(),this.predictionForces(),this.simTime,ricochet);
+      const prediction=predictShot(this.projectile.position,velocity,this.obstacles,this.target,this.obstacleTime,this.obstacleTimeScale(),this.predictionForces(),this.simTime,ricochet);
       this.livePrediction=prediction;
       this.trajectory.showRicochet(prediction,Boolean(ricochet.fullGuide||this.selectedBoosts.guidance||this.debugEnabled));return;
     }
+    const old=this.aimPredictVelocity;
+    if(
+      this.simTime-this.aimPredictAt<minStep &&
+      Math.abs(velocity.vx-old.vx)+Math.abs(velocity.vy-old.vy)+Math.abs(velocity.vz-old.vz)<0.02
+    ){
+      return;
+    }
+    this.aimPredictAt=this.simTime;
+    this.aimPredictVelocity=velocity;
     this.trajectory.update(
       this.projectile.position,
-      this.aim.getLaunchVelocity(),
+      velocity,
       this.target.z,
       this.predictionForces(),
     );

@@ -28,8 +28,6 @@ export class BillboardFlipArt {
     const face = this.kit.metal(0x5a6d7c, 0.4);
     const lamp = this.kit.lamp();
     this.lamps.push(lamp);
-    const lampCore = this.kit.lampCore();
-    this.lamps.push(lampCore);
 
     this.panel = new THREE.Group();
     this.panel.name = 'billboard-panel';
@@ -58,7 +56,6 @@ export class BillboardFlipArt {
     for (const y of [-0.28, 0, 0.28]) {
       box('ad-stripe', w * 0.72, h * 0.08, 0.02, 0, y * h, -d * 0.45, lamp, 0.003);
     }
-    box('ad-core', w * 0.35, h * 0.04, 0.014, 0, 0, -d * 0.52, lampCore, 0);
     // Pivot hub stays inside the face band.
     box('board-hub', w * 0.12, h * 0.1, d * 1.35, 0, 0, 0.02, steel, 0.006);
 

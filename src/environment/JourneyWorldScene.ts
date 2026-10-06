@@ -23,7 +23,7 @@ export const JOURNEY_LOOKS = {
  asteroid_belt:{background:0x0d1728,ambient:0xb6c9df,key:0xffdfb8},
  drift:{background:0x08121f,ambient:0xa8bbd2,key:0xffd7a8},
  nebula:{background:0x130c27,ambient:0x9c83c4,key:0xd9c7ff},
- the_null:{background:0x07040f,ambient:0x5a4878,key:0xa888d8},
+ the_null:{background:0x12081c,ambient:0x9a78c8,key:0xd0b0ff},
  false_home:{background:0x160f2c,ambient:0xa08dcb,key:0xe2d2ff},
  network:{background:0x030f18,ambient:0x829cac,key:0xffdc8c},
  ancient_network:{background:0x030f18,ambient:0x829cac,key:0xffdc8c},
@@ -90,7 +90,8 @@ export function createJourneyWorldScene(world:JourneyWorld,level=95):THREE.Group
    o.userData.ambientAsteroid=true;
   }
  }else if(world==='the_null'){
-  const matte=createWorldBackdrop('nebula');(matte.material as THREE.MeshBasicMaterial).color.setHex(0x30283d);root.add(matte);
+  // Lifted violet nebula wash — chapter was reading as a black void.
+  const matte=createWorldBackdrop('nebula');(matte.material as THREE.MeshBasicMaterial).color.setHex(0x5a3a78);root.add(matte);
  }else{
   const art=createLateWorldArt(lateArt);root.add(art);
   const matte=art.getObjectByName(`${lateArt}-distant-matte`) as THREE.Mesh|undefined;

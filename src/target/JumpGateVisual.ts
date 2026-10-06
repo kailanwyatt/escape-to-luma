@@ -28,6 +28,8 @@ export class JumpGateVisual {
   private readonly positions = new Float32Array(40*3);
   private readonly colors = new Float32Array(40*3);
   private readonly particleTint: THREE.Color;
+  private halo: THREE.Mesh | null = null;
+  private haloTint: { value: THREE.Color } | null = null;
   private world = 'containment';
   private housing:THREE.Group|null=null;
   private time = 0;
@@ -125,6 +127,8 @@ export class JumpGateVisual {
       fragmentShader:'uniform vec3 tint;varying vec2 coords;void main(){float d=abs(length(coords)-1.08);float a=exp(-d*18.0)*.32;gl_FragColor=vec4(tint,a);}',
       transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,toneMapped:false,
     }));halo.position.z=-.18;halo.name='energy-halo';this.group.add(halo);
+    this.halo=halo;
+    this.haloTint=(halo.material as THREE.ShaderMaterial).uniforms.tint!;
 
     for(let layer=0;layer<3;layer++) {
       const ring=new THREE.Group();ring.name=`energy-ring-${layer}`;
@@ -149,6 +153,24 @@ export class JumpGateVisual {
     if(this.housing){this.group.remove(this.housing);disposeThreeObject(this.housing);this.housing=null;}
     this.frame.visible=world==='containment';
     if(!this.frame.visible){this.housing=createWorldGateHousing(world);this.group.add(this.housing);}
+    // Null / False Home — no cyan/green energy collar on the destination gate.
+    const noCollar = world === 'the_null' || world === 'false_home';
+    const nullish = world === 'the_null';
+    this.particleTint.set(nullish ? 0xd0a8ff : this.config.energyColor);
+    this.energyMaterials.forEach((mat, i) => {
+      mat.color.setHex(nullish ? (i === 1 ? 0xb080ff : 0xe0c0ff) : (i === 1 ? this.config.secondaryEnergyColor : this.config.energyColor));
+    });
+    this.interiorMaterial.uniforms.cyan.value.set(nullish ? 0xe0c8ff : this.config.energyColor);
+    this.interiorMaterial.uniforms.blue.value.set(nullish ? 0x8a50d8 : this.config.secondaryEnergyColor);
+    this.throatMaterial.emissive.setHex(nullish ? 0x8a50d8 : this.config.secondaryEnergyColor);
+    this.throatMaterial.emissiveIntensity = nullish ? 0.32 : 0.18;
+    this.haloTint?.value.set(nullish ? 0xc090ff : this.config.energyColor);
+    this.energy.forEach((ring) => {
+      ring.visible = !noCollar;
+    });
+    if (this.halo) this.halo.visible = !noCollar;
+    const throatLip = this.group.getObjectByName('throat-lip');
+    if (throatLip) throatLip.visible = !noCollar;
   }
   trigger(strength:number):void {this.response=.48;this.strength=strength;}
   reset():void {this.response=0;this.strength=0;this.time=0;this.update(0,false);}

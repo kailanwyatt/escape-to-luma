@@ -28,20 +28,11 @@ export class MovingSafeZoneArt {
   private readonly rodRests: DebrisRest[] = [];
   private readonly streaks: THREE.InstancedMesh;
   private readonly streakRests: { angle: number; speed: number; len: number; phase: number }[] = [];
-  private readonly corridorLip: THREE.Mesh;
-  private readonly corridorWash: THREE.Mesh;
-  private readonly lipMat: THREE.MeshStandardMaterial;
-  private readonly washMat: THREE.ShaderMaterial;
   private readonly accent: THREE.PointLight;
   private readonly silhouettes: THREE.Group[] = [];
   private readonly earth: THREE.Group;
   private readonly geometries: THREE.BufferGeometry[] = [];
   private readonly materials: THREE.Material[] = [];
-  private readonly uniforms: {
-    uTime: { value: number };
-    uHole: { value: THREE.Vector2 };
-    uHoleR: { value: number };
-  };
 
   constructor(private readonly config: MovingSafeZoneConfig) {
     this.group.name = 'moving-safe-zone-art';
@@ -201,64 +192,7 @@ export class MovingSafeZoneArt {
       this.silhouettes.push(wreck);
     }
 
-    // --- Subtle amber corridor navigation cues (not an energy membrane) ---
-    this.lipMat = new THREE.MeshStandardMaterial({
-      color: 0xffc878,
-      emissive: 0xff9a3a,
-      emissiveIntensity: 0.55,
-      metalness: 0.2,
-      roughness: 0.4,
-      transparent: true,
-      opacity: 0.72,
-      depthWrite: false,
-    });
-    this.materials.push(this.lipMat);
-    const lipGeo = new THREE.TorusGeometry(1, 0.018, 6, 48);
-    this.geometries.push(lipGeo);
-    this.corridorLip = new THREE.Mesh(lipGeo, this.lipMat);
-    this.corridorLip.name = 'corridor-guide';
-    this.group.add(this.corridorLip);
-
-    this.uniforms = {
-      uTime: { value: 0 },
-      uHole: { value: new THREE.Vector2(0, 0) },
-      uHoleR: { value: config.holeRadius },
-    };
-    this.washMat = new THREE.ShaderMaterial({
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide,
-      uniforms: this.uniforms,
-      vertexShader: `
-        varying vec2 vLocal;
-        void main() {
-          vLocal = position.xy;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        precision mediump float;
-        varying vec2 vLocal;
-        uniform float uTime;
-        uniform float uHoleR;
-        void main() {
-          float d = length(vLocal);
-          float rim = smoothstep(uHoleR * 0.72, uHoleR, d) * (1.0 - smoothstep(uHoleR, uHoleR * 1.22, d));
-          float pulse = 0.75 + 0.25 * sin(uTime * 2.1);
-          vec3 amber = vec3(1.0, 0.68, 0.28);
-          gl_FragColor = vec4(amber, rim * 0.22 * pulse);
-        }
-      `,
-    });
-    this.materials.push(this.washMat);
-    const washGeo = new THREE.CircleGeometry(1, 48);
-    this.geometries.push(washGeo);
-    this.corridorWash = new THREE.Mesh(washGeo, this.washMat);
-    this.corridorWash.name = 'corridor-wash';
-    this.corridorWash.position.z = -0.05;
-    this.group.add(this.corridorWash);
-
+    // --- Subtle accent only (corridor read comes from debris density) ---
     this.accent = new THREE.PointLight(0xffb56a, 4.5, 8, 2);
     this.accent.name = 'safe-zone-accent';
     this.group.add(this.accent);
@@ -412,10 +346,6 @@ export class MovingSafeZoneArt {
     const cy = this.config.centerY;
     const R = this.config.fieldRadius;
 
-    this.uniforms.uTime.value = time;
-    this.uniforms.uHole.value.set(s.x - cx, s.y - cy);
-    this.uniforms.uHoleR.value = s.radius;
-
     for (let i = 0; i < this.boxRests.length; i++) {
       this.writeInstance(this.boxDebris, i, this.boxRests[i]!, time, s.x, s.y, s.radius);
     }
@@ -441,13 +371,7 @@ export class MovingSafeZoneArt {
     }
     this.streaks.instanceMatrix.needsUpdate = true;
 
-    this.corridorLip.position.set(s.x, s.y, -0.06);
-    this.corridorLip.scale.setScalar(Math.max(0.25, s.radius));
-    this.corridorWash.position.set(s.x, s.y, -0.05);
-    this.corridorWash.scale.setScalar(Math.max(0.25, s.radius));
-
     const pulse = 0.75 + 0.25 * Math.sin(time * 2.1);
-    this.lipMat.emissiveIntensity = 0.4 + pulse * 0.35;
     this.accent.intensity = 3.5 + 2.5 * pulse;
     this.accent.position.set(s.x, s.y, -1.0);
 

@@ -7,7 +7,7 @@ import { getCampaignLevel } from '../src/campaign/levels';
 import type { FormationConfig } from '../src/config/ObstacleConfig';
 
 describe('PhaseFieldArt', () => {
-  it('keeps solid/ghost names and adds frame pods', () => {
+  it('keeps solid/ghost names without frame pods or teach rings', () => {
     const art = new PhaseFieldArt({
       type: 'phaseField',
       z: 6,
@@ -19,7 +19,8 @@ describe('PhaseFieldArt', () => {
     });
     expect(art.group.getObjectByName('phase-solid')).toBeTruthy();
     expect(art.group.getObjectByName('phase-ghost')).toBeTruthy();
-    expect(art.group.getObjectByName('phase-pod-0')).toBeTruthy();
+    expect(art.group.getObjectByName('phase-pod-0')).toBeFalsy();
+    expect(art.group.getObjectByName('phase-boundary')).toBeFalsy();
     expect(art.group.getObjectByName('phase-field-accent')).toBeTruthy();
     art.update(0);
     expect(art.open).toBe(true);
@@ -56,30 +57,38 @@ describe('formation expandingDebris and phaseColumns art', () => {
     const o = new FormationObstacle('expand');
     o.applyConfig(base('expandingDebris'), 'space');
     expect(o.group.getObjectByName('formation-expanding-debris-art')).toBeTruthy();
-    expect(o.group.getObjectByName('expand-halo')).toBeTruthy();
+    expect(o.group.getObjectByName('expand-halo')).toBeFalsy();
     o.update(0.016, 0.7);
     o.hide();
   });
 
-  it('builds phase columns kit', () => {
+  it('builds ion weather columns without mechanical rails or pillar bodies', () => {
     const o = new FormationObstacle('columns');
     o.applyConfig(base('phaseColumns'), 'space');
     expect(o.group.getObjectByName('formation-phase-columns-art')).toBeTruthy();
     expect(o.group.getObjectByName('phase-column-0')).toBeTruthy();
+    expect(o.group.getObjectByName('ion-core')).toBeTruthy();
+    expect(o.group.getObjectByName('ion-ribbon')).toBeTruthy();
+    expect(o.group.getObjectByName('ion-aura')).toBeTruthy();
+    expect(o.group.getObjectByName('ion-strand-0')).toBeTruthy();
+    expect(o.group.getObjectByName('columns-rail-top')).toBeFalsy();
+    expect(o.group.getObjectByName('column-body')).toBeFalsy();
+    expect(o.group.getObjectByName('ion-halo-top')).toBeFalsy();
     o.update(0.016, 0.5);
     o.hide();
   });
 });
 
 describe('shifting aperture rail teach', () => {
-  it('adds shift rail and hub beside the aperture wash', () => {
+  it('ships without wash, ticks, or center shift rail', () => {
     const config = getCampaignLevel(121)!.challenge.obstacles.find((o) => o.type === 'shiftingAperture')!;
     if (config.type !== 'shiftingAperture') throw new Error('Expected aperture');
     const o = new ShiftingApertureObstacle('rail');
     o.applyConfig(config, 'space');
-    expect(o.group.getObjectByName('aperture-wash')).toBeTruthy();
-    expect(o.group.getObjectByName('shift-rail')).toBeTruthy();
-    expect(o.group.getObjectByName('shift-hub')).toBeTruthy();
+    expect(o.group.getObjectByName('aperture-wash')).toBeFalsy();
+    expect(o.group.getObjectByName('shift-tick-left')).toBeFalsy();
+    expect(o.group.getObjectByName('shift-rail')).toBeFalsy();
+    expect(o.group.getObjectByName('shift-hub')).toBeFalsy();
     o.update(0.016, 1.2);
   });
 });

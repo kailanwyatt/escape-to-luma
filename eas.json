@@ -50,7 +50,7 @@
     },
     "production-local": {
       "extends": "production",
-      "credentialsSource": "local"
+      "credentialsSource": "remote"
     },
     "testflight": {
       "extends": "production"
