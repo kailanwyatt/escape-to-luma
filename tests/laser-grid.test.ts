@@ -101,6 +101,45 @@ describe('fixed-frame laser grid', () => {
     expect(halo.material.uniforms.strength.value).toBe(0);
   });
 
+  it('gives Security Sweep a visible amber charge-up before its lasers become dangerous', () => {
+    const o = new LaserGridObstacle('security-sweep');
+    o.applyConfig(
+      {
+        ...config('CROSSING_PHASED'),
+        appearance: 'securitySweep',
+        mode: 'pulse',
+        pulseSpeed: 1,
+        onRatio: 0.5,
+      },
+      'space',
+    );
+
+    expect(o.group.getObjectByName('SecuritySweepBeacon')).toBeTruthy();
+    expect(o.group.getObjectByName('SecuritySweepChevron')).toBeTruthy();
+
+    // The middle of the harmless window is deliberately quiet.
+    o.update(0.016, 0.7);
+    expect(o.lasersOn).toBe(false);
+    const halo = o.group.getObjectByName('BeamHalo') as THREE.Mesh<
+      THREE.PlaneGeometry,
+      THREE.ShaderMaterial
+    >;
+    expect(halo.material.uniforms.strength.value).toBe(0);
+
+    // The final part of that window must telegraph the imminent firing pulse.
+    o.update(0.016, 0.9);
+    expect(o.lasersOn).toBe(false);
+    expect(halo.material.uniforms.strength.value).toBeGreaterThan(0);
+    expect(o.group.getObjectByName('HotCore')!.visible).toBe(false);
+    expect(o.group.getObjectByName('ContactFlare')!.visible).toBe(false);
+
+    o.update(0.016, 0.1);
+    expect(o.lasersOn).toBe(true);
+    expect(o.group.getObjectByName('HotCore')!.visible).toBe(true);
+    expect(o.group.getObjectByName('ContactFlare')!.visible).toBe(true);
+    o.hide();
+  });
+
   it('uses the exact crossing-time beam positions for collision', () => {
     const laserConfig = config('VERTICAL_WAVE');
     const obstacle = new LaserGridObstacle('collision-lasers');

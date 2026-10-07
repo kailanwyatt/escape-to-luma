@@ -1,6 +1,7 @@
 import {applyEncounterProgression} from './EncounterProgression';
 import {applyNewEncounters} from './NewEncounters';
 import {applyLibraryEncounters} from './LibraryEncounters';
+import {applyAscentDifficulty} from './AscentDifficulty';
 import {applyPrecisionProgression} from './PrecisionProgression';
 import {applyPrecisionBenchmark} from './PrecisionBenchmarks';
 import {applyCityShutterProgression} from './CityShutterProgression';
@@ -18,7 +19,7 @@ const ALL_LEVELS: CampaignLevelDefinition[] = [
   ...WORLD1_LEVELS,
   ...WORLD2_LEVELS,
   ...buildWorlds3to10(),
-].map(applyPortalDifficulty).map(composeCampaignLevel).map(applyWorldBands).map(applyWorldRotorVariants).map(applyRicochetCourse).map(rebalanceCampaign).map(applyCityShutterProgression).map(applyPrecisionProgression).map(applyPrecisionBenchmark).map(applyNewEncounters).map(applyEncounterProgression).map(applyLibraryEncounters).map(applyWorldBands);
+].map(applyPortalDifficulty).map(composeCampaignLevel).map(applyWorldBands).map(applyWorldRotorVariants).map(applyRicochetCourse).map(rebalanceCampaign).map(applyCityShutterProgression).map(applyPrecisionProgression).map(applyPrecisionBenchmark).map(applyNewEncounters).map(applyEncounterProgression).map(applyLibraryEncounters).map(applyAscentDifficulty).map(applyWorldBands);
 
 const BY_NUMBER = new Map<number, CampaignLevelDefinition>();
 for (const level of ALL_LEVELS) {

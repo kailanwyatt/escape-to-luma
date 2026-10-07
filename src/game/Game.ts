@@ -7,6 +7,7 @@ import type { Vec3 } from '../reflectors/ReflectorConfig';
 import { campaignEncounterStart } from '../campaign/EncounterStart';
 import { FIRST_ESCAPE, storyForLevel, storyAfterWorld, pendingWorldStory, type StoryMoment } from '../campaign/StoryMoments';
 import { sparkStateFor } from '../projectile/SparkVisualState';
+import { OpeningSceneV2 } from '../experiments/opening-rebuild';
 import { OpeningScene } from '../scene/OpeningScene';
 import { OPENING_DURATION, OPENING_BEATS, sampleOpening } from '../scene/OpeningSequence';
 import type { ExpoWebGLRenderingContext } from 'expo-gl';
@@ -228,6 +229,8 @@ export class Game {
   private helpOffer = false;
   private campaignShotFired=false;
   private readonly openingScene = new OpeningScene();
+  private readonly openingDemoScene = __DEV__ ? new OpeningSceneV2() : null;
+  private openingDemo = false;
   private openingTimer = 0;
   private openingStage = 0;
   private pendingCampaignFail = false;
@@ -265,6 +268,9 @@ export class Game {
       this.safeOpeningMarker.group,
       this.debugVisuals.group,
     );
+    if (this.openingDemoScene) {
+      this.scene.add(this.openingDemoScene.group);
+    }
 
     this.trajectory.setVisible(false);
     this.run.reset();
@@ -815,6 +821,8 @@ export class Game {
       return;
     }
     this.sessionMode = 'campaign';
+    this.openingDemo = false;
+    this.openingDemoScene?.hide();
     this.director.mode = 'AUTHORED_30';
     this.campaignStory = null;
     this.campaignDef = def;
@@ -879,6 +887,7 @@ export class Game {
     this.aim.cancel();
     this.trajectory.setVisible(false);
     this.lastResult = null;
+    this.lastFail = null;
     this.banner = null;
     this.bannerTimer = 0;
     this.camera.clearEffects();
@@ -1312,6 +1321,8 @@ export class Game {
   }
 
   replayCampaignOpening(): void {
+    this.openingDemo = false;
+    this.openingDemoScene?.hide();
     this.startCampaignLevel(1, {});
     this.simTime = 0;
     this.obstacleTime = 0;
@@ -1321,11 +1332,39 @@ export class Game {
     this.emitHud();
   }
 
+  /** Development-only live Three.js alternative; does not mark the opening as seen. */
+  previewCampaignOpeningDemo(): void {
+    if (!__DEV__ || !this.openingDemoScene) {
+      return;
+    }
+    this.startCampaignLevel(1, {}, { force: true });
+    if (!this.campaignDef) {
+      return;
+    }
+    this.openingDemo = true;
+    this.openingScene.hide();
+    this.openingDemoScene.hide();
+    this.openingDemoScene.setSparkLook(sparkById(this.save.campaign.equippedSparkId));
+    // V2 owns the Spark presentation during its cinematic; reset restores the gameplay mesh.
+    this.projectile.mesh.visible = false;
+    this.simTime = 0;
+    this.obstacleTime = 0;
+    this.openingTimer = CAMPAIGN_OPENING_DURATION;
+    this.openingStage = 0;
+    this.state.set('CAMPAIGN_OPENING');
+    this.emitHud();
+  }
+
   private finishCampaignOpening(): void {
-    this.markCampaignOpeningSeen();
+    const wasDemo = this.openingDemo;
+    this.openingDemo = false;
+    if (!wasDemo) {
+      this.markCampaignOpeningSeen();
+    }
     this.openingTimer = 0;
     this.openingStage = CAMPAIGN_OPENING_STAGES - 1;
     this.openingScene.hide();
+    this.openingDemoScene?.hide();
     this.scene.environment.group.visible = true;
     if (this.campaignDef) this.applyChallenge(this.campaignDef.challenge, true);
     this.resetProjectile();
@@ -1919,7 +1958,8 @@ export class Game {
       AudioManager.syncOpening(elapsed);
       const { stage, progress } = sampleOpening(elapsed);
       this.scene.environment.setOpeningLighting(stage, progress);
-      const space = this.openingScene.sample(elapsed, this.camera.camera, this.save.settings.reduceMotion || this.systemReduceMotion);
+      const opening = this.openingDemo && this.openingDemoScene ? this.openingDemoScene : this.openingScene;
+      const space = opening.sample(elapsed, this.camera.camera, this.save.settings.reduceMotion || this.systemReduceMotion);
       this.scene.environment.group.visible = !space;
       this.obstacles.forEach((obstacle, index) => { obstacle.group.visible = stage >= 4 && index < (this.campaignDef?.challenge.obstacles.length ?? 0); });
       this.target.group.visible = stage >= 4;
@@ -2074,13 +2114,14 @@ export class Game {
           this.projectile.previousPosition,
           this.projectile.position,
         );
+        const crossingTime = this.obstacleCrossingTime(item.rotor);
         this.projectile.position.copy(at);
         const crossing =
           item.rotor.type === 'entryExitPortal'
             ? item.rotor.entryCrossingAt(
                 at.x,
                 at.y,
-                this.obstacleTime,
+                crossingTime,
                 GAME_TUNING.projectile.radius,
               )
             : null;
@@ -2116,8 +2157,9 @@ export class Game {
           this.projectile.previousPosition,
           this.projectile.position,
         );
+        const crossingTime = this.obstacleCrossingTime(item.rotor);
         const warp =
-          item.rotor.warpAtCrossing(at.x, at.y, this.obstacleTime) ??
+          item.rotor.warpAtCrossing(at.x, at.y, crossingTime) ??
           (() => {
             const legacy = item.rotor.warpTarget();
             return legacy ? { ...legacy, kind: 'true' as const } : null;
@@ -2217,6 +2259,18 @@ export class Game {
       scored.points,
       (this.target.isBreach ? GAME_TUNING.timing.hitAdvanceDelay : GAME_TUNING.timing.hitResultDelay) / 1000,
     );
+  }
+
+  /** Exact obstacle-clock time at the projectile's crossing of an obstacle plane. */
+  private obstacleCrossingTime(rotor: ObstacleSlot): number {
+    const previous = this.projectile.previousPosition;
+    const current = this.projectile.position;
+    const dz = current.z - previous.z;
+    if (Math.abs(dz) < 1e-6 || this.lastObstacleStep <= 0) {
+      return this.obstacleTime;
+    }
+    const fraction = Math.max(0, Math.min(1, (rotor.z - previous.z) / dz));
+    return this.obstacleTime - this.lastObstacleStep + this.lastObstacleStep * fraction;
   }
 
   private checkOutOfBounds(): void {
@@ -2719,6 +2773,7 @@ export class Game {
     this.obstacleTime = encounter.offset;
     AudioManager.syncOpening(null);
     this.openingScene.hide();
+    this.openingDemoScene?.hide();
     this.scene.environment.group.visible = true;
     this.scene.environment.setEnvironment(resolved.environment, this.scene.scene, immediateEnv);
     this.scene.environment.setSpaceWorld(this.sessionMode === 'campaign' ? this.campaignDef?.worldId ?? null : null, this.campaignDef?.levelNumber);
@@ -2732,6 +2787,7 @@ export class Game {
       const glass = resolved.obstacles.find(obstacle => obstacle.type === 'slidingGate' && obstacle.appearance === 'containmentGlass');
       if (glass?.type === 'slidingGate') {
         this.openingScene.setBreach({x: glass.baseX, y: glass.baseY ?? GAME_TUNING.gate.baseY, z: glass.z, width: glass.openingWidth, height: glass.openingHeight});
+        this.openingDemoScene?.setBreach({x: glass.baseX, y: glass.baseY ?? GAME_TUNING.gate.baseY, z: glass.z, width: glass.openingWidth, height: glass.openingHeight});
       }
       this.openingScene.showPlayableVessel();
     }

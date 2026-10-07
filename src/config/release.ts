@@ -1,3 +1,5 @@
+import { isWebArcadeBuild } from './webArcade';
+
 /**
  * App Store / production policy.
  *
@@ -8,10 +10,12 @@ export const RELEASE_POLICY = {
   channel: 'production',
   campaignMaxLevel: 150,
   freeRetries: false,
-  adsEnabled: true,
-  purchasesEnabled: true,
+  // The embedded browser Arcade has no AdMob or purchase experience. Its
+  // parent site owns navigation, while this bundle stays focused on play.
+  adsEnabled: !isWebArcadeBuild,
+  purchasesEnabled: !isWebArcadeBuild,
   analyticsEnabled: false,
-  trackingPromptEnabled: true,
+  trackingPromptEnabled: !isWebArcadeBuild,
   showDeveloperGraphicsScreen: typeof __DEV__ !== 'undefined' && __DEV__,
 } as const;
 

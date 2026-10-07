@@ -17,6 +17,7 @@ import { getCampaignLevel } from './src/campaign/levels';
 import { WORLDS } from './src/campaign/worlds';
 import { ECONOMY } from './src/config/economy';
 import { GRAPHICS_QUALITY } from './src/config/graphicsQuality';
+import { isWebArcadeBuild } from './src/config/webArcade';
 import { useAppFonts } from './src/design';
 import { Game } from './src/game/Game';
 import { preloadAssetGroup } from './src/graphics/assetRegistry';
@@ -27,6 +28,7 @@ import { GameHaptics } from './src/feedback/Haptics';
 import { AudioManager } from './src/feedback/AudioManager';
 import { DebugOverlay } from './src/ui/DebugOverlay';
 import { AppErrorBoundary } from './src/ui/AppErrorBoundary';
+import { ArcadeScreen } from './src/ui/ArcadeScreen';
 import { GraphicsScreen } from './src/ui/GraphicsScreen';
 import { HomeScreen } from './src/ui/HomeScreen';
 import { HUD } from './src/ui/HUD';
@@ -45,6 +47,7 @@ SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 type AppScreen =
   | 'home'
+  | 'arcade'
   | 'play'
   | 'journey'
   | 'levelReady'
@@ -182,7 +185,9 @@ function AppShell() {
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
   const [save, setSave] = useState<PersistentGameData>(emptySave());
-  const [screen, setScreen] = useState<AppScreen>('home');
+  const [screen, setScreen] = useState<AppScreen>(
+    isWebArcadeBuild ? 'arcade' : 'home',
+  );
   const [pendingLevel, setPendingLevel] = useState(1);
   const [journeyFocusLevel, setJourneyFocusLevel] = useState<number | null>(null);
   const [devUnlockAll,setDevUnlockAll]=useState(false);
@@ -328,9 +333,16 @@ function AppShell() {
   }, [debugEnabled]);
 
   const playing = screen === 'play';
+  // Keep the full-screen drag responder out of result/story screens. Otherwise
+  // it sits above terminal campaign controls on web and can swallow Home/Retry
+  // before their Pressables receive the release.
+  const acceptsGameplayTouch =
+    playing &&
+    !paused &&
+    (hud.phase === 'READY' || hud.phase === 'AIMING' || hud.phase === 'RUN_START');
 
   useEffect(() => {
-    if (!hud.hydrated || openingRoutedRef.current) {
+    if (isWebArcadeBuild || !hud.hydrated || openingRoutedRef.current) {
       return;
     }
     openingRoutedRef.current = true;
@@ -423,23 +435,45 @@ function AppShell() {
       if (!check.ok) {
         return;
       }
-      // Bank any active voyage, then always force the authored campaign level.
-      gameRef.current?.finishEndlessVoyage();
+      // Prepare the selected level before mounting gameplay. This prevents a
+      // previous LEVEL_FAILED HUD snapshot from briefly becoming the new screen.
+      const game = gameRef.current;
+      if (!game) {
+        return;
+      }
+      game.pause();
+      game?.finishEndlessVoyage();
       void preloadAssetGroup(levelNumber<=15?'world1':levelNumber<=30?'world2':'optional');
-      pausedRef.current=false;setPaused(false);gameRef.current?.resume();
+      pausedRef.current=false;setPaused(false);
+      game.startCampaignLevel(levelNumber,{},{force:true});
+      // The HUD listener is intentionally rate-limited. Replace the old
+      // terminal snapshot immediately so a failed level never remains on top
+      // of the newly selected campaign attempt while React schedules updates.
+      const launchHud = game.getHudSnapshot();
+      setHud(launchHud);
+      if (launchHud.phase === 'OUT_OF_ENERGY') {
+        setScreen('outOfEnergy');
+        return;
+      }
+      if (launchHud.sessionMode !== 'campaign' || launchHud.campaignLevel !== levelNumber) {
+        return;
+      }
       setScreen('play');
-      gameRef.current?.startCampaignLevel(levelNumber,{},{force:true});
+      game.resume();
     },
     [save.campaign, syncEnergyAndSave],
   );
 
   const onHome = useCallback(() => {
     tap(() => {
-      gameRef.current?.finishEndlessVoyage();
+      const game = gameRef.current;
+      game?.onTouchCancel();
+      game?.pause();
+      game?.finishEndlessVoyage();
       pausedRef.current = false;
       setPaused(false);
       refreshSave();
-      setScreen('home');
+      setScreen(isWebArcadeBuild ? 'arcade' : 'home');
     });
   }, [refreshSave, tap]);
 
@@ -473,7 +507,7 @@ function AppShell() {
           onLayout(width, height);
         }}
       />
-      {playing ? <View style={styles.touch} {...panResponder.panHandlers} /> : null}
+      {acceptsGameplayTouch ? <View style={styles.touch} {...panResponder.panHandlers} /> : null}
       {playing ? <ResultFeedback text={hud.resultText} kind={hud.resultKind} /> : null}
       {playing ? (
         <HUD
@@ -678,7 +712,6 @@ function AppShell() {
           reduceMotion={systemReduceMotion || save.settings.reduceMotion}
           save={save}
           onSelectLevel={(level)=>tap(()=>startSelectedLevel(level))}
-          onContinue={()=>tap(()=>startSelectedLevel(continueLevelNumber(gameRef.current?.getSave()??save)))}
           onJourney={() =>
             tap(() => {
               syncEnergyAndSave();
@@ -715,16 +748,27 @@ function AppShell() {
               setScreen('settings');
             })
           }
-          onEndless={() =>
+          onArcade={() => tap(() => setScreen('arcade'))}
+          currentLevel={continueLevelNumber(save)}
+        />
+      ) : null}
+      {screen === 'arcade' ? (
+        <ArcadeScreen
+          save={save}
+          webArcade={isWebArcadeBuild}
+          onBack={() => tap(() => setScreen('home'))}
+          onSelectGame={(gameId) => {
+            if (gameId !== 'endlessVoyage') {
+              return;
+            }
             tap(() => {
               pausedRef.current = false;
               setPaused(false);
               gameRef.current?.resume();
               setScreen('play');
               gameRef.current?.startEndlessVoyage();
-            })
-          }
-          currentLevel={continueLevelNumber(save)}
+            });
+          }}
         />
       ) : null}
       {screen === 'journey' ? (
@@ -831,6 +875,12 @@ function AppShell() {
       {screen === 'settings' ? (
         <SettingsScreen
           onPreviewLuma={__DEV__?()=>setPreviewLuma(true):undefined}
+          onPreviewOpeningRebuild={__DEV__ ? () => {
+            gameRef.current?.previewCampaignOpeningDemo();
+            pausedRef.current = false;
+            setPaused(false);
+            setScreen('play');
+          } : undefined}
           devUnlockAll={devUnlockAll}
           onToggleDevUnlock={()=>{const next=!devUnlockAll;setDevLevelsUnlocked(next);setDevUnlockAll(next);}}
           onReplayOpening={() => {

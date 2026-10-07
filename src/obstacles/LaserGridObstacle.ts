@@ -20,6 +20,9 @@ import { interpolateAtZ } from './SlidingGateObstacle';
 
 const LASER_ON = 0xff3b3b;
 const LASER_OFF = 0x4a2020;
+const LASER_WARNING = 0xffae2e;
+
+type SecuritySweepPhase = 'active' | 'warning' | 'idle';
 
 export class LaserGridObstacle {
   readonly id: string;
@@ -37,6 +40,8 @@ export class LaserGridObstacle {
   private emitters: THREE.Group[][] = [];
   /** Space grids have no walls to mount on — stationkeeping thrusters sell the hover. */
   private space = false;
+  /** Level 101 gets an explicit charge-up cue before its pulse becomes dangerous. */
+  private securitySweep = false;
 
   constructor(id: string) {
     this.id = id;
@@ -49,6 +54,7 @@ export class LaserGridObstacle {
   applyConfig(config: LaserGridConfig, environment: EnvironmentId): void {
     this.config = config;
     this.space = environment === 'space';
+    this.securitySweep = config.appearance === 'securitySweep';
     this.active = true;
     this.group.visible = true;
     this.z = config.z;
@@ -71,10 +77,10 @@ export class LaserGridObstacle {
       mesh.name = `LaserBeam${this.meshes.length + 1}`;
       // Symmetric falloff leaves the collision-width red envelope centered on the beam.
       const glow = new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.ShaderMaterial({
-        uniforms:{vertical:{value:beam.orientation==='vertical'?1:0},strength:{value:1}},
+        uniforms:{vertical:{value:beam.orientation==='vertical'?1:0},strength:{value:1},color:{value:new THREE.Color(LASER_ON)}},
         transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,toneMapped:false,
         vertexShader:`varying vec2 v;void main(){v=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-        fragmentShader:`varying vec2 v;uniform float vertical;uniform float strength;void main(){float d=abs(mix(v.y,v.x,vertical)-.5)*2.;float a=(exp(-d*d*95.)*.95+exp(-d*d*5.)*.42)*(1.-smoothstep(.65,1.,d));gl_FragColor=vec4(1.,.055,.018,a*strength);}`
+        fragmentShader:`varying vec2 v;uniform float vertical;uniform float strength;uniform vec3 color;void main(){float d=abs(mix(v.y,v.x,vertical)-.5)*2.;float a=(exp(-d*d*95.)*.95+exp(-d*d*5.)*.42)*(1.-smoothstep(.65,1.,d));gl_FragColor=vec4(color,a*strength);}`
       }));
       glow.name='BeamHalo';glow.position.z=-.018;
       glow.scale.set(beam.orientation==='vertical'?10:1,beam.orientation==='vertical'?1:10,1);mesh.add(glow);
@@ -102,6 +108,7 @@ export class LaserGridObstacle {
     this.group.visible = false;
     this.config = null;
     this.beams = [];
+    this.securitySweep = false;
     this.clearMeshes();
     this.clearGroup(this.fixedFrame);
   }
@@ -114,12 +121,22 @@ export class LaserGridObstacle {
     this.lasersOn = this.lasersActiveAt(elapsedTime);
     this.beams = laserBeamsAtTime(this.config, elapsedTime);
     this.syncBeamMeshes(this.beams, this.lasersOn, elapsedTime);
+    const phase = this.securitySweepPhase(elapsedTime, this.lasersOn);
     const accent = this.group.getObjectByName('laser-grid-accent') as THREE.PointLight | undefined;
     if (accent) {
-      accent.color.setHex(this.lasersOn ? 0xff6a40 : 0x476b72);
-      accent.intensity = this.lasersOn ? 10 : 4;
+      if (phase === 'active') {
+        accent.color.setHex(0xff4a32);
+        accent.intensity = this.securitySweep ? 13 : 10;
+      } else if (phase === 'warning') {
+        accent.color.setHex(LASER_WARNING);
+        accent.intensity = 6.6 + 2.4 * Math.sin(elapsedTime * 18);
+      } else {
+        accent.color.setHex(0x476b72);
+        accent.intensity = this.securitySweep ? 3.2 : 4;
+      }
       accent.position.set(this.config.centerX ?? 0, this.config.centerY ?? 3, -1.05);
     }
+    this.syncSecuritySweepFrame(phase, elapsedTime);
   }
 
   testProjectileCrossing(
@@ -221,6 +238,23 @@ export class LaserGridObstacle {
     );
   }
 
+  private securitySweepPhase(elapsedTime: number, on: boolean): SecuritySweepPhase {
+    if (!this.securitySweep) {
+      return on ? 'active' : 'idle';
+    }
+    if (on) {
+      return 'active';
+    }
+    const speed = this.config?.pulseSpeed ?? 0.7;
+    const offset = this.config?.phase ?? 0;
+    const onRatio = this.config?.onRatio ?? 0.55;
+    const cycle = ((elapsedTime * speed + offset) % 1 + 1) % 1;
+    // The final part of the harmless window is intentionally visible: it tells
+    // players exactly when the security array is about to fire again.
+    const warningWindow = Math.min(0.18, Math.max(0.08, (1 - onRatio) * 0.5));
+    return cycle >= 1 - warningWindow ? 'warning' : 'idle';
+  }
+
   private syncBeamMeshes(
     beams: LaserBeam[],
     on: boolean,
@@ -230,6 +264,8 @@ export class LaserGridObstacle {
     if (!config) {
       return;
     }
+    const phase = this.securitySweepPhase(elapsedTime, on);
+    const warning = phase === 'warning';
     for (let index=0;index<this.meshes.length;index++) {
       const mesh=this.meshes[index],beam=beams[index];mesh.visible=Boolean(beam);
       if(!beam)continue;
@@ -237,9 +273,12 @@ export class LaserGridObstacle {
       mesh.scale.set(vertical?config.thickness*2:config.span,vertical?config.span:config.thickness*2,1);
       mesh.position.set(vertical?beam.position:beam.centerX,vertical?beam.centerY:beam.position,0);
       const material=mesh.material as THREE.MeshBasicMaterial;
-      material.color.setHex(on?LASER_ON:LASER_OFF);material.opacity=on?.55:.08;
+      material.color.setHex(on ? LASER_ON : warning ? LASER_WARNING : LASER_OFF);
+      material.opacity=on ? this.securitySweep ? .78 : .55 : warning ? .18 : .08;
       mesh.getObjectByName('HotCore')!.visible=on;
-      (mesh.getObjectByName('BeamHalo') as THREE.Mesh<THREE.PlaneGeometry,THREE.ShaderMaterial>).material.uniforms.strength.value=on?1.35:0;
+      const halo=(mesh.getObjectByName('BeamHalo') as THREE.Mesh<THREE.PlaneGeometry,THREE.ShaderMaterial>).material;
+      halo.uniforms.strength.value=on ? this.securitySweep ? 1.8 : 1.35 : warning ? .27 : 0;
+      (halo.uniforms.color.value as THREE.Color).setHex(on ? LASER_ON : LASER_WARNING);
       this.emitters[index].forEach((emitter,j)=>{
         const sign=j===0?-1:1;
         emitter.position.set(
@@ -250,11 +289,17 @@ export class LaserGridObstacle {
         emitter.rotation.z=vertical?Math.PI/2:0;
         const lens=emitter.getObjectByName('EmitterLens') as THREE.Mesh<THREE.SphereGeometry,THREE.MeshStandardMaterial>;
         if(lens.material instanceof THREE.MeshStandardMaterial){
-          lens.material.color.setHex(on?0xffae8c:0x476b72);
-          lens.material.emissive.setHex(on?0xff6a40:0x1a3038);
-          lens.material.emissiveIntensity=on?1.15:.2;
+          lens.material.color.setHex(on ? 0xffae8c : warning ? 0xffd06a : 0x476b72);
+          lens.material.emissive.setHex(on ? 0xff6a40 : warning ? LASER_WARNING : 0x1a3038);
+          lens.material.emissiveIntensity=on ? this.securitySweep ? 1.55 : 1.15 : warning ? 1.1 : .2;
         }else{
-          (lens.material as THREE.MeshBasicMaterial).color.setHex(on?0xffae8c:0x476b72);
+          (lens.material as THREE.MeshBasicMaterial).color.setHex(on ? 0xffae8c : warning ? 0xffd06a : 0x476b72);
+        }
+        const status=emitter.getObjectByName('EmitterStatus') as THREE.Mesh<THREE.BoxGeometry,THREE.MeshStandardMaterial>;
+        if(status?.material instanceof THREE.MeshStandardMaterial){
+          status.material.color.setHex(on ? 0xff5b35 : warning ? LASER_WARNING : 0x2a6370);
+          status.material.emissive.setHex(on ? 0xff3b20 : warning ? 0xd66d18 : 0x12343b);
+          status.material.emissiveIntensity=on ? 1.2 : warning ? .95 : .25;
         }
         emitter.getObjectByName('ContactFlare')!.visible=on;
       });
@@ -279,7 +324,7 @@ export class LaserGridObstacle {
     for(const y of [-.13,.13]){const fin=new THREE.Mesh(new THREE.BoxGeometry(.34,.04,.24),steel);fin.position.set(0,y,.02);root.add(fin);}
     const status=new THREE.Mesh(new THREE.BoxGeometry(.12,.04,.03),new THREE.MeshStandardMaterial({
       color:0xffb449,emissive:0xff9b32,emissiveIntensity:.9,metalness:.1,roughness:.3,
-    }));status.position.set(0,-.14,-.2);root.add(status);
+    }));status.name='EmitterStatus';status.position.set(0,-.14,-.2);root.add(status);
     return root;
   }
 
@@ -440,6 +485,10 @@ export class LaserGridObstacle {
       }
     }
 
+    if (this.securitySweep) {
+      this.buildSecuritySweepFrame(centerX, centerY, half);
+    }
+
     // Space only: four corner rockets with outward exhaust — stationkeeping, not wall-mounted.
     if (this.space) {
       let phase = 0;
@@ -449,6 +498,85 @@ export class LaserGridObstacle {
         }
       }
     }
+  }
+
+  /** L101's only purpose is to make its pulse timing instantly readable. */
+  private buildSecuritySweepFrame(centerX: number, centerY: number, half: number): void {
+    const casing = new THREE.MeshStandardMaterial({
+      color: 0x172638,
+      metalness: 0.76,
+      roughness: 0.32,
+    });
+    const warning = new THREE.MeshStandardMaterial({
+      color: 0x2c7481,
+      emissive: 0x0e3c45,
+      emissiveIntensity: 0.45,
+      metalness: 0.3,
+      roughness: 0.34,
+      toneMapped: false,
+    });
+    const edge = half + 0.12;
+
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        const beacon = new THREE.Group();
+        beacon.name = 'SecuritySweepBeacon';
+        beacon.position.set(centerX + sx * edge, centerY + sy * edge, -0.24);
+
+        const housing = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.12), casing);
+        beacon.add(housing);
+        const lens = new THREE.Mesh(new THREE.CircleGeometry(0.095, 16), warning.clone());
+        lens.name = 'SecuritySweepBeaconLens';
+        lens.position.z = -0.075;
+        beacon.add(lens);
+        for (const direction of [-1, 1]) {
+          const fin = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.035, 0.07), casing);
+          fin.position.y = direction * 0.13;
+          beacon.add(fin);
+        }
+        this.fixedFrame.add(beacon);
+      }
+    }
+
+    const chevronGeometry = new THREE.BoxGeometry(0.19, 0.045, 0.04);
+    for (const sy of [-1, 1]) {
+      for (let index = -2; index <= 2; index += 1) {
+        const chevron = new THREE.Mesh(chevronGeometry, warning.clone());
+        chevron.name = 'SecuritySweepChevron';
+        chevron.userData.index = index + 2;
+        chevron.position.set(centerX + index * 0.34, centerY + sy * (half + 0.02), -0.24);
+        this.fixedFrame.add(chevron);
+      }
+    }
+  }
+
+  private syncSecuritySweepFrame(phase: SecuritySweepPhase, elapsedTime: number): void {
+    if (!this.securitySweep) {
+      return;
+    }
+    const warningPulse = 0.72 + 0.28 * Math.sin(elapsedTime * 20);
+    this.fixedFrame.traverse((object) => {
+      if (!(object instanceof THREE.Mesh) || !(object.material instanceof THREE.MeshStandardMaterial)) {
+        return;
+      }
+      if (object.name !== 'SecuritySweepBeaconLens' && object.name !== 'SecuritySweepChevron') {
+        return;
+      }
+      const material = object.material;
+      if (phase === 'active') {
+        material.color.setHex(0xff7653);
+        material.emissive.setHex(0xff2d1e);
+        material.emissiveIntensity = 1.35;
+      } else if (phase === 'warning') {
+        material.color.setHex(0xffc655);
+        material.emissive.setHex(0xd97014);
+        material.emissiveIntensity = 1.05 * warningPulse;
+      } else {
+        material.color.setHex(0x2c7481);
+        material.emissive.setHex(0x0e3c45);
+        material.emissiveIntensity = 0.38;
+      }
+    });
   }
 
   private beamsForFrame(config:LaserGridConfig,orientation:LaserBeam['orientation']):boolean {

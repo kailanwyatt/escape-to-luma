@@ -9,6 +9,7 @@ import type { GameSettings } from '../persistence/GameSave';
 
 type Props = {
   onPreviewLuma?:()=>void;
+  onPreviewOpeningRebuild?:()=>void;
   devUnlockAll?:boolean;
   onToggleDevUnlock?:()=>void;
   settings: GameSettings;
@@ -26,7 +27,7 @@ type Props = {
 };
 
 export function SettingsScreen({
-  devUnlockAll=false,onToggleDevUnlock,onPreviewLuma,
+  devUnlockAll=false,onToggleDevUnlock,onPreviewLuma,onPreviewOpeningRebuild,
   settings,
   systemReduceMotion,
   removeAds,
@@ -64,6 +65,7 @@ export function SettingsScreen({
       <ScreenTitle title={t("settingsscreen.settings")} />
       {__DEV__ && onToggleDevUnlock ? <View><Text style={styles.section}>{t("settingsscreen.development")}</Text><Toggle label={t("settingsscreen.unlock_all_levels")} value={devUnlockAll} onPress={onToggleDevUnlock}/><Text style={styles.note}>{t("settingsscreen.session_only_unlocking_grants_no_rewards_played_levels_still_save")}</Text></View> : null}
       {__DEV__ && onPreviewLuma?<Pressable accessibilityRole="button" onPress={onPreviewLuma} style={styles.diagnostics}><Text style={styles.restoreText}>{t('luma.preview')}</Text></Pressable>:null}
+      {__DEV__ && onPreviewOpeningRebuild ? <Pressable accessibilityRole="button" onPress={onPreviewOpeningRebuild} style={styles.diagnostics}><Text style={styles.restoreText}>{t('settingsscreen.preview_opening_rebuild')}</Text></Pressable> : null}
       <Toggle
         label={t("settingsscreen.sound_effects")}
         value={settings.soundEnabled}

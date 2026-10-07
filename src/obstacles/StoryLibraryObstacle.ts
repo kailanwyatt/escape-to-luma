@@ -194,27 +194,31 @@ export class StoryLibraryObstacle {
     return this.config?.type === 'entryExitPortal' && entryExitIsMulti(this.config);
   }
 
-  predictState(_deltaSeconds: number, simTime: number): ObstaclePredictedState {
-    this.evalTime = simTime;
+  predictState(deltaSeconds: number, simTime: number): ObstaclePredictedState {
+    // Story encounters use the same crossing-time contract as every other
+    // moving obstacle. Guidance must sample the future aperture/strike, not
+    // the pose visible when Spark leaves the launcher.
+    const time = simTime + deltaSeconds;
+    this.evalTime = time;
     const predicted = emptyPredictedState(this.type, this.z);
     if (!this.config) return predicted;
     switch (this.config.type) {
       case 'orbitingMoons': {
-        const moons = orbitingMoonsAtTime(this.config, simTime);
+        const moons = orbitingMoonsAtTime(this.config, time);
         predicted.x = moons[0]?.x ?? 0;
         predicted.y = moons[0]?.y ?? 3;
         predicted.blockerRadius = this.config.moonRadius;
         break;
       }
       case 'sequentialTunnel': {
-        const open = sequentialTunnelAtTime(this.config, simTime).find((a) => a.open);
+        const open = sequentialTunnelAtTime(this.config, time).find((a) => a.open);
         predicted.openingX = open?.x ?? 0;
         predicted.openingY = open?.y ?? 3;
         predicted.openingRadius = open?.radius ?? 0;
         break;
       }
       case 'movingSafeZone': {
-        const hole = movingSafeZoneHoleAtTime(this.config, simTime);
+        const hole = movingSafeZoneHoleAtTime(this.config, time);
         predicted.openingX = hole.x;
         predicted.openingY = hole.y;
         predicted.openingRadius = hole.radius;
@@ -233,13 +237,13 @@ export class StoryLibraryObstacle {
         break;
       }
       case 'solarSail': {
-        predicted.angle = solarSailAngle(this.config, simTime);
+        predicted.angle = solarSailAngle(this.config, time);
         predicted.openingX = this.config.centerX;
         predicted.openingY = this.config.centerY;
         break;
       }
       case 'theNull': {
-        const safe = theNullSafeAtTime(this.config, simTime);
+        const safe = theNullSafeAtTime(this.config, time);
         predicted.openingX = safe.x;
         predicted.openingY = safe.y;
         predicted.openingRadius = safe.radius;
@@ -257,14 +261,14 @@ export class StoryLibraryObstacle {
         break;
       }
       case 'teleportPortal': {
-        const pose = teleportPortalPoseAtTime(this.config, simTime);
+        const pose = teleportPortalPoseAtTime(this.config, time);
         predicted.openingX = pose.x;
         predicted.openingY = pose.y;
         predicted.openingRadius = pose.present ? pose.radius : 0;
         break;
       }
       case 'entryExitPortal': {
-        const state = entryExitStateAtTime(this.config, simTime);
+        const state = entryExitStateAtTime(this.config, time);
         const trueDisk = state.disks[state.trueIndex] ?? state.disks[0];
         predicted.openingX = trueDisk?.x ?? this.config.entryX;
         predicted.openingY = trueDisk?.y ?? this.config.entryY;
@@ -272,7 +276,7 @@ export class StoryLibraryObstacle {
         break;
       }
       case 'nullTendril': {
-        const state = nullTendrilStateAtTime(this.config, simTime);
+        const state = nullTendrilStateAtTime(this.config, time);
         predicted.x = state.centerX;
         predicted.y = state.centerY;
         predicted.angle = state.gapAngle;
@@ -281,7 +285,7 @@ export class StoryLibraryObstacle {
         break;
       }
       case 'nullLash': {
-        const state = nullLashStateAtTime(this.config, simTime);
+        const state = nullLashStateAtTime(this.config, time);
         predicted.x = state.tipX;
         predicted.y = state.tipY;
         predicted.angle = state.angle;

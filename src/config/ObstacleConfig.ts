@@ -165,6 +165,8 @@ export type LaserGridPattern =
 export interface LaserGridConfig {
   type: 'laserGrid';
   z: number;
+  /** Visual treatment for a named encounter. Does not affect collision behavior. */
+  appearance?: 'standard' | 'securitySweep';
   /** Primary beam direction; CROSSING / CROSSING_PHASED use both directions. */
   orientation: 'vertical' | 'horizontal' | 'both';
   pattern?: LaserGridPattern;

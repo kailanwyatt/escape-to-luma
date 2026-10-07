@@ -39,4 +39,15 @@ describe('finishing graphics kits', () => {
     o.update(0.016, 0.3);
     o.hide();
   });
+
+  it('gives the Security Sweep encounter its own telegraphed visual kit', () => {
+    const o = new LaserGridObstacle('security-sweep');
+    const config = getCampaignLevel(101)!.challenge.obstacles.find((x) => x.type === 'laserGrid')!;
+    if (config.type !== 'laserGrid') throw new Error('expected laser');
+    expect(config.appearance).toBe('securitySweep');
+    o.applyConfig(config, 'space');
+    expect(o.group.getObjectByName('SecuritySweepBeacon')).toBeTruthy();
+    expect(o.group.getObjectByName('SecuritySweepChevron')).toBeTruthy();
+    o.hide();
+  });
 });

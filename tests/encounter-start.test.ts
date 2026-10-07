@@ -22,7 +22,7 @@ describe('campaign encounter starts',()=>{
   it('keeps the stationary opening tutorials fixed',()=>{
     for(const level of [1,2])expect(campaignEncounterStart(getCampaignLevel(level)!.challenge,()=>.9).offset).toBe(0);
   });
-  it('samples live and predicted laser geometry at the same randomized clock',()=>{
+  it('samples live and predicted elevator geometry at the same randomized clock',()=>{
     const def=getCampaignLevel(9)!;
     for(const seed of [.03,.22,.57,.81]){
       const start=campaignEncounterStart(def.challenge,()=>seed);
@@ -30,6 +30,16 @@ describe('campaign encounter starts',()=>{
       const predicted=slot.predictState(.5,start.offset);
       slot.update(.5,start.offset+.5);const live=slot.predictState(0,start.offset+.5);
       expect(predicted).toEqual(live);slot.dispose();
+    }
+  });
+  it('keeps moving story encounters aligned with their future crossing geometry',()=>{
+    for(const number of [71,77,112,113,118]) for(const seed of [.03,.22,.57,.81]){
+      const def=getCampaignLevel(number)!;
+      const start=campaignEncounterStart(def.challenge,()=>seed);
+      const slot=new ObstacleSlot('test');slot.applyConfig(start.obstacles[0],def.challenge.environment);slot.update(0,start.offset);
+      const predicted=slot.predictState(.5,start.offset);
+      slot.update(.5,start.offset+.5);const live=slot.predictState(0,start.offset+.5);
+      expect(predicted,`L${number} start=${seed}`).toEqual(live);slot.dispose();
     }
   });
   it('predicts moving portals with their own clock rather than the randomized obstacle clock',()=>{

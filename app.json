@@ -43,7 +43,7 @@
       "bundler": "metro"
     },
     "experiments": {
-      "baseUrl": "/game2"
+      "baseUrl": "/arcade/game"
     },
     "plugins": [
       [

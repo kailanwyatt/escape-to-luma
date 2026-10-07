@@ -226,13 +226,17 @@ export class LibraryObstacle {
     return this.evaluateAt(at.x, at.y, projectileRadius, this.predictState(0, t));
   }
 
-  predictState(_deltaSeconds: number, simTime: number): ObstaclePredictedState {
-    this.evalTime = simTime;
+  predictState(deltaSeconds: number, simTime: number): ObstaclePredictedState {
+    // A shot crosses this obstacle in the future.  Sample both the visual
+    // prediction and collision geometry at that crossing time so a moving
+    // carriage never appears clear but collides at a different position.
+    const time = simTime + deltaSeconds;
+    this.evalTime = time;
     const predicted = emptyPredictedState(this.type, this.z);
     if (!this.config) return predicted;
     switch (this.config.type) {
       case 'pistonField': {
-        const lanes = pistonFieldStateAtTime(this.config, simTime);
+        const lanes = pistonFieldStateAtTime(this.config, time);
         const open = lanes.find((lane) => lane.open) ?? lanes[Math.floor(lanes.length / 2)];
         // Marker sits in the flight band above a retracted ram, not on the floor body.
         predicted.openingX = open?.x ?? 0;
@@ -242,7 +246,7 @@ export class LibraryObstacle {
         break;
       }
       case 'clockHands': {
-        const state = clockHandsStateAtTime(this.config, simTime);
+        const state = clockHandsStateAtTime(this.config, time);
         predicted.x = state.hubX;
         predicted.y = state.hubY;
         predicted.angle = state.hands[0]?.angle ?? 0;
@@ -251,7 +255,7 @@ export class LibraryObstacle {
         break;
       }
       case 'elevatorBlocks': {
-        const blocks = elevatorBlocksStateAtTime(this.config, simTime);
+        const blocks = elevatorBlocksStateAtTime(this.config, time);
         const mid = blocks[Math.floor(blocks.length / 2)];
         predicted.openingX = mid?.x ?? 0;
         predicted.openingY = mid?.y ?? this.config.baseY;
@@ -260,7 +264,7 @@ export class LibraryObstacle {
         break;
       }
       case 'pulseRing': {
-        const state = pulseRingStateAtTime(this.config, simTime);
+        const state = pulseRingStateAtTime(this.config, time);
         predicted.x = state.centerX;
         predicted.y = state.centerY;
         predicted.openingRadius = state.radius;
@@ -268,7 +272,7 @@ export class LibraryObstacle {
         break;
       }
       case 'scissorGate': {
-        const state = scissorGateStateAtTime(this.config, simTime);
+        const state = scissorGateStateAtTime(this.config, time);
         predicted.x = state.centerX;
         predicted.y = state.centerY;
         predicted.angle = state.angle;
@@ -276,7 +280,7 @@ export class LibraryObstacle {
         break;
       }
       case 'groundCutLasers': {
-        const state = groundCutLasersStateAtTime(this.config, simTime);
+        const state = groundCutLasersStateAtTime(this.config, time);
         const mid = state.beams[Math.floor(state.beams.length / 2)];
         predicted.x = mid ? (mid.ax + mid.bx) / 2 : this.config.centerX;
         predicted.y = mid ? (mid.ay + mid.by) / 2 : 3;
@@ -287,7 +291,7 @@ export class LibraryObstacle {
         break;
       }
       case 'speedField': {
-        const state = speedFieldStateAtTime(this.config, simTime);
+        const state = speedFieldStateAtTime(this.config, time);
         predicted.x = state.centerX;
         predicted.y = state.centerY;
         predicted.openingWidth = state.width;
@@ -295,7 +299,7 @@ export class LibraryObstacle {
         break;
       }
       case 'splitShutter': {
-        const state = splitShutterStateAtTime(this.config, simTime);
+        const state = splitShutterStateAtTime(this.config, time);
         predicted.openingX = this.config.centerX;
         predicted.openingY = state.y;
         predicted.openingWidth = state.gap;
@@ -303,7 +307,7 @@ export class LibraryObstacle {
         break;
       }
       case 'reactiveGate': {
-        const state = reactiveGateStateAtTime(this.config, simTime);
+        const state = reactiveGateStateAtTime(this.config, time);
         predicted.openingX = this.config.centerX;
         predicted.openingY = state.y;
         predicted.openingWidth = state.gap;
@@ -311,7 +315,7 @@ export class LibraryObstacle {
         break;
       }
       case 'conveyorGate': {
-        const blocks = conveyorGateBlocksAtTime(this.config, simTime);
+        const blocks = conveyorGateBlocksAtTime(this.config, time);
         const mid = blocks[Math.floor(blocks.length / 2)];
         predicted.x = mid?.x ?? this.config.centerX;
         predicted.y = mid?.y ?? this.config.centerY ?? 3;
@@ -319,14 +323,14 @@ export class LibraryObstacle {
         break;
       }
       case 'rollingAperture': {
-        const state = rollingApertureStateAtTime(this.config, simTime);
+        const state = rollingApertureStateAtTime(this.config, time);
         predicted.x = state.x;
         predicted.y = state.y;
         predicted.openingRadius = state.radius;
         break;
       }
       case 'corkscrewTunnel': {
-        const state = corkscrewStateAtTime(this.config, simTime);
+        const state = corkscrewStateAtTime(this.config, time);
         predicted.x = state.centerX;
         predicted.y = state.centerY;
         predicted.angle = state.gapAngle;
@@ -335,14 +339,14 @@ export class LibraryObstacle {
         break;
       }
       case 'cometCrossing': {
-        const state = cometCrossingStateAtTime(this.config, simTime);
+        const state = cometCrossingStateAtTime(this.config, time);
         predicted.x = state.x;
         predicted.y = state.y;
         predicted.blockerRadius = state.radius;
         break;
       }
       case 'billboardFlip': {
-        const state = billboardFlipStateAtTime(this.config, simTime);
+        const state = billboardFlipStateAtTime(this.config, time);
         predicted.x = state.centerX;
         predicted.y = state.centerY;
         predicted.angle = state.angle;
@@ -351,7 +355,7 @@ export class LibraryObstacle {
         break;
       }
       case 'dockingCollar': {
-        const state = dockingCollarStateAtTime(this.config, simTime);
+        const state = dockingCollarStateAtTime(this.config, time);
         predicted.x = state.centerX;
         predicted.y = state.centerY;
         predicted.openingRadius = state.openingRadius;
@@ -359,7 +363,7 @@ export class LibraryObstacle {
         break;
       }
       case 'shearLane': {
-        const blocks = shearLaneBlocksAtTime(this.config, simTime);
+        const blocks = shearLaneBlocksAtTime(this.config, time);
         const mid = blocks[Math.floor(blocks.length / 2)];
         predicted.x = mid?.x ?? this.config.centerX;
         predicted.y = mid?.y ?? this.config.centerY;
@@ -369,7 +373,7 @@ export class LibraryObstacle {
         break;
       }
       case 'rotatingGate': {
-        const state = rotatingGateStateAtTime(this.config, simTime);
+        const state = rotatingGateStateAtTime(this.config, time);
         predicted.x = state.centerX;
         predicted.y = state.centerY;
         predicted.angle = state.gapAngle;
@@ -378,7 +382,7 @@ export class LibraryObstacle {
         break;
       }
       case 'energyField': {
-        const state = energyFieldStateAtTime(this.config, simTime);
+        const state = energyFieldStateAtTime(this.config, time);
         predicted.openingX = state.openingX;
         predicted.openingY = state.openingY;
         predicted.openingRadius = state.holeRadius;
@@ -387,7 +391,7 @@ export class LibraryObstacle {
         break;
       }
       case 'phaseGate': {
-        const state = phaseGateStateAtTime(this.config, simTime);
+        const state = phaseGateStateAtTime(this.config, time);
         predicted.x = state.centerX;
         predicted.y = state.centerY;
         predicted.openingRadius = state.open ? state.fieldRadius : 0;
@@ -395,7 +399,7 @@ export class LibraryObstacle {
         break;
       }
       case 'repulsor': {
-        const state = repulsorStateAtTime(this.config, simTime);
+        const state = repulsorStateAtTime(this.config, time);
         predicted.x = state.centerX;
         predicted.y = state.centerY;
         predicted.blockerRadius = state.coreRadius;

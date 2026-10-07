@@ -16,7 +16,7 @@ export const LIBRARY_LESSONS: Record<number, { name: string; body: string; hint:
   9: {
     name: 'Elevator Blocks',
     body: 'The escape shaft still carries its captive cargo.',
-    hint: 'Choose a lane at the actual crossing height, not where the block is now.',
+    hint: 'Follow the right-hand shaft: cyan means its carriage is high and the lane below is clear. Lead where Spark will cross.',
   },
   10: {
     name: 'Reactive Gate',
@@ -613,6 +613,7 @@ function wreckDrift(z: number): ObstacleConfig {
 function securitySweep(z: number): ObstacleConfig {
   return {
     type: 'laserGrid',
+    appearance: 'securitySweep',
     z,
     orientation: 'both',
     pattern: 'CROSSING_PHASED',
@@ -701,7 +702,14 @@ export function applyLibraryEncounters(source: CampaignLevelDefinition): Campaig
   level.gravityWells = [];
 
   if (n === 6) obstacles = [piston(5.8)];
-  else if (n === 9) obstacles = [elevators(6)];
+  else if (n === 9) {
+    obstacles = [elevators(6)];
+    // Give the first elevator lesson a deliberate destination lane rather
+    // than an ambiguous centre shot. The right carriage's cyan travel lamp
+    // tells the player when this route is clear beneath it.
+    target.x = 1.25;
+    target.radius = 1.0;
+  }
   else if (n === 10) obstacles = [reactiveGate(6)];
   else if (n === 13) obstacles = [splitShutter(5.9)];
   else if (n === 14) obstacles = [clocks(6.1)];
