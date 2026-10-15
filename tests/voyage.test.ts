@@ -1,6 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import {voyageReward,nextVoyageMilestone} from '../src/progression/voyage';
 import {RunManager} from '../src/game/RunManager';
+import {highestEndlessLevel} from '../src/persistence/PersonalBests';
 
 describe('Endless Voyage progression',()=>{
  it('banks 24 shards per eight clears, with new goals after each milestone',()=>{
@@ -28,5 +29,9 @@ describe('Endless Voyage progression',()=>{
   run.grantContinue();
   expect(run.lives).toBe(3);
   expect(run.hasUsedRewardedContinue).toBe(true);
+ });
+ it('reports the next gate as the highest level reached',()=>{
+  expect(highestEndlessLevel({longestRun:0})).toBe(1);
+  expect(highestEndlessLevel({longestRun:12})).toBe(13);
  });
 });

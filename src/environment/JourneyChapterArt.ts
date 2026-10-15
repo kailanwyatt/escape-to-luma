@@ -16,7 +16,7 @@ export const CHAPTER_MOTIFS: Record<string,string> = {
 export function createJourneyChapterArt(world:string):THREE.Group {
   const root=new THREE.Group();root.name='chapter-dressing';
   root.userData.motif=CHAPTER_MOTIFS[world]??'existing-art';root.userData.decorativeOnly=true;
-  if(!CHAPTER_MOTIFS[world])return root;
+  if(!CHAPTER_MOTIFS[world]||['the_null','ancient_network','the_machine','the_signal','homeward','luma'].includes(world))return root;
   const warm=['containment','lockdown','city','false_home','ancient_network','the_machine'].includes(world);
   const living=world==='homeward'||world==='luma';
   const accent=world==='lockdown'?0xcc713f:living?0x81c9ac:warm?0xb99d62:0x6d9cb9;

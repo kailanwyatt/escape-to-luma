@@ -30,7 +30,8 @@ export class MovingSafeZoneArt {
   private readonly streakRests: { angle: number; speed: number; len: number; phase: number }[] = [];
   private readonly accent: THREE.PointLight;
   private readonly silhouettes: THREE.Group[] = [];
-  private readonly earth: THREE.Group;
+  private readonly opening: THREE.Mesh;
+  private readonly field: THREE.ShaderMaterial;
   private readonly geometries: THREE.BufferGeometry[] = [];
   private readonly materials: THREE.Material[] = [];
 
@@ -38,17 +39,17 @@ export class MovingSafeZoneArt {
     this.group.name = 'moving-safe-zone-art';
 
     const steel = new THREE.MeshStandardMaterial({
-      color: 0x6a7688,
-      metalness: 0.88,
+      color: 0x9aa9b6,
+      metalness: 0.55,
       roughness: 0.42,
     });
     const hull = new THREE.MeshStandardMaterial({
-      color: 0x4a5566,
+      color: 0x61798b,
       metalness: 0.78,
       roughness: 0.55,
     });
     const panel = new THREE.MeshStandardMaterial({
-      color: 0x3a4a62,
+      color: 0x234d77,
       metalness: 0.7,
       roughness: 0.48,
       emissive: 0x061018,
@@ -180,14 +181,15 @@ export class MovingSafeZoneArt {
     for (let i = 0; i < 4; i++) {
       const wreck = this.buildSatelliteSilhouette(hull, panel, i);
       const side = i % 2 === 0 ? -1 : 1;
-      const depth = -0.9 - i * 0.55;
+      const depth = 2.6 + i * .8;
       wreck.position.set(
-        cx + side * (R * 0.85 + 0.35 + (i % 2) * 0.4),
+        cx + side * (R + 1.2 + (i % 2) * .5),
         cy + (i < 2 ? 0.55 : -0.75) + (rand() - 0.5) * 0.3,
         depth,
       );
       wreck.rotation.z = side * (0.18 + i * 0.07);
-      wreck.scale.setScalar(0.85 + i * 0.12);
+      wreck.scale.setScalar(1.15 + i * .15);
+      wreck.userData.decorativeOnly = true;
       this.group.add(wreck);
       this.silhouettes.push(wreck);
     }
@@ -197,11 +199,19 @@ export class MovingSafeZoneArt {
     this.accent.name = 'safe-zone-accent';
     this.group.add(this.accent);
 
-    // --- Earth below (decorative; establishes LEO context) ---
-    this.earth = this.buildEarthAccent();
-    this.earth.position.set(cx, cy - R - 2.6, 3.2);
-    this.earth.scale.setScalar(1.15);
-    this.group.add(this.earth);
+    // The environment owns Earth. Keep the moving corridor the brightest foreground read.
+    const markerGeo = new THREE.TorusGeometry(config.holeRadius + .018, .018, 6, 72);
+    const markerMat = new THREE.MeshBasicMaterial({ color: 0xffc47a, transparent: true, opacity: .8, depthWrite: false });
+    this.geometries.push(markerGeo); this.materials.push(markerMat);
+    this.opening = new THREE.Mesh(markerGeo, markerMat); this.opening.name = 'wreck-safe-boundary'; this.group.add(this.opening);
+    this.field = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      uniforms: { hole: { value: new THREE.Vector3() }, radius: { value: R } },
+      vertexShader: 'varying vec2 p;void main(){p=position.xy;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+      fragmentShader: 'varying vec2 p;uniform vec3 hole;uniform float radius;void main(){float d=length(p-hole.xy);if(d<hole.z||length(p)>radius)discard;vec2 cell=abs(fract(p*10.)-.5);float seam=smoothstep(.44,.5,max(cell.x,cell.y));gl_FragColor=vec4(.19,.29,.37,.13+seam*.10);}',
+    });
+    const fieldGeo = new THREE.PlaneGeometry(R * 2, R * 2); this.geometries.push(fieldGeo); this.materials.push(this.field);
+    const field = new THREE.Mesh(fieldGeo, this.field); field.name = 'wreck-hazard-density'; field.position.set(cx, cy, .3); this.group.add(field);
 
     this.update(0);
   }
@@ -225,6 +235,16 @@ export class MovingSafeZoneArt {
     wing.rotation.z = 0.35 + seed * 0.08;
     wing.rotation.y = 0.2;
     g.add(wing);
+    const cells = new THREE.InstancedMesh(new THREE.BoxGeometry(.14, .09, .012), panelMat, 12);
+    const pose = new THREE.Object3D();
+    for (let i = 0; i < 12; i++) {
+      pose.position.set(-.55 + i % 4 * .17, -.2 + Math.floor(i / 4) * .12, -.09);
+      pose.updateMatrix(); cells.setMatrixAt(i, pose.matrix);
+    }
+    cells.name = 'fractured-solar-cells'; g.add(cells);
+    const radiator = new THREE.InstancedMesh(new THREE.BoxGeometry(.03, .27, .05), hull, 6);
+    for (let i = 0; i < 6; i++) { pose.position.set(.08 + i * .07, -.04, -.19); pose.updateMatrix(); radiator.setMatrixAt(i, pose.matrix); }
+    radiator.name = 'exposed-radiator'; g.add(radiator);
     const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.04, 10), hull);
     dish.rotation.x = Math.PI / 2;
     dish.position.set(0.1, 0.18, -0.1);
@@ -236,87 +256,18 @@ export class MovingSafeZoneArt {
     return g;
   }
 
-  private buildEarthAccent(): THREE.Group {
-    const root = new THREE.Group();
-    root.name = 'wreck-earth-accent';
-    const earthMat = new THREE.ShaderMaterial({
-      vertexShader: `
-        varying vec3 p; varying vec3 n; varying vec3 eye;
-        void main(){
-          p = position;
-          n = normalize(normalMatrix * normal);
-          vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          eye = normalize(-mv.xyz);
-          gl_Position = projectionMatrix * mv;
-        }
-      `,
-      fragmentShader: `
-        varying vec3 p; varying vec3 n; varying vec3 eye;
-        float hash(vec3 q){ return fract(sin(dot(q, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
-        float noise(vec3 q){
-          vec3 i = floor(q), f = fract(q); f = f*f*(3.0-2.0*f);
-          return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
-            mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);
-        }
-        void main(){
-          vec3 q = normalize(p);
-          float land = smoothstep(0.5, 0.58, noise(q * 5.0 + 2.0));
-          vec3 sea = mix(vec3(0.02, 0.06, 0.16), vec3(0.04, 0.28, 0.45), noise(q * 12.0));
-          vec3 ground = mix(vec3(0.05, 0.14, 0.1), vec3(0.22, 0.26, 0.18), noise(q * 18.0));
-          float cloud = smoothstep(0.48, 0.72, noise(q * 20.0));
-          vec3 col = mix(mix(sea, ground, land), vec3(0.82, 0.9, 0.95), cloud * 0.75);
-          float day = 0.35 + 0.65 * smoothstep(-0.4, 0.55, dot(q, normalize(vec3(-0.5, 0.75, -0.4))));
-          float rim = pow(1.0 - max(0.0, dot(normalize(n), normalize(eye))), 3.0);
-          gl_FragColor = vec4(col * day + vec3(0.1, 0.4, 0.75) * rim * 0.65, 1.0);
-        }
-      `,
-    });
-    this.materials.push(earthMat);
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(2.4, 40, 28), earthMat);
-    ball.name = 'wreck-earth-horizon';
-    ball.rotation.z = -0.2;
-    root.add(ball);
-    const airMat = new THREE.ShaderMaterial({
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      side: THREE.BackSide,
-      vertexShader: `
-        varying vec3 n; varying vec3 v;
-        void main(){
-          n = normalize(normalMatrix * normal);
-          vec4 p = modelViewMatrix * vec4(position, 1.0);
-          v = normalize(-p.xyz);
-          gl_Position = projectionMatrix * p;
-        }
-      `,
-      fragmentShader: `
-        varying vec3 n; varying vec3 v;
-        void main(){
-          float f = pow(1.0 - max(0.0, dot(normalize(n), normalize(v))), 4.5);
-          gl_FragColor = vec4(0.16, 0.52, 1.0, f * 0.5);
-        }
-      `,
-    });
-    this.materials.push(airMat);
-    const air = new THREE.Mesh(new THREE.SphereGeometry(2.52, 40, 28), airMat);
-    air.name = 'wreck-earth-atmosphere';
-    root.add(air);
-    return root;
-  }
-
   /** Density falloff inside the moving corridor — low-density path, not a hard cut. */
   private corridorScale(px: number, py: number, holeX: number, holeY: number, holeR: number): number {
     const d = Math.hypot(px - holeX, py - holeY);
     if (d >= holeR * 1.05) return 1;
-    if (d <= holeR * 0.35) return 0.04;
-    // Soft thin-out toward the corridor center; sparse crumbs remain near the rim.
-    const t = (d - holeR * 0.35) / (holeR * 0.7);
-    return 0.04 + t * t * 0.96;
+    if (d <= holeR) return 0;
+    // Never leave opaque crumbs inside the safe corridor.
+    const t = (d - holeR) / (holeR * .05);
+    return t * t;
   }
 
   private writeInstance(mesh: THREE.InstancedMesh, index: number, rest: DebrisRest, time: number, holeX: number, holeY: number, holeR: number) {
-    const clear = this.corridorScale(rest.x, rest.y, holeX, holeY, holeR);
+    const clear = this.corridorScale(rest.x, rest.y, holeX, holeY, holeR + Math.hypot(rest.sx, rest.sy, rest.sz) * .5);
     // Mild outward nudge when partially cleared so the path reads as a gap in wreckage.
     let x = rest.x;
     let y = rest.y;
@@ -362,7 +313,7 @@ export class MovingSafeZoneArt {
       const rr = R * (0.55 + 0.4 * Math.sin(st.phase * 3.1));
       const x = cx + Math.cos(st.angle + travel) * rr;
       const y = cy + Math.sin(st.angle + travel * 1.05) * rr;
-      const clear = this.corridorScale(x, y, s.x, s.y, s.radius);
+      const clear = this.corridorScale(x, y, s.x, s.y, s.radius + st.len * .5);
       this.dummy.position.set(x, y, -0.12 + (i % 3) * 0.05);
       this.dummy.rotation.set(0, 0, st.angle + travel + Math.PI / 2);
       this.dummy.scale.set(st.len * clear, 0.018 * clear, 0.018 * clear);
@@ -378,10 +329,11 @@ export class MovingSafeZoneArt {
     // Slow parallax on deep silhouettes only — not tied to hole collision.
     this.silhouettes.forEach((wreck, i) => {
       wreck.rotation.y = Math.sin(time * 0.12 + i) * 0.08;
-      wreck.position.z = -0.9 - i * 0.55 + Math.sin(time * 0.18 + i * 1.3) * 0.04;
+      wreck.position.z = 2.6 + i * .8 + Math.sin(time * 0.18 + i * 1.3) * 0.04;
     });
 
-    this.earth.rotation.y = time * 0.02;
+    this.opening.position.set(s.x, s.y, -.28);
+    this.field.uniforms.hole.value.set(s.x - cx, s.y - cy, s.radius);
 
     this.group.userData.openingX = s.x;
     this.group.userData.openingY = s.y;
@@ -396,12 +348,10 @@ export class MovingSafeZoneArt {
     this.streaks.dispose();
     for (const wreck of this.silhouettes) {
       wreck.traverse((obj) => {
+        if (obj instanceof THREE.InstancedMesh) obj.dispose();
         if (obj instanceof THREE.Mesh) obj.geometry.dispose();
       });
     }
-    this.earth.traverse((obj) => {
-      if (obj instanceof THREE.Mesh) obj.geometry.dispose();
-    });
     this.group.clear();
     this.group.removeFromParent();
   }

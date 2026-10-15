@@ -1,4 +1,5 @@
 import {FinaleScreen} from './src/ui/FinaleScreen';
+import { reportWebArcadeEvent } from './src/services/analytics/WebArcadeEvents';
 import {t} from './src/i18n';
 import {TestCommerceModal,type TestOffer} from './src/ui/TestCommerceModal';
 import {AdService} from './src/services/ads/AdService';
@@ -16,8 +17,9 @@ import { canStartLevel } from './src/campaign/CampaignPlay';
 import { getCampaignLevel } from './src/campaign/levels';
 import { WORLDS } from './src/campaign/worlds';
 import { ECONOMY } from './src/config/economy';
-import { GRAPHICS_QUALITY } from './src/config/graphicsQuality';
+import { GRAPHICS_QUALITY, webArcadeBackingRatio } from './src/config/graphicsQuality';
 import { isWebArcadeBuild } from './src/config/webArcade';
+import { isEmbeddedWebArcade } from './src/platform/installWebArcadeViewport';
 import { useAppFonts } from './src/design';
 import { Game } from './src/game/Game';
 import { preloadAssetGroup } from './src/graphics/assetRegistry';
@@ -67,9 +69,22 @@ const EMPTY_RECORDS = {
   loop: false,
 };
 
+// expo-gl creates a browser canvas at the device pixel ratio by default. That
+// is desirable for a native-quality web app, but needlessly expensive for the
+// lightweight Arcade demo on 3x mobile screens.
+const WEB_ARCADE_CONTEXT_ATTRIBUTES: WebGLContextAttributes = {
+  alpha: false,
+  antialias: false,
+  depth: true,
+  powerPreference: 'high-performance',
+};
+
 const INITIAL_HUD: HudSnapshot = {
   hydrated: false,
   openingStage: 0,
+  openingCopyOpacity: 1,
+  endingStage: -1,
+  endingCopyOpacity: 0,
   phase: 'READY',
   lives: 3,
   score: 0,
@@ -104,6 +119,7 @@ const INITIAL_HUD: HudSnapshot = {
   unlimitedHearts: false,
   lastFail: null,
   bestScore: 0,
+  highestEndlessLevel: 1,
   newBest: false,
   records: EMPTY_RECORDS,
   loopNumber: 1,
@@ -180,6 +196,8 @@ function AppShell() {
   },[]);
   const gameRef = useRef<Game | null>(null);
   const screenSizeRef = useRef<{width: number; height: number} | null>(null);
+  const webArcadeCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const webArcadeCanvasCleanupRef = useRef<(() => void) | null>(null);
   const playingRef = useRef(false);
   const openingRoutedRef = useRef(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
@@ -203,6 +221,83 @@ function AppShell() {
   const [suppliesOpen, setSuppliesOpen] = useState(false);
   const suppliesPausedRef = useRef(false);
 
+  const syncWebArcadeCanvasResolution = useCallback(() => {
+    if (!isWebArcadeBuild || typeof window === 'undefined') {
+      return;
+    }
+    const canvas = webArcadeCanvasRef.current;
+    if (!canvas || canvas.clientWidth < 2 || canvas.clientHeight < 2) {
+      return;
+    }
+    const pixelRatio = webArcadeBackingRatio(
+      canvas.clientWidth,
+      canvas.clientHeight,
+      window.devicePixelRatio || 1,
+    );
+    const width = Math.max(1, Math.round(canvas.clientWidth * pixelRatio));
+    const height = Math.max(1, Math.round(canvas.clientHeight * pixelRatio));
+    if (canvas.width === width && canvas.height === height) {
+      return;
+    }
+    canvas.width = width;
+    canvas.height = height;
+    gameRef.current?.resize();
+  }, []);
+
+  const setWebArcadeCanvas = useCallback(
+    (target: unknown) => {
+      webArcadeCanvasCleanupRef.current?.();
+      webArcadeCanvasCleanupRef.current = null;
+      webArcadeCanvasRef.current = null;
+
+      if (
+        !isWebArcadeBuild ||
+        typeof window === 'undefined' ||
+        typeof HTMLCanvasElement === 'undefined' ||
+        !(target instanceof HTMLCanvasElement)
+      ) {
+        return;
+      }
+
+      webArcadeCanvasRef.current = target;
+      let applying = false;
+      const applyResolution = () => {
+        if (applying) {
+          return;
+        }
+        applying = true;
+        try {
+          syncWebArcadeCanvasResolution();
+        } finally {
+          applying = false;
+        }
+      };
+      const resizeObserver =
+        typeof ResizeObserver !== 'undefined' ? new ResizeObserver(applyResolution) : null;
+      resizeObserver?.observe(target);
+      // expo-gl writes the full device pixel ratio after this ref callback.
+      // Re-apply the cap whenever that bitmap size changes, or the first frame
+      // stays at 2x–3x and the game stutters.
+      const mutationObserver =
+        typeof MutationObserver !== 'undefined'
+          ? new MutationObserver(applyResolution)
+          : null;
+      mutationObserver?.observe(target, { attributes: true, attributeFilter: ['width', 'height'] });
+      if (!resizeObserver) {
+        window.addEventListener('resize', applyResolution);
+      }
+      webArcadeCanvasCleanupRef.current = () => {
+        resizeObserver?.disconnect();
+        mutationObserver?.disconnect();
+        if (!resizeObserver) {
+          window.removeEventListener('resize', applyResolution);
+        }
+      };
+      applyResolution();
+    },
+    [syncWebArcadeCanvasResolution],
+  );
+
   const refreshSave = useCallback(() => {
     const game = gameRef.current;
     if (game) {
@@ -220,12 +315,18 @@ function AppShell() {
     game.setSystemReduceMotion(systemReduceMotion);
     let lastHudAt = 0;
     let lastHudPhase: HudSnapshot['phase'] | null = null;
+    let lastHydrated = false;
     unsubscribeRef.current = game.subscribeHud((snapshot) => {
       const now = Date.now();
       const phaseChanged = snapshot.phase !== lastHudPhase;
+      // Subscription delivers the unhydrated snapshot immediately, and save
+      // restore usually finishes in the same beat. Dropping that second
+      // snapshot leaves the "Restoring Journey" cover up permanently.
+      const hydratedChanged = snapshot.hydrated !== lastHydrated;
       const minInterval = GRAPHICS_QUALITY.hudMinIntervalMs;
       if (
         !phaseChanged &&
+        !hydratedChanged &&
         minInterval > 0 &&
         now - lastHudAt < minInterval
       ) {
@@ -233,6 +334,7 @@ function AppShell() {
       }
       lastHudAt = now;
       lastHudPhase = snapshot.phase;
+      lastHydrated = snapshot.hydrated;
       setHud(snapshot);
       // Save is the live game object; only push React save state when economy fields move.
       setSave((prev) => {
@@ -257,6 +359,7 @@ function AppShell() {
   const onContextCreate = useCallback(
     (gl: ExpoWebGLRenderingContext) => {
       const boot = () => {
+        syncWebArcadeCanvasResolution();
         if (gl.drawingBufferWidth < 2 || gl.drawingBufferHeight < 2) {
           requestAnimationFrame(boot);
           return;
@@ -265,11 +368,12 @@ function AppShell() {
       };
       requestAnimationFrame(boot);
     },
-    [attachGame],
+    [attachGame, syncWebArcadeCanvasResolution],
   );
 
   useEffect(() => {
     return () => {
+      webArcadeCanvasCleanupRef.current?.();
       unsubscribeRef.current?.();
       gameRef.current?.dispose();
       gameRef.current = null;
@@ -282,6 +386,33 @@ function AppShell() {
       // Orientation lock is best-effort in Expo Go / web.
     });
     void AudioManager.init();
+  }, []);
+
+  useEffect(() => {
+    // The standalone export owns the document, so it can lock page scrolling.
+    // The site cabinet must not: touch-action on an ancestor also blocks the
+    // game's own scrolling, and locking html/body freezes the rest of the page.
+    if (!isWebArcadeBuild || typeof document === 'undefined' || isEmbeddedWebArcade()) {
+      return;
+    }
+
+    const surfaces = [document.documentElement, document.body];
+    const previous = surfaces.map((surface) => ({
+      touchAction: surface.style.touchAction,
+      overscrollBehavior: surface.style.overscrollBehavior,
+    }));
+
+    surfaces.forEach((surface) => {
+      surface.style.touchAction = 'none';
+      surface.style.overscrollBehavior = 'none';
+    });
+
+    return () => {
+      surfaces.forEach((surface, index) => {
+        surface.style.touchAction = previous[index].touchAction;
+        surface.style.overscrollBehavior = previous[index].overscrollBehavior;
+      });
+    };
   }, []);
 
   useEffect(() => {
@@ -495,12 +626,18 @@ function AppShell() {
     return null;
   }
 
+  const webGlProps = isWebArcadeBuild
+    ? {webglContextAttributes: WEB_ARCADE_CONTEXT_ATTRIBUTES}
+    : {};
+
   return (
     <View style={styles.root}>
       <StatusBar style="light" hidden />
       <GLView
+        {...webGlProps}
         style={styles.gl}
         msaaSamples={GRAPHICS_QUALITY.msaaSamples}
+        nativeRef_EXPERIMENTAL={isWebArcadeBuild ? setWebArcadeCanvas : undefined}
         onContextCreate={onContextCreate}
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
@@ -540,6 +677,8 @@ function AppShell() {
             GameHaptics.forUi();
             gameRef.current?.continueAfterLevel();
           }}
+          onSkipEnding={() => gameRef.current?.skipCampaignEnding()}
+          onReplayEnding={() => gameRef.current?.replayCampaignEnding()}
           onExploreFinale={() => {
             gameRef.current?.exploreFromFinale();
             pausedRef.current = false;
@@ -767,6 +906,7 @@ function AppShell() {
               gameRef.current?.resume();
               setScreen('play');
               gameRef.current?.startEndlessVoyage();
+              reportWebArcadeEvent('arcade_game_started');
             });
           }}
         />
@@ -875,12 +1015,6 @@ function AppShell() {
       {screen === 'settings' ? (
         <SettingsScreen
           onPreviewLuma={__DEV__?()=>setPreviewLuma(true):undefined}
-          onPreviewOpeningRebuild={__DEV__ ? () => {
-            gameRef.current?.previewCampaignOpeningDemo();
-            pausedRef.current = false;
-            setPaused(false);
-            setScreen('play');
-          } : undefined}
           devUnlockAll={devUnlockAll}
           onToggleDevUnlock={()=>{const next=!devUnlockAll;setDevLevelsUnlocked(next);setDevUnlockAll(next);}}
           onReplayOpening={() => {
@@ -968,9 +1102,11 @@ const styles = StyleSheet.create({
   },
   gl: {
     flex: 1,
+    ...(isWebArcadeBuild ? {touchAction: 'none' as const} : {}),
   },
   touch: {
     ...StyleSheet.absoluteFill,
+    touchAction: 'none',
   },
   loading: {
     ...StyleSheet.absoluteFill,

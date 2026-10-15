@@ -93,12 +93,13 @@ export function createEarth():THREE.Group {
     float hash(vec3 q){return fract(sin(dot(q,vec3(127.1,311.7,74.7)))*43758.5453);}
     float noise(vec3 q){vec3 i=floor(q),f=fract(q);f=f*f*(3.-2.*f);return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
     float fbm(vec3 q){return noise(q)*.57+noise(q*2.03)*.28+noise(q*4.1)*.15;}
-    void main(){vec3 q=normalize(p);float land=smoothstep(.51,.57,fbm(q*5.+3.));
-    vec3 sea=mix(vec3(.012,.045,.12),vec3(.025,.22,.38),fbm(q*14.));
-    vec3 ground=mix(vec3(.035,.12,.13),vec3(.24,.28,.22),fbm(q*22.));
-    float cloud=smoothstep(.49,.7,fbm(q*25.+vec3(sin(q.y*24.)*.7,2.,1.)));
+    void main(){vec3 q=normalize(p);float continent=fbm(q*2.5+vec3(3.,1.,7.))+noise(q*8.)*.08;float land=smoothstep(.52,.56,continent);
+    vec3 sea=mix(vec3(.012,.045,.12),vec3(.025,.22,.38),fbm(q*4.));
+    vec3 ground=mix(vec3(.035,.12,.13),vec3(.24,.28,.22),fbm(q*7.));
+    float cloud=smoothstep(.56,.75,fbm(q*8.+vec3(sin(q.y*10.)*.5,2.,1.)));
     vec3 col=mix(mix(sea,ground,land),vec3(.79,.88,.94),cloud*.88);
-    float day=.28+.72*smoothstep(-.45,.65,dot(q,normalize(vec3(-.6,.7,-1.))));
+    float sunlight=dot(q,normalize(vec3(-.6,.7,-1.)));float day=.035+.72*smoothstep(-.15,.55,sunlight);
+    col+=vec3(.1,.16,.2)*pow(max(0.,sunlight),18.)*(1.-land)*(1.-cloud);
     float rim=pow(1.-max(0.,dot(normalize(n),normalize(eye))),3.);
     gl_FragColor=vec4(col*day+vec3(.08,.34,.68)*rim*.7,1.);}`
   }));earth.position.set(0,-25,49);earth.rotation.z=-.16;earth.name='earth-horizon';root.add(earth);

@@ -520,7 +520,7 @@ const PRESETS: Preset[] = [
   },
   {
     id: 'nullTendril',
-    name: 'Null Tendril',
+    name: 'Void Reaches',
     family: 'story',
     environment: 'space',
     level: 111,
@@ -531,9 +531,9 @@ const PRESETS: Preset[] = [
       centerY: 3,
       outerRadius: 2.35,
       innerRadius: 1.4,
-      tendrilCount: 5,
-      gapWidth: 1.35,
-      speed: 0.38,
+      tendrilCount: 2,
+      gapWidth: 1.02,
+      speed: 0.62,
     },
   },
   {

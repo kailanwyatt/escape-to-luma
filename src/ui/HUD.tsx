@@ -1,4 +1,4 @@
-import {FinaleScreen} from './FinaleScreen';
+import {CampaignEnding} from './CampaignEnding';
 import {CompletionScreen} from './CompletionScreen';
 import {nextVoyageMilestone} from '../progression/voyage';
 import {t, displayLabel} from '../i18n';
@@ -30,6 +30,8 @@ type Props = {
   onDeclineContinue: () => void;
   onContinueLevel: () => void;
   onExploreFinale: () => void;
+  onSkipEnding: () => void;
+  onReplayEnding: () => void;
   onRetryLevel: () => void;
   onUseHelp: () => void;
   onDeclineHelp: () => void;
@@ -45,6 +47,7 @@ type Props = {
 const CAMPAIGN_OVERLAY_PHASES = new Set<HudSnapshot['phase']>([
   'CAMPAIGN_STORY',
   'CAMPAIGN_OPENING',
+  'CAMPAIGN_ENDING',
   'LEVEL_COMPLETE',
   'LEVEL_FAILED',
   'WORLD_COMPLETE',
@@ -65,6 +68,8 @@ export function HUD({
   onDeclineContinue,
   onContinueLevel,
   onExploreFinale,
+  onSkipEnding,
+  onReplayEnding,
   onRetryLevel,
   onUseHelp,
   onDeclineHelp,
@@ -94,8 +99,8 @@ export function HUD({
 
 
 
-  if ((hud.phase === 'CAMPAIGN_STORY' && hud.campaignStory?.visual === 'reunion') || hud.phase === 'CAMPAIGN_COMPLETE') {
-    return <FinaleScreen equippedSparkId={hud.equippedSparkId ?? 'original'} reduceMotion={reduceMotion} onExplore={onExploreFinale}/>;
+  if (hud.phase === 'CAMPAIGN_ENDING' || hud.phase === 'CAMPAIGN_COMPLETE') {
+    return <CampaignEnding hud={hud} reduceMotion={reduceMotion} paused={paused} onPause={onPause} onResume={onResume} onHome={onHome} onSkip={onSkipEnding} onReplay={onReplayEnding} onExplore={onExploreFinale}/>;
   }
   if (hud.phase === 'CAMPAIGN_STORY' && hud.campaignStory) {
     return <StoryScreen level={hud.campaignLevel} reduceMotion={reduceMotion} story={hud.campaignStory} onContinue={onContinueLevel} onHome={onHome}/>;
@@ -220,7 +225,7 @@ export function HUD({
       ) : null}
 
       {hud.phase === 'CAMPAIGN_OPENING' && !paused ? (
-        <CampaignOpening reduceMotion={reduceMotion} stage={hud.openingStage} onSkip={onSkipOpening} onPause={onPause} />
+        <CampaignOpening reduceMotion={reduceMotion} stage={hud.openingStage} copyOpacity={hud.openingCopyOpacity} onSkip={onSkipOpening} onPause={onPause} />
       ) : null}
 
       {hud.phase === 'LEVEL_COMPLETE' ? (
@@ -265,6 +270,7 @@ export function HUD({
           <Text style={styles.rank}>{hud.runTheme}</Text>
           <Text style={styles.startBestLabel}>{t("hud.best")}</Text>
           <Text style={styles.startBest}>{formatScore(hud.bestScore)}</Text>
+          <Text style={styles.startLevel}>{t("hud.highest_level_reached", {value1: hud.highestEndlessLevel})}</Text>
           <Text style={styles.tapStart}>{t("hud.tap_to_start")}</Text>
         </View>
       ) : null}
@@ -305,7 +311,7 @@ export function HUD({
           rows={[
             [t("hud.score"), formatScore(hud.score)],
             [t("hud.best_2"), formatScore(hud.bestScore)],
-            [t("hud.shots"), String(hud.shotsReached)],
+            [t("hud.highest_level"), String(hud.highestEndlessLevel)],
             [t("hud.best_streak"), String(hud.bestStreak)],
           ]}
           secondary={[
@@ -328,7 +334,7 @@ export function HUD({
           rows={[
             [t("hud.score"), formatScore(hud.score)],
             [t("hud.best_2"), formatScore(hud.bestScore)],
-            [t("hud.shots"), String(hud.shotsReached)],
+            [t("hud.highest_level"), String(hud.highestEndlessLevel)],
             [t("hud.best_streak"), String(hud.bestStreak)],
           ]}
           secondary={[
@@ -1125,6 +1131,13 @@ const styles = StyleSheet.create({
     color: color.cream,
     fontSize: 22,
     fontWeight: '800',
+  },
+  startLevel: {
+    marginTop: 10,
+    color: color.cyanBright,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.6,
   },
   tapStart: {
     marginTop: 36,

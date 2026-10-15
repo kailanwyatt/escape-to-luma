@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#080c10" />
+  <title>Escape to Luma · Opening study</title>
+  <style>
+    @font-face{font-family:Barlow;src:url('/node_modules/@expo-google-fonts/barlow-condensed/400Regular/BarlowCondensed_400Regular.ttf') format('truetype');font-weight:400;font-display:swap}
+    @font-face{font-family:Barlow;src:url('/node_modules/@expo-google-fonts/barlow-condensed/600SemiBold/BarlowCondensed_600SemiBold.ttf') format('truetype');font-weight:600;font-display:swap}
+    @font-face{font-family:Orbitron;src:url('/node_modules/@expo-google-fonts/orbitron/500Medium/Orbitron_500Medium.ttf') format('truetype');font-weight:500;font-display:swap}
+    :root{color-scheme:dark;--ink:#080c10;--cream:#eee8db;--muted:#8e9aa4;--line:#ffffff1a;--gold:#e3be8b;--cyan:#9bdfe8;font-family:Barlow,Arial,sans-serif}
+    *{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--cream);min-width:320px}
+    button,input,select{font:inherit}button{cursor:pointer;color:inherit}button:focus-visible,input:focus-visible{outline:2px solid var(--cyan);outline-offset:5px}
+    button{border:0;background:none}button:hover{color:#fff}svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;vertical-align:middle}
+    .topbar{height:85px;padding:0 4%;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);gap:20px}
+    .identity{display:flex;align-items:center;gap:14px}.sigil{width:30px;height:30px;border:1px solid var(--gold);border-radius:50%;display:grid;place-items:center;box-shadow:0 0 26px #a47b3f1c}.sigil:after{content:'';width:8px;height:8px;background:var(--gold);border-radius:50%;box-shadow:0 0 12px #e3be8b}
+    .brand{font-family:Orbitron, sans-serif;font-size:11px;letter-spacing:.19em}.edition{color:var(--muted);font-size:10px;letter-spacing:.23em;margin-top:6px;text-transform:uppercase}
+    .switch{display:flex;padding:4px;border:1px solid #ffffff24;border-radius:6px;gap:2px}.switch button{font-size:13px;letter-spacing:.06em;padding:9px 20px;border-radius:3px;color:#8a969e}.switch button[aria-pressed=true]{color:#f7e7ce;background:#d9b9861c;box-shadow:inset 0 0 0 1px #e3be8b35}
+    .topmeta{font-size:10px;letter-spacing:.18em;color:var(--muted);display:flex;gap:18px;align-items:center}.dot{height:5px;width:5px;border-radius:50%;display:inline-block;background:var(--cyan);margin-right:7px}
+    .workspace{max-width:1800px;margin:auto;padding:28px 4% 0}.section-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:13px;font-size:11px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase}
+    .format-switch{display:flex;gap:15px}.format-switch button{font-size:11px;padding:0;color:#78858d;letter-spacing:.08em}.format-switch button[aria-pressed=true]{color:var(--cream)}
+    .player-shell{background:#040709;border:1px solid #ffffff18;position:relative;display:flex;justify-content:center;overflow:hidden;border-radius:3px}
+    .film{width:100%;height:min(65vh,760px);min-height:370px;position:relative;overflow:hidden;isolation:isolate;background:#060b12}
+    .player-shell.portrait .film{width:min(100%,390px);height:min(70vh,740px);min-height:500px}
+    #viewport,#viewport canvas{width:100%;height:100%;display:block}#viewport{position:absolute;inset:0}
+    .shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,#04090e40,transparent 60%),linear-gradient(0deg,#03070de8,transparent 46%,transparent 80%,#03070d66)}
+    .grain{position:absolute;inset:0;pointer-events:none;opacity:.055;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.91' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath fill='%23fff' filter='url(%23n)' opacity='.7' d='M0 0h180v180H0z'/%3E%3C/svg%3E")}
+    .film-top{position:absolute;top:25px;left:30px;right:30px;display:flex;justify-content:space-between;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#adc0c9}.film-top .take{color:#d4c4ad}.film-top span{display:flex;align-items:center;gap:9px}.live-mark{width:5px;height:5px;border-radius:50%;background:var(--gold)}
+    .caption{position:absolute;left:4.5%;bottom:58px;max-width:430px;pointer-events:none}.chapter-meta{display:flex;align-items:center;gap:12px;color:var(--gold);font-size:10px;letter-spacing:.24em;text-transform:uppercase}.chapter-meta:before{content:'';height:1px;width:30px;background:var(--gold)}
+    h1{font-weight:400;font-size:clamp(38px,4.4vw,70px);letter-spacing:.025em;line-height:1.02;margin:17px 0 12px;text-shadow:0 2px 32px #0006}.caption p{font-size:17px;line-height:1.5;color:#aebdc6;max-width:315px;margin:0;font-weight:400;letter-spacing:.02em}.caption.swap{animation:reveal .6s ease both}@keyframes reveal{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+    .frame-note{position:absolute;right:30px;bottom:61px;writing-mode:vertical-rl;font-size:9px;letter-spacing:.27em;color:#7b939e;pointer-events:none}
+    #transfer{position:absolute;inset:0;background:#04080e;opacity:0;pointer-events:none}
+    .transport{position:absolute;bottom:0;left:0;right:0;height:43px;display:flex;align-items:center;gap:13px;padding:0 24px;border-top:1px solid #ffffff13;background:#04080db5}.transport button{min-width:28px;padding:4px}.time{font-size:11px;letter-spacing:.11em;min-width:69px;color:#a0b0b8;font-variant-numeric:tabular-nums}
+    #scrubber{min-width:40px;flex:1;accent-color:var(--gold);height:3px;cursor:pointer}#sound{font-size:10px;letter-spacing:.1em;display:flex;align-items:center;gap:7px;white-space:nowrap}.transport .divider{height:14px;width:1px;background:var(--line)}
+    .chapters{display:grid;grid-template-columns:repeat(6,1fr);border-bottom:1px solid var(--line);gap:22px;padding-top:22px}.chapter{position:relative;text-align:left;padding:0 0 20px;opacity:.48;transition:opacity .2s}.chapter:hover{opacity:.8}.chapter[aria-current=true]{opacity:1}.chapter:after{position:absolute;bottom:-1px;left:0;width:100%;height:2px;background:var(--gold);content:'';transform:scaleX(0);transform-origin:left;transition:transform .25s}.chapter[aria-current=true]:after{transform:scaleX(1)}
+    .chapter-top{display:flex;justify-content:space-between;margin-bottom:7px;color:#9faeb6;font-size:10px;letter-spacing:.15em}.chapter-name{font-size:16px;letter-spacing:.035em}.chapter[aria-current=true] .chapter-top{color:var(--gold)}
+    .foot{display:flex;align-items:flex-start;justify-content:space-between;padding:22px 0 25px;gap:30px}.direction{max-width:650px}.direction h2{font-size:11px;letter-spacing:.17em;color:var(--gold);font-weight:400;text-transform:uppercase;margin:0 0 8px}.direction p{font-size:14px;line-height:1.5;color:#7e919e;margin:0}.options{display:flex;gap:22px;white-space:nowrap;font-size:12px;color:#99a8b1;padding-top:2px}.options label{display:flex;gap:7px;align-items:center;cursor:pointer}.options input{accent-color:var(--gold)}
+    #error{display:none;position:absolute;inset:0;padding:50px;place-content:center;text-align:center;background:#080f18;z-index:5}#error.visible{display:grid}#error p{color:var(--muted);max-width:400px;line-height:1.6}#error button{padding:12px;border:1px solid var(--gold)}
+    .portrait .caption{bottom:70px;left:25px;right:25px}.portrait h1{font-size:38px}.portrait .caption p{font-size:16px}.portrait .film-top{left:25px;right:25px;top:22px}.portrait .frame-note{display:none}.portrait .transport{padding:0 12px;gap:8px}.portrait #sound-label{display:none}
+    .film:fullscreen{height:100vh;width:100vw}.film:fullscreen .caption{bottom:90px}.film:fullscreen .transport{height:60px}
+    @media(max-width:800px){.topmeta{display:none}.topbar{height:72px}.workspace{padding-top:18px}.film{height:58vh;min-height:400px}.caption{left:25px;bottom:67px}.caption h1{font-size:43px}.caption p{font-size:16px;max-width:260px}.chapters{gap:14px;overflow:auto;grid-template-columns:repeat(6,minmax(110px,1fr));padding-top:18px}.chapter{padding-bottom:16px}.foot{flex-direction:column;gap:17px}.options{width:100%;justify-content:space-between}.film-top{left:25px;right:25px}.frame-note{display:none}}
+    @media(max-width:480px){.brand{font-size:9px;letter-spacing:.1em}.identity{gap:9px}.edition{font-size:8px;letter-spacing:.12em}.sigil{width:22px;height:22px}.switch button{padding:8px 9px;font-size:12px}.topbar{padding:0 4%;gap:8px}.film{height:66vh;min-height:440px}.film-top{font-size:8px;left:20px;right:20px}.caption{left:20px;right:20px}.caption h1{font-size:38px}.transport{padding:0 10px;gap:7px}#sound-label{display:none}.time{min-width:59px;font-size:10px}.section-label{font-size:9px}.chapter-name{font-size:15px}}
+    .reduced-motion *,.reduced-motion *:before,.reduced-motion *:after{animation:none!important;transition:none!important}
+    @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="identity"><span class="sigil" aria-hidden="true"></span><div><div class="brand">ESCAPE TO LUMA</div><div class="edition">An opening study · 01</div></div></div>
+    <div class="switch" aria-label="Visual treatment"><button id="current" aria-pressed="false">Previous intro</button><button id="cinematic" aria-pressed="true">Cinematic</button></div>
+    <div class="topmeta"><span><i class="dot"></i>LIVE 3D</span><span>00:35 / SIX CHAPTERS</span></div>
+  </header>
+  <main class="workspace">
+    <div class="section-label"><span>Prologue / A light finds its way</span><div class="format-switch" aria-label="Preview format"><button id="wide" aria-pressed="true">Widescreen</button><button id="portrait" aria-pressed="false">Portrait</button></div></div>
+    <section class="player-shell" aria-label="Opening comparison player">
+      <div class="film" id="film">
+        <div id="viewport" aria-label="Three-dimensional opening animation" role="img"></div>
+        <div class="shade"></div><div class="grain"></div>
+        <div class="film-top"><span><i class="live-mark"></i><span id="take">Cinematic treatment</span></span><span id="location">Uncharted space</span></div>
+        <div class="caption" id="caption"><div class="chapter-meta" id="chapter-label">01 / The beginning</div><h1 id="title">A living light.</h1><p id="story">Somewhere beyond Earth,<br>a small light drifts alone.</p></div>
+        <div class="frame-note">FOLLOW THE SIGNAL · FIND YOUR WAY HOME</div>
+        <div id="transfer"></div>
+        <div class="transport">
+          <button id="play" aria-label="Pause opening" title="Play / pause (Space)"><svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg></button>
+          <button id="replay" aria-label="Replay from beginning" title="Replay (R)"><svg viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 1 8M4 4v6h6"/></svg></button>
+          <span class="time" id="time">00:00 / 00:35</span>
+          <input id="scrubber" aria-label="Opening time in seconds" type="range" min="0" max="35" step="0.01" value="0" />
+          <button id="sound" aria-label="Enable soundtrack" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5ZM16 9l5 6m0-6-5 6"/></svg><span id="sound-label">SOUND OFF</span></button>
+          <span class="divider"></span><button id="fullscreen" aria-label="Enter fullscreen" title="Fullscreen"><svg viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button>
+        </div>
+        <div id="error" role="alert"><h2>Unable to start the 3D preview</h2><p id="error-message">This preview needs WebGL 2. Try a browser with graphics acceleration enabled.</p><button id="retry">Try again</button></div>
+      </div>
+    </section>
+    <nav class="chapters" aria-label="Jump to a chapter">
+      <button class="chapter" data-chapter="0" aria-current="true"><span class="chapter-top"><span>01</span><span>00:00</span></span><span class="chapter-name">A living light</span></button>
+      <button class="chapter" data-chapter="1" aria-current="false"><span class="chapter-top"><span>02</span><span>00:05</span></span><span class="chapter-name">Discovery</span></button>
+      <button class="chapter" data-chapter="2" aria-current="false"><span class="chapter-top"><span>03</span><span>00:12</span></span><span class="chapter-name">Specimen S–01</span></button>
+      <button class="chapter" data-chapter="3" aria-current="false"><span class="chapter-top"><span>04</span><span>00:19</span></span><span class="chapter-name">The signal</span></button>
+      <button class="chapter" data-chapter="4" aria-current="false"><span class="chapter-top"><span>05</span><span>00:25</span></span><span class="chapter-name">Containment failure</span></button>
+      <button class="chapter" data-chapter="5" aria-current="false"><span class="chapter-top"><span>06</span><span>00:31</span></span><span class="chapter-name">The way home</span></button>
+    </nav>
+    <footer class="foot">
+      <div class="direction"><h2 id="direction-title">Small light. Vast universe.</h2><p id="direction-copy">Layered nebulae, planetary atmosphere and a living energy core. A slow camera drift lets the scale of the world arrive before the story does.</p></div>
+      <div class="options"><label><input type="checkbox" id="bloom" checked /> Cinematic glow</label><label><input type="checkbox" id="reduced" /> Reduced motion</label></div>
+    </footer>
+  </main>
+  <script src="/intro-demo.js"></script>
+</body>
+</html>

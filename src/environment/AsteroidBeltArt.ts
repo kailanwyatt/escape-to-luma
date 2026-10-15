@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {createAsteroidGeometry} from './AsteroidGeometry';
+import {createAsteroidMaterial} from '../graphics/AsteroidSurface';
 import {createWorldBackdrop} from '../graphics/WorldBackdrop';
 
 const fract = (n: number) => n - Math.floor(n);
@@ -81,35 +82,50 @@ export function createAsteroidBeltArt(level=95): THREE.Group {
   }));
   sun.name='belt-distant-sun';sun.position.set(-14,7,60);root.add(sun);
 
-  const rockMaterial=new THREE.MeshPhongMaterial({color:0x766e67,vertexColors:true,shininess:2,fog:false});
-  const stream=new THREE.InstancedMesh(createAsteroidGeometry(771,8,6),rockMaterial,360);
-  stream.name='belt-distant-stream';const transform=new THREE.Object3D();
+  const stream=new THREE.Group(),mid=new THREE.Group();
+  stream.name='belt-distant-stream';mid.name='belt-midground-rocks';root.add(stream,mid);
+  const transform=new THREE.Object3D(),tint=new THREE.Color();
   const slope=-.18-(level%4)*.025;
-  for(let i=0;i<stream.count;i++){
-    const x=(random()-.5)*65,z=43+random()*13;
-    transform.position.set(x,9+x*slope+(random()-.5)*1.6,z);
-    transform.rotation.set(random()*6,random()*6,random()*6);
-    transform.scale.setScalar(.045+random()**3*.25);transform.updateMatrix();stream.setMatrixAt(i,transform.matrix);
+  // Four shapes share instanced batches at each depth: no per-rock draw calls.
+  for(let variant=0;variant<4;variant++){
+    const shapeSeed=[771,908,1002,1003][variant];
+    const distantGeometry=createAsteroidGeometry(shapeSeed,8,6);
+    const rockMaterial=createAsteroidMaterial(distantGeometry.userData.asteroidFamily,false);rockMaterial.fog=false;
+    const distant=new THREE.InstancedMesh(distantGeometry,rockMaterial,90);
+    distant.name=`belt-distant-shape-${variant}`;
+    for(let i=0;i<distant.count;i++){
+      const x=(random()-.5)*65,z=43+random()*13,s=.045+random()**3*.25;
+      transform.position.set(x,9+x*slope+(random()-.5)*1.6,z);
+      transform.rotation.set(random()*6,random()*6,random()*6);
+      transform.scale.set(s,s*(.75+random()*.5),s*(.8+random()*.4));transform.updateMatrix();distant.setMatrixAt(i,transform.matrix);
+      tint.setRGB(.52+random()*.38,.56+random()*.34,.62+random()*.3);distant.setColorAt(i,tint);
+    }
+    stream.add(distant);
+    const middle=new THREE.InstancedMesh(createAsteroidGeometry(shapeSeed,20,14),rockMaterial,7);
+    middle.name=`belt-midground-shape-${variant}`;
+    for(let i=0;i<middle.count;i++){
+      const s=.18+random()*.65;
+      transform.position.set(((i+variant)%2?1:-1)*(6+random()*14),-7+random()*24,25+random()*17);
+      transform.rotation.set(random()*6,random()*6,random()*6);
+      transform.scale.set(s,s*(.8+random()*.4),s*(.7+random()*.5));transform.updateMatrix();middle.setMatrixAt(i,transform.matrix);
+      tint.setRGB(.72+random()*.28,.72+random()*.28,.72+random()*.28);middle.setColorAt(i,tint);
+    }
+    mid.add(middle);
   }
-  root.add(stream);
-  const mid=new THREE.InstancedMesh(createAsteroidGeometry(331,16,12),rockMaterial,28);
-  mid.name='belt-midground-rocks';
-  for(let i=0;i<mid.count;i++){
-    transform.position.set((i%2?1:-1)*(6+random()*14),-7+random()*24,25+random()*17);
-    transform.rotation.set(random()*6,random()*6,random()*6);
-    transform.scale.setScalar(.18+random()*.65);transform.updateMatrix();mid.setMatrixAt(i,transform.matrix);
-  }
-  root.add(mid);
-  // Only side-edge fragments near the viewer. Never move them inward across the flight lane.
+  // Near fragments reveal the crater walls and mineral grain, outside the flight lane.
+  const edges:THREE.Mesh[]=[];
   for(const side of [-1,1]){
-    const rock=new THREE.Mesh(createAsteroidGeometry(444+side,24,16),new THREE.MeshPhongMaterial({color:0x51463e,vertexColors:true,shininess:1,fog:false}));
-    rock.name='belt-foreground-edge';rock.position.set(side*5.5,-2,5);rock.scale.set(1.8,2.1,1.5);root.add(rock);
+    const geometry=createAsteroidGeometry(444+side,32,22);
+    const material=createAsteroidMaterial(geometry.userData.asteroidFamily);material.fog=false;material.color.setHex(0xa69a8c);
+    const rock=new THREE.Mesh(geometry,material);
+    rock.name='belt-foreground-edge';rock.position.set(side*5.5,-2,5);rock.scale.set(1.8,2.1,1.5);
+    rock.rotation.set(side*.24,side*.35,side*.18);root.add(rock);edges.push(rock);
   }
   root.userData.updateAtmosphere=(time:number,reduced:boolean)=>{
-    // Bounded environmental drift supplements natural perspective parallax; no camera edits.
     const t=reduced?0:time;
     stream.position.x=Math.sin(t*.025)*.1;
     mid.position.y=Math.sin(t*.04)*.06;
+    edges.forEach((rock,i)=>{rock.rotation.y=(i?1:-1)*(.35+t*.018);});
   };
   root.userData.decorativeOnly=true;
   return root;

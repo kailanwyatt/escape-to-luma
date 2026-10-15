@@ -1,407 +1,104 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../i18n';
-import { OPENING_BEATS } from '../scene/OpeningSequence';
-import { TypewriterText } from './TypewriterText';
+import { fontUiRegular } from '../design/fonts';
+import { CINEMATIC_OPENING_COPY } from '../scene/CinematicOpeningCopy';
 
 type Props = {
   reduceMotion?: boolean;
   stage: number;
+  copyOpacity: number;
   onSkip: () => void;
   onPause: () => void;
 };
 
-/**
- * Cinematic chrome over OpeningScene: letterbox, soft veil, title dissolves,
- * and a beat progress rail. The 3D scene stays the hero; this stays sparse.
- */
-export function CampaignOpening({
-  stage,
-  onSkip,
-  onPause,
-  reduceMotion = false,
-}: Props) {
+/** The comparison film's typography, framing and gradients, with touch-sized playback controls. */
+export function CampaignOpening({ stage, copyOpacity, onSkip, onPause, reduceMotion = false }: Props) {
   const insets = useSafeAreaInsets();
-  const clamped = Math.max(0, Math.min(OPENING_BEATS.length - 1, stage));
-  const beat = OPENING_BEATS[clamped];
-  const lastBeat = clamped === OPENING_BEATS.length - 1;
-
-  const letterbox = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
-  const veil = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
-  const titleOpacity = useRef(new Animated.Value(1)).current;
-  const titleRise = useRef(new Animated.Value(0)).current;
-  const rail = useRef(new Animated.Value(0)).current;
-  const hintPulse = useRef(new Animated.Value(0.55)).current;
-  const sweep = useRef(new Animated.Value(0)).current;
-
+  const { width, height } = useWindowDimensions();
+  const portrait = width / height < .85;
+  const clamped = Math.max(0, Math.min(CINEMATIC_OPENING_COPY.length - 1, stage));
+  const beat = CINEMATIC_OPENING_COPY[clamped];
+  const reveal = useRef(new Animated.Value(1)).current;
+  const transfer = useRef(new Animated.Value(copyOpacity)).current;
   useEffect(() => {
-    if (reduceMotion) {
-      letterbox.setValue(1);
-      veil.setValue(1);
-      return;
-    }
-    Animated.parallel([
-      Animated.timing(letterbox, {
-        toValue: 1,
-        duration: 900,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(veil, {
-        toValue: 1,
-        duration: 1100,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [letterbox, reduceMotion, veil]);
-
+    const animation = Animated.timing(transfer, { toValue: copyOpacity, duration: reduceMotion ? 0 : 90, useNativeDriver: true });
+    animation.start();
+    return () => animation.stop();
+  }, [copyOpacity, reduceMotion, transfer]);
   useEffect(() => {
-    if (reduceMotion) {
-      titleOpacity.setValue(1);
-      titleRise.setValue(0);
-      rail.setValue(1);
-      return;
-    }
-    titleOpacity.setValue(0);
-    titleRise.setValue(14);
-    rail.setValue(0);
-    Animated.parallel([
-      Animated.timing(titleOpacity, {
-        toValue: 1,
-        duration: 520,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(titleRise, {
-        toValue: 0,
-        duration: 620,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(rail, {
-        toValue: 1,
-        duration: Math.max(400, beat.duration * 1000 - 180),
-        easing: Easing.linear,
-        useNativeDriver: false,
-      }),
-    ]).start();
-  }, [beat.duration, clamped, rail, reduceMotion, titleOpacity, titleRise]);
-
-  useEffect(() => {
-    if (reduceMotion || !lastBeat) {
-      hintPulse.setValue(lastBeat ? 1 : 0.55);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(hintPulse, {
-          toValue: 1,
-          duration: 900,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(hintPulse, {
-          toValue: 0.45,
-          duration: 900,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [hintPulse, lastBeat, reduceMotion]);
-
-  useEffect(() => {
-    if (reduceMotion) {
-      sweep.setValue(0);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.timing(sweep, {
-        toValue: 1,
-        duration: 7800,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [reduceMotion, sweep]);
-
-  const topBarH = Math.max(insets.top + 28, 52);
-  const bottomBarH = Math.max(insets.bottom + 36, 64);
+    if (reduceMotion) { reveal.setValue(1); return; }
+    reveal.setValue(0);
+    const animation = Animated.timing(reveal, {
+      toValue: 1, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [clamped, reduceMotion, reveal]);
+  const insetX = portrait ? 25 : Math.max(insets.left + 25, width * .045);
+  const titleSize = portrait ? 38 : Math.min(70, Math.max(38, width * .044));
 
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.letterboxTop,
-          {
-            height: topBarH,
-            opacity: letterbox,
-            transform: [
-              {
-                translateY: letterbox.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-topBarH, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      />
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.letterboxBottom,
-          {
-            height: bottomBarH,
-            opacity: letterbox,
-            transform: [
-              {
-                translateY: letterbox.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [bottomBarH, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      />
-
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: veil }]}>
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: transfer }]}>
         <LinearGradient
-          colors={['rgba(0,8,18,0.55)', 'transparent', 'transparent', 'rgba(0,10,22,0.72)']}
-          locations={[0, 0.22, 0.55, 1]}
-          style={StyleSheet.absoluteFill}
+          colors={['#03070d66', 'transparent', 'transparent', '#03070de8']}
+          locations={[0, .2, .54, 1]} style={StyleSheet.absoluteFill}
         />
         <LinearGradient
-          colors={['rgba(0,12,24,0.5)', 'transparent', 'rgba(0,12,24,0.5)']}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
+          colors={['#04090e40', 'transparent', 'transparent']}
+          locations={[0, .6, 1]} start={{ x: 0, y: .5 }} end={{ x: 1, y: .5 }}
           style={StyleSheet.absoluteFill}
         />
-        <Animated.View
-          style={[
-            styles.sweep,
-            {
-              opacity: sweep.interpolate({
-                inputRange: [0, 0.15, 0.35, 1],
-                outputRange: [0, 0.18, 0, 0],
-              }),
-              transform: [
-                {
-                  translateX: sweep.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-120, 420],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <LinearGradient
-            colors={['transparent', 'rgba(143,239,255,0.35)', 'transparent']}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={StyleSheet.absoluteFill}
-          />
+        <View style={[styles.filmTop, { top: insets.top + (portrait ? 22 : 25), left: insetX, right: insetX }]}>
+          <View style={styles.take}><View style={styles.liveMark} /><Text style={styles.takeLabel}>{t('cinematicopening.prologue')}</Text></View>
+          <Text style={[styles.location, { maxWidth: width * .55 }]}>{beat.location.toUpperCase()}</Text>
+        </View>
+        <Animated.View style={[styles.caption, {
+          left: insetX, right: insetX, bottom: insets.bottom + (portrait ? 70 : 58),
+          opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [7, 0] }) }],
+        }]}>
+          <View style={styles.chapterMeta}>
+            <View style={styles.chapterLine} />
+            <Text style={styles.chapterLabel}>{String(clamped + 1).padStart(2, '0')} / {beat.label.toUpperCase()}</Text>
+          </View>
+          <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleSize * 1.02, letterSpacing: titleSize * .025 }]}>{beat.title}</Text>
+          <Text style={[styles.story, { fontSize: portrait ? 16 : 17, lineHeight: portrait ? 24 : 25.5, maxWidth: width < 800 ? 260 : 315 }]}>{beat.caption}</Text>
         </Animated.View>
       </Animated.View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('campaignopening.pause_opening')}
-        onPress={onPause}
-        style={[styles.chromeHit, styles.pause, { top: insets.top + 14 }]}
-      >
-        <Text style={styles.chromeLabel}>{t('campaignopening.pause')}</Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('campaignopening.skip_opening')}
-        onPress={onSkip}
-        style={[styles.chromeHit, styles.skip, { top: insets.top + 14 }]}
-      >
-        <Text style={styles.chromeLabel}>{t('campaignopening.skip')}</Text>
-      </Pressable>
-
-      <View
-        pointerEvents="box-none"
-        style={[styles.copyWrap, { bottom: Math.max(insets.bottom + 18, 28) }]}
-      >
-        <LinearGradient
-          colors={['transparent', 'rgba(2,12,24,0.55)', 'rgba(2,10,20,0.88)']}
-          locations={[0, 0.35, 1]}
-          style={styles.copyVeil}
-        >
-          <Text style={styles.chapter}>
-            {t('campaignopening.the_beginning')}
-            {clamped + 1} / {OPENING_BEATS.length}
-          </Text>
-          <Animated.View
-            style={{
-              opacity: titleOpacity,
-              transform: [{ translateY: titleRise }],
-            }}
-          >
-            <Text style={styles.title}>{beat.title}</Text>
-          </Animated.View>
-          <TypewriterText
-            key={clamped}
-            text={beat.caption}
-            style={styles.caption}
-            reduceMotion={reduceMotion}
-          />
-          {lastBeat ? (
-            <Animated.Text style={[styles.hint, { opacity: hintPulse }]}>
-              {t('campaignopening.drag_to_aim_pull_for_power_release_to_throw')}
-            </Animated.Text>
-          ) : null}
-
-          <View style={styles.railTrack}>
-            {OPENING_BEATS.map((_, i) => {
-              const filled = i < clamped;
-              const active = i === clamped;
-              return (
-                <View key={i} style={styles.railSegment}>
-                  <View style={[styles.railBase, filled && styles.railFilled]} />
-                  {active ? (
-                    <Animated.View
-                      style={[
-                        styles.railFill,
-                        {
-                          width: rail.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: ['0%', '100%'],
-                          }),
-                        },
-                      ]}
-                    />
-                  ) : null}
-                </View>
-              );
-            })}
-          </View>
-        </LinearGradient>
+      <View style={[styles.transport, { paddingBottom: insets.bottom, paddingLeft: Math.max(12, insets.left), paddingRight: Math.max(12, insets.right) }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('campaignopening.pause_opening')} onPress={onPause} style={styles.control}>
+          <Text style={styles.controlLabel}>{t('campaignopening.pause')}</Text>
+        </Pressable>
+        <View accessible accessibilityLabel={`${clamped + 1} / ${CINEMATIC_OPENING_COPY.length}`} style={styles.rail}>
+          {CINEMATIC_OPENING_COPY.map((_, i) => <View key={i} style={[styles.segment, i <= clamped && styles.segmentActive]} />)}
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('campaignopening.skip_opening')} onPress={onSkip} style={styles.control}>
+          <Text style={styles.controlLabel}>{t('campaignopening.skip')}</Text>
+        </Pressable>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  letterboxTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#01060c',
-  },
-  letterboxBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#01060c',
-  },
-  sweep: {
-    position: 'absolute',
-    top: '18%',
-    bottom: '28%',
-    width: 90,
-  },
-  chromeHit: {
-    position: 'absolute',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(143,239,255,0.28)',
-    backgroundColor: 'rgba(4,16,28,0.45)',
-  },
-  pause: { left: 18 },
-  skip: { right: 18 },
-  chromeLabel: {
-    color: 'rgba(196,244,255,0.88)',
-    fontWeight: '700',
-    fontSize: 11,
-    letterSpacing: 2.4,
-  },
-  copyWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    maxWidth: 820,
-    alignSelf: 'center',
-  },
-  copyVeil: {
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 18,
-  },
-  chapter: {
-    color: 'rgba(143,239,255,0.62)',
-    fontWeight: '700',
-    fontSize: 10,
-    letterSpacing: 2.8,
-    marginBottom: 10,
-  },
-  title: {
-    color: '#f2fcff',
-    fontWeight: '300',
-    fontSize: 28,
-    letterSpacing: 4,
-    textShadowColor: 'rgba(0,180,255,0.45)',
-    textShadowRadius: 16,
-    textShadowOffset: { width: 0, height: 0 },
-  },
-  caption: {
-    color: 'rgba(232,242,248,0.94)',
-    fontSize: 16,
-    lineHeight: 25,
-    marginTop: 14,
-    letterSpacing: 0.3,
-  },
-  hint: {
-    marginTop: 18,
-    color: '#8fefff',
-    fontWeight: '800',
-    fontSize: 11,
-    letterSpacing: 2.2,
-  },
-  railTrack: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 22,
-  },
-  railSegment: {
-    flex: 1,
-    height: 2,
-    borderRadius: 1,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(143,239,255,0.14)',
-  },
-  railBase: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'transparent',
-  },
-  railFilled: {
-    backgroundColor: 'rgba(143,239,255,0.85)',
-  },
-  railFill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: '#8fefff',
-    shadowColor: '#5cefff',
-    shadowRadius: 6,
-    shadowOpacity: 0.9,
-    shadowOffset: { width: 0, height: 0 },
-  },
+  filmTop: { position: 'absolute', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 18 },
+  take: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  liveMark: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#e3be8b' },
+  takeLabel: { fontFamily: fontUiRegular, color: '#d4c4ad', fontSize: 10, letterSpacing: 2 },
+  location: { fontFamily: fontUiRegular, color: '#adc0c9', fontSize: 10, letterSpacing: 2, textAlign: 'right' },
+  caption: { position: 'absolute', maxWidth: 430 },
+  chapterMeta: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  chapterLine: { width: 30, height: 1, backgroundColor: '#e3be8b' },
+  chapterLabel: { fontFamily: fontUiRegular, fontSize: 10, letterSpacing: 2.4, color: '#e3be8b' },
+  title: { fontFamily: fontUiRegular, color: '#eee8db', marginTop: 17, marginBottom: 12, textShadowColor: '#0006', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 32 },
+  story: { fontFamily: fontUiRegular, color: '#aebdc6', letterSpacing: .32 },
+  transport: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 20, backgroundColor: '#04080db5', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#ffffff13' },
+  control: { minHeight: 44, minWidth: 64, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+  controlLabel: { fontFamily: fontUiRegular, fontSize: 11, letterSpacing: 1.8, color: '#d4c4ad' },
+  rail: { flex: 1, flexDirection: 'row', gap: 6 },
+  segment: { flex: 1, height: 2, backgroundColor: '#ffffff1a' },
+  segmentActive: { backgroundColor: '#e3be8b' },
 });

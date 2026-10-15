@@ -1,10 +1,10 @@
+import { createMovingRingMechanism } from './MovingRingMechanism';
 import * as THREE from 'three';
 
 import type { EnvironmentId } from '../config/ChallengeConfig';
 import type { MovingRingConfig } from '../config/ObstacleConfig';
 import { GAME_TUNING } from '../game/gameTuning';
 import {
-  createRingVisual,
   layoutRingVisual,
   replaceVisual,
 } from './ObstacleVisuals';
@@ -28,6 +28,7 @@ export class MovingRingObstacle {
   private visual: THREE.Group | null = null;
   private environment: EnvironmentId = 'workshop';
   private lastRadius = 0;
+  private mechanism = '';
 
   constructor(id: string) {
     this.id = id;
@@ -39,9 +40,10 @@ export class MovingRingObstacle {
     this.active = true;
     this.group.visible = true;
     this.z = config.z;
-    if (!this.visual || environment !== this.environment) {
+    if (!this.visual || environment !== this.environment || this.mechanism !== config.movement.type) {
+      this.mechanism = config.movement.type;
       this.environment = environment;
-      this.visual = replaceVisual(this.group, this.visual, createRingVisual(environment));
+      this.visual = replaceVisual(this.group, this.visual, createMovingRingMechanism(environment, config.movement.type));
       this.lastRadius = 0;
     }
     this.update(0, 0);
@@ -57,6 +59,7 @@ export class MovingRingObstacle {
     if (!this.active || !this.config) {
       return;
     }
+    this.visual?.userData.updateMechanism?.(elapsedTime);
     const pos = ringPosition(this.config, elapsedTime);
     this.centerX = pos.x;
     this.centerY = pos.y;

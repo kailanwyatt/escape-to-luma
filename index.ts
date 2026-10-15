@@ -1,3 +1,4 @@
+import './src/platform/installWebArcadeViewport';
 import { registerRootComponent } from 'expo';
 
 import App from './App';

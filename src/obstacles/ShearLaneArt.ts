@@ -1,3 +1,4 @@
+import { DebrisWake } from './DebrisWake';
 import * as THREE from 'three';
 import type { ShearLaneConfig } from '../config/ObstacleConfig';
 import { createConveyorAsteroid } from './ConveyorAsteroidArt';
@@ -12,10 +13,12 @@ export class ShearLaneArt {
   readonly group = new THREE.Group();
   private readonly kit = new FacilityArtKit({ cinematic: true });
   private readonly rocks: THREE.Mesh[] = [];
+  private readonly wake: DebrisWake;
   private readonly glow: THREE.MeshStandardMaterial;
   private readonly accent: THREE.PointLight;
 
   constructor(private readonly config: ShearLaneConfig) {
+    this.wake = new DebrisWake(shearLaneBlocksAtTime(config, 0).length); this.group.add(this.wake.points);
     this.group.name = 'shear-lane-art';
     this.glow = this.kit.lamp();
     this.glow.color.setHex(0xffb449);
@@ -23,7 +26,7 @@ export class ShearLaneArt {
 
     const seedBlocks = shearLaneBlocksAtTime(config, 0);
     seedBlocks.forEach((b, i) => {
-      const rock = createConveyorAsteroid(1.7 + i * 0.73 + b.stream * 0.4);
+      const rock = createConveyorAsteroid(1.7 + i * 0.73 + b.stream * 0.4, 'shard');
       rock.name = `shear-rock-${i}`;
       rock.scale.setScalar(b.radius);
       this.group.add(rock);
@@ -38,6 +41,7 @@ export class ShearLaneArt {
 
   update(time: number) {
     const blocks = shearLaneBlocksAtTime(this.config, time);
+    this.wake.update(blocks, shearLaneBlocksAtTime(this.config, time - .03));
     blocks.forEach((b, i) => {
       const rock = this.rocks[i];
       if (!rock) return;
@@ -54,6 +58,7 @@ export class ShearLaneArt {
   }
 
   dispose() {
+    this.wake.dispose();
     for (const rock of this.rocks) {
       rock.geometry.dispose();
       if (rock.material instanceof THREE.Material) rock.material.dispose();

@@ -676,7 +676,7 @@ export interface RepulsorConfig {
   phase?: number;
 }
 
-/** Null tendrils — organic coils leave one rotating corridor of light. */
+/** Void Reaches — two segmented void ribbons leave one rotating cyan corridor. */
 export interface NullTendrilConfig {
   type: 'nullTendril';
   z: number;

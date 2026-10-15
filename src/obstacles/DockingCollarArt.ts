@@ -1,49 +1,27 @@
+import { ringVolume } from './SpaceSurfaceArt';
 import * as THREE from 'three';
 import type { DockingCollarConfig } from '../config/ObstacleConfig';
 import { dockingCollarStateAtTime } from './DockingCollarState';
 import { FacilityArtKit } from './FacilityArtKit';
 
 const SEGMENTS = 40;
-/** Quantize jaw radii so slam anim doesn't rebuild ExtrudeGeometry every frame. */
-const RADIUS_STEP = 0.06;
-
-/** Thick annular sector — flat RingGeometry vanishes face-on as a silhouette. */
-function extrudedAnnulus(
-  inner: number,
-  outer: number,
-  start: number,
-  span: number,
-  depth: number,
-): THREE.ExtrudeGeometry {
-  const shape = new THREE.Shape();
-  const i0 = Math.max(0.001, inner);
-  for (let i = 0; i <= SEGMENTS; i++) {
-    const a = start + (i / SEGMENTS) * span;
-    const x = Math.cos(a) * outer;
-    const y = Math.sin(a) * outer;
-    if (i === 0) shape.moveTo(x, y);
-    else shape.lineTo(x, y);
-  }
-  for (let i = SEGMENTS; i >= 0; i--) {
-    const a = start + (i / SEGMENTS) * span;
-    shape.lineTo(Math.cos(a) * i0, Math.sin(a) * i0);
-  }
-  shape.closePath();
-  const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 1 });
-  geo.translate(0, 0, -depth / 2);
-  return geo;
+function extrudedAnnulus(inner: number, outer: number, start: number, span: number, depth: number): THREE.BufferGeometry {
+  const geometry = ringVolume(SEGMENTS); writeAnnulus(geometry, inner, outer, start, span, depth); return geometry;
 }
-
-function quantizeRadius(value: number): number {
-  return Math.round(value / RADIUS_STEP) * RADIUS_STEP;
+function writeAnnulus(geometry: THREE.BufferGeometry, inner: number, outer: number, start: number, span: number, depth: number) {
+  const p = geometry.getAttribute('position');
+  for (let row = 0; row < 4; row++) for (let i = 0; i <= SEGMENTS; i++) {
+    const r = row % 2 === 0 ? inner : outer, a = start + i / SEGMENTS * span;
+    p.setXYZ(row * (SEGMENTS + 1) + i, Math.cos(a) * r, Math.sin(a) * r, row < 2 ? -depth / 2 : depth / 2);
+  }
+  p.needsUpdate = true; geometry.computeVertexNormals(); geometry.computeBoundingSphere();
 }
 
 /**
  * Cinematic docking collar — two thick jaws clamp a circular hatch.
  * Opening radius samples DockingCollarState; cyan wash marks the open window.
  *
- * Jaw ExtrudeGeometry is rebuilt sparsely and prior buffers are disposed on the
- * *next* update so Metal never frees a buffer still bound for the current frame.
+ * Fixed jaw buffers follow the exact opening without stepped radii or allocation churn.
  */
 export class DockingCollarArt {
   readonly group = new THREE.Group();
@@ -60,8 +38,7 @@ export class DockingCollarArt {
   private readonly holeMat: THREE.MeshBasicMaterial;
   private readonly ownedMaterials: THREE.Material[] = [];
   private readonly geometries: THREE.BufferGeometry[] = [];
-  /** Geometries swapped out last frame — safe to free after the GPU has moved on. */
-  private readonly retired: THREE.BufferGeometry[] = [];
+  private readonly rams: THREE.Mesh[] = [];
   private readonly accent: THREE.PointLight;
   private jawInner = -1;
   private jawOuter = -1;
@@ -153,6 +130,15 @@ export class DockingCollarArt {
     torus.position.z = -0.06;
     this.frame.add(torus);
 
+    const sleeveGeo = extrudedAnnulus(R + .03, R + .18, 0, Math.PI * 2, .7);
+    this.geometries.push(sleeveGeo); const sleeve = new THREE.Mesh(sleeveGeo, armor); sleeve.position.z = .24; this.frame.add(sleeve);
+    for (const side of [-1, 1]) {
+      this.kit.box(this.frame, 'dock-hydraulic-housing', .5, R * 1.6, .65, side * (R + .35), 0, .2, dark, .025);
+      this.kit.box(this.frame, 'dock-mount-flange', R * 2 + 1.2, .26, .7, 0, side * (R + .24), .2, armor, .02);
+      const ram = this.kit.box(this.frame, 'dock-hydraulic-ram', .3, .16, .16, side * R, 0, -.2, steel, .008);
+      this.rams.push(ram);
+    }
+
     this.kit.box(this.group, 'hinge-top', 0.32, 0.2, 0.24, 0, R * 0.92, 0.04, steel, 0.008);
     this.kit.box(this.group, 'hinge-bot', 0.32, 0.2, 0.24, 0, -R * 0.92, 0.04, steel, 0.008);
 
@@ -162,37 +148,19 @@ export class DockingCollarArt {
     this.update(0);
   }
 
-  private retire(geo: THREE.BufferGeometry) {
-    const idx = this.geometries.indexOf(geo);
-    if (idx >= 0) this.geometries.splice(idx, 1);
-    this.retired.push(geo);
-  }
-
-  private flushRetired() {
-    for (const geo of this.retired) geo.dispose();
-    this.retired.length = 0;
-  }
-
   private rebuildJaw(mesh: THREE.Mesh, inner: number, outer: number, start: number, span: number, depth: number) {
-    const next = extrudedAnnulus(inner, outer, start, span, depth);
-    const prev = mesh.geometry as THREE.BufferGeometry;
-    mesh.geometry = next;
-    this.geometries.push(next);
-    this.retire(prev);
+    writeAnnulus(mesh.geometry, inner, outer, start, span, depth);
   }
 
   update(time: number) {
-    // Free buffers swapped out on the previous frame (Metal-safe).
-    this.flushRetired();
-
     const s = dockingCollarStateAtTime(this.config, time);
     const inner = Math.max(0.001, s.openingRadius);
     const outer = s.outerRadius;
     const sealed = s.fraction < 0.08;
-    const qInner = Math.max(0.001, quantizeRadius(inner));
-    const qOuter = Math.max(qInner + RADIUS_STEP, quantizeRadius(outer));
+    const qInner = inner;
+    const qOuter = outer;
 
-    if (Math.abs(qInner - this.jawInner) > 0.001 || Math.abs(qOuter - this.jawOuter) > 0.001) {
+    if (qInner !== this.jawInner || qOuter !== this.jawOuter) {
       this.jawInner = qInner;
       this.jawOuter = qOuter;
       this.rebuildJaw(this.leftJaw, qInner, qOuter, Math.PI * 0.5, Math.PI, 0.18);
@@ -219,6 +187,7 @@ export class DockingCollarArt {
     this.plug.visible = sealed || s.openingRadius < 0.28;
 
     this.frame.position.set(s.centerX, s.centerY, 0);
+    this.rams.forEach((ram, i) => { const side = i === 0 ? -1 : 1; ram.position.x = side * (outer + .08 + s.fraction * .2); });
     const hingeTop = this.group.getObjectByName('hinge-top');
     const hingeBot = this.group.getObjectByName('hinge-bot');
     if (hingeTop) {
@@ -257,7 +226,6 @@ export class DockingCollarArt {
   }
 
   dispose() {
-    this.flushRetired();
     this.kit.dispose();
     for (const g of this.geometries) g.dispose();
     this.geometries.length = 0;

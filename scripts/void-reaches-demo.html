@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Void Reaches — Lookdev</title>
+    <style>
+      :root { color-scheme: dark; font-family: "Arial Narrow", sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-width: 320px; background: #030711; color: #eaf8ff; overflow: hidden; }
+      canvas { display: block; height: 100vh; width: 100vw; }
+      .hud { inset: 0; padding: clamp(22px, 4vw, 54px); pointer-events: none; position: fixed; display: flex; flex-direction: column; justify-content: space-between; }
+      .title { border-left: 2px solid #76efff; max-width: 410px; padding-left: 15px; text-shadow: 0 0 18px rgba(79, 223, 255, .22); }
+      .eyebrow, .label, .legend b { color: #76efff; font-size: 11px; font-weight: 800; letter-spacing: .28em; margin: 0; }
+      h1 { font-size: clamp(25px, 3.8vw, 48px); letter-spacing: .12em; line-height: 1; margin: 10px 0; }
+      .copy { color: #bdcfdd; font-size: 15px; line-height: 1.45; margin: 0; max-width: 370px; }
+      .bottom { align-items: end; display: flex; gap: 18px; justify-content: space-between; }
+      .panel { background: rgba(3, 14, 29, .78); border: 1px solid rgba(107, 230, 255, .32); border-radius: 15px; box-shadow: 0 12px 45px rgba(0, 0, 0, .35); max-width: 370px; padding: 14px 16px; }
+      .legend { display: grid; gap: 8px; }
+      .legend div { align-items: center; color: #d7e7f1; display: flex; font-size: 12px; gap: 9px; letter-spacing: .1em; }
+      .dot { border-radius: 50%; box-shadow: 0 0 10px currentColor; height: 8px; width: 8px; }
+      .cyan { color: #76efff; } .amber { color: #ffc35f; } .violet { color: #a56cff; }
+      .controls { display: flex; flex-wrap: wrap; gap: 7px; max-width: 530px; pointer-events: auto; }
+      button { background: rgba(5, 20, 37, .86); border: 1px solid rgba(134, 221, 255, .38); border-radius: 999px; color: #dff8ff; cursor: pointer; font-weight: 800; letter-spacing: .12em; padding: 10px 13px; text-transform: uppercase; }
+      button:hover, button[aria-pressed="true"] { background: rgba(31, 112, 142, .55); border-color: #76efff; box-shadow: 0 0 18px rgba(94, 236, 255, .24); }
+      @media (max-width: 620px) { .hud { padding: 24px 20px; } .bottom { align-items: stretch; flex-direction: column; } .panel { max-width: none; } .controls { max-width: none; } h1 { font-size: 25px; } }
+    </style>
+  </head>
+  <body>
+    <canvas id="void-reaches-canvas"></canvas>
+    <main class="hud">
+      <section class="title">
+        <p class="eyebrow">THE NULL / VISUAL STUDY</p>
+        <h1>VOID REACHES</h1>
+        <p class="copy">Two active ribbons form the gate. A third looms above for scale, but never competes with the safe opening.</p>
+      </section>
+      <section class="bottom">
+        <div class="panel legend">
+          <div><span class="dot cyan"></span><b class="cyan">CYAN</b> CLEAR CORRIDOR</div>
+          <div><span class="dot amber"></span><b class="amber">AMBER</b> SURGE WARNING</div>
+          <div><span class="dot violet"></span><b class="violet">VIOLET</b> STRIKE WINDOW</div>
+        </div>
+        <div class="controls" aria-label="Preview phase">
+          <button data-phase="0.8" aria-pressed="false">Clear</button>
+          <button data-phase="2.85" aria-pressed="false">Telegraph</button>
+          <button data-phase="3.9" aria-pressed="false">Strike</button>
+          <button data-phase="5.15" aria-pressed="false">Recovery</button>
+        </div>
+      </section>
+    </main>
+    <script src="/void-reaches-demo.js"></script>
+  </body>
+</html>

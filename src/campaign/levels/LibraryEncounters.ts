@@ -552,13 +552,13 @@ function nullTendrils(z: number): ObstacleConfig {
     z,
     centerX: 0,
     centerY: 3,
-    // Outer coil ring — hub stays open so the destination portal remains framed.
+    // Void Reaches seal the annulus; the hub stays open to frame the destination portal.
     outerRadius: 2.35,
     innerRadius: 1.4,
-    tendrilCount: 5,
-    // Teach gap — wide + slow so the violet corridor is throwable on first contact.
-    gapWidth: 1.35,
-    speed: 0.38,
+    tendrilCount: 2,
+    // The first Void Reaches encounter demands a lead, but has generous radial clearance.
+    gapWidth: 1.02,
+    speed: 0.62,
   };
 }
 

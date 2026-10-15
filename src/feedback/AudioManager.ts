@@ -101,6 +101,8 @@ class AudioManagerImpl {
   private suspended = false;
   private ready = false;
   private initializing: Promise<void> | null = null;
+  private endingPlayer: ManagedAudioPlayer | null = null;
+  private endingTransport: TimelineAudio | null = null;
   private openingPlayer: ManagedAudioPlayer | null = null;
   private openingTransport: TimelineAudio | null = null;
   private players = new Map<string, ManagedAudioPlayer>();
@@ -177,7 +179,31 @@ class AudioManagerImpl {
     this.openingTransport?.sync(seconds, this.enabled && !this.suspended);
   }
 
+  prepareEnding(): void {
+    if (this.endingTransport || !this.enabled || this.suspended) return;
+    try {
+      const source = getAssetSource('story.endingScore');
+      if (source === null) return;
+      this.endingPlayer = createManagedAudioPlayer(source);
+      this.endingPlayer.volume = .7;
+      this.endingTransport = new TimelineAudio(this.endingPlayer, () => {
+        GameLog.warnOnce('ending-audio', 'Ending audio unavailable; the film can continue silently');
+      });
+    } catch { GameLog.warnOnce('ending-audio-create', 'Ending audio could not be initialized'); }
+  }
+
+  syncEnding(seconds: number | null): void {
+    if (seconds !== null) this.prepareEnding();
+    this.endingTransport?.sync(seconds, this.enabled && !this.suspended);
+  }
+
+  releaseEnding(): void {
+    this.endingTransport?.stop(); this.endingTransport = null;
+    this.endingPlayer?.release(); this.endingPlayer = null;
+  }
+
   pauseAll(): void {
+    this.endingTransport?.stop();
     this.openingTransport?.stop();
     for (const player of this.players.values()) {
       try {
@@ -200,6 +226,7 @@ class AudioManagerImpl {
   }
 
   release(): void {
+    this.releaseEnding();
     this.openingTransport?.stop();
     this.openingTransport = null;
     this.openingPlayer?.release();

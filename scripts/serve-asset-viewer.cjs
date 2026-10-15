@@ -15,6 +15,10 @@ const gateHtml = path.join(__dirname, 'cinematic-gate.html');
 const shutterHtml = path.join(__dirname, 'cinematic-shutter.html');
 const elevatorHtml = path.join(__dirname, 'cinematic-elevator.html');
 const scissorHtml = path.join(__dirname, 'cinematic-scissor.html');
+const voidReachesHtml = path.join(__dirname, 'void-reaches-demo.html');
+const introHtml = path.join(__dirname, 'intro-demo.html');
+const endingHtml = path.join(__dirname, 'ending-demo.html');
+const nullHtml = path.join(__dirname, 'null-demo.html');
 const port = Number(process.env.PORT || 8765);
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'etl-review-'));
 
@@ -111,12 +115,24 @@ const ROUTES = {
   '/elevator/': elevatorHtml,
   '/scissor': scissorHtml,
   '/scissor/': scissorHtml,
+  '/void-reaches': voidReachesHtml,
+  '/void-reaches/': voidReachesHtml,
+  '/ending': endingHtml,
+  '/ending/': endingHtml,
+  '/ending-demo.js': path.join(outDir, 'ending-demo.js'),
+  '/null': nullHtml,
+  '/null/': nullHtml,
+  '/null-demo.js': path.join(outDir, 'null-demo.js'),
+  '/intro': introHtml,
+  '/intro/': introHtml,
+  '/intro-demo.js': path.join(outDir, 'intro-demo.js'),
   '/obstacle-gallery.js': path.join(outDir, 'obstacle-gallery.js'),
   '/cinematic-piston.js': path.join(outDir, 'cinematic-piston.js'),
   '/cinematic-gate.js': path.join(outDir, 'cinematic-gate.js'),
   '/cinematic-shutter.js': path.join(outDir, 'cinematic-shutter.js'),
   '/cinematic-elevator.js': path.join(outDir, 'cinematic-elevator.js'),
   '/cinematic-scissor.js': path.join(outDir, 'cinematic-scissor.js'),
+  '/void-reaches-demo.js': path.join(outDir, 'void-reaches-demo.js'),
 };
 
 function resolveFile(urlPath) {
@@ -134,9 +150,15 @@ async function main() {
       path.join(__dirname, 'cinematic-shutter.ts'),
       path.join(__dirname, 'cinematic-elevator.ts'),
       path.join(__dirname, 'cinematic-scissor.ts'),
+      path.join(__dirname, 'void-reaches-demo.ts'),
+      path.join(__dirname, 'intro-demo.ts'),
+      path.join(__dirname, 'ending-demo.ts'),
+      path.join(__dirname, 'null-demo.ts'),
     ],
     bundle: true,
     platform: 'browser',
+    alias: { 'react-native': 'react-native-web' },
+    define: { 'process.env.NODE_ENV': '"development"', 'process.env.EXPO_PUBLIC_WEB_MODE': '""' },
     format: 'iife',
     outdir: outDir,
     logLevel: 'warning',
@@ -180,6 +202,10 @@ async function main() {
     console.log(`Cinematic shutter: http://127.0.0.1:${port}/shutter`);
     console.log(`Cinematic elevator: http://127.0.0.1:${port}/elevator`);
     console.log(`Cinematic scissor:  http://127.0.0.1:${port}/scissor`);
+    console.log(`Void Reaches:      http://127.0.0.1:${port}/void-reaches`);
+    console.log(`Ending study:      http://127.0.0.1:${port}/ending`);
+    console.log(`Null study:        http://127.0.0.1:${port}/null`);
+    console.log(`Opening study:     http://127.0.0.1:${port}/intro`);
   });
 }
 

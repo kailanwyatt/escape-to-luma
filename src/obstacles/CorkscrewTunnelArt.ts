@@ -84,7 +84,7 @@ export class CorkscrewTunnelArt {
     const plateInner = hub * 0.92;
 
     // Deep bore wall — reads as a transit tunnel mouth, not a flat sticker.
-    const wallGeo = extrudedAnnulus(plateInner, outer, solidStart, solid, 0.22);
+    const wallGeo = extrudedAnnulus(plateInner, outer, solidStart, solid, .8);
     this.geometries.push(wallGeo);
     const wall = new THREE.Mesh(wallGeo, dark);
     wall.name = 'conduit-wall';
@@ -182,6 +182,16 @@ export class CorkscrewTunnelArt {
         0.002,
       );
       marker.rotation.z = a + Math.PI / 2;
+    }
+
+    const depthRibGeo = extrudedAnnulus(outer + .04, outer + .16, solidStart, solid, .09);
+    this.geometries.push(depthRibGeo);
+    for (const z of [.35, .65, .95]) {
+      const rib = new THREE.Mesh(depthRibGeo, steel); rib.name = 'conduit-depth-rib'; rib.position.z = z; this.plate.add(rib);
+    }
+    for (const side of [-1, 1]) {
+      this.kit.box(this.group, 'conduit-cradle', .26, outer * 2 + .65, .6, side * (outer + .28), 0, .4, armor, .02);
+      this.kit.box(this.group, 'conduit-crosshead', outer * 2 + .8, .24, .6, 0, side * (outer + .29), .4, dark, .02);
     }
 
     // Mount struts around the housing.

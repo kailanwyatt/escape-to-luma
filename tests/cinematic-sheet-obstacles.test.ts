@@ -305,14 +305,16 @@ describe('nullTendril', () => {
     }
   });
 
-  it('ships as a throwable the_null teach on L111 with a portal-sized hub', () => {
+  it('ships as a demanding but throwable Void Reaches encounter on L111', () => {
     const level = getCampaignLevel(111)!;
     expect(level.worldId).toBe('the_null');
     const o = level.challenge.obstacles[0];
     expect(o?.type).toBe('nullTendril');
     if (o?.type === 'nullTendril') {
-      expect(o.gapWidth).toBeGreaterThanOrEqual(1.25);
-      expect(o.speed).toBeLessThanOrEqual(0.42);
+      expect(o.gapWidth).toBeGreaterThanOrEqual(1);
+      expect(o.gapWidth).toBeLessThanOrEqual(1.05);
+      expect(o.speed).toBeGreaterThanOrEqual(0.6);
+      expect(o.speed).toBeLessThanOrEqual(0.65);
       // Hub must clear the destination portal aperture so the gate stays visible.
       expect(o.innerRadius).toBeGreaterThanOrEqual(level.challenge.target.radius);
     }
@@ -320,11 +322,12 @@ describe('nullTendril', () => {
 
   it('disposes cinematic art', () => {
     const art = new NullTendrilArt(config);
-    expect(art.group.getObjectByName('living-tendril-0')).toBeTruthy();
-    expect(art.group.getObjectByName('tendril-seg-0-1')).toBeTruthy();
-    expect(art.group.getObjectByName('corridor-lip-a')).toBeTruthy();
-    expect(art.group.getObjectByName('corridor-glow')).toBeTruthy();
-    expect(art.group.getObjectByName('tendril-flesh')).toBeFalsy();
+    expect(art.group.getObjectByName('void-reach-a')).toBeTruthy();
+    expect(art.group.getObjectByName('void-reach-b')).toBeTruthy();
+    expect(art.group.getObjectByName('void-reach-a-plate-0')).toBeTruthy();
+    expect(art.group.getObjectByName('void-corridor-lip-a')).toBeTruthy();
+    expect(art.group.getObjectByName('void-corridor-glow')).toBeTruthy();
+    expect(art.group.getObjectByName('living-tendril-0')).toBeFalsy();
     expect(art.group.getObjectByName('null-wash')).toBeFalsy();
     art.update(1.1);
     art.dispose();

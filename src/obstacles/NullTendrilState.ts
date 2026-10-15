@@ -1,4 +1,4 @@
-/** Null Tendril — organic wedges leave one rotating corridor through the dark. */
+/** Void Reaches — a rotating corridor through two solid void ribbons. */
 
 import type { NullTendrilConfig } from '../config/ObstacleConfig';
 

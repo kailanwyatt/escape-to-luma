@@ -1,3 +1,4 @@
+import { createChapterLandmarkWorld, LANDMARK_WORLDS, type LandmarkWorld } from './ChapterLandmarkWorld';
 import {createMoonArt} from './SkyMoonArt';
 import {createSkyWorldArt} from './SkyWorldArt';
 import {createLateWorldArt} from './LateWorldArt';
@@ -7,6 +8,7 @@ import {createSpaceScene} from './SpaceScene';
 import {createWorldBackdrop} from '../graphics/WorldBackdrop';
 import * as THREE from 'three';
 import {createAsteroidGeometry} from './AsteroidGeometry';
+import {createAsteroidMaterial} from '../graphics/AsteroidSurface';
 import {containmentMetal} from '../graphics/ContainmentMaterials';
 
 export const JOURNEY_LOOKS = {
@@ -37,6 +39,8 @@ export function isJourneyWorld(id:string|null):id is JourneyWorld{return id!==nu
 /** World-specific scenery. Dressing stays outside the flight corridor or behind
  * the target; only the Moon has continuous ground beneath the free-flight worlds. */
 export function createJourneyWorldScene(world:JourneyWorld,level=95):THREE.Group {
+ if(world==='the_null'){const root=new THREE.Group();root.name='world-the_null';return root;}
+ if(LANDMARK_WORLDS.includes(world))return createChapterLandmarkWorld(world as LandmarkWorld,level);
  if(world==='city')return createCityWorldArt(level);
  if(world==='asteroid_belt'||world==='asteroid'){const art=createAsteroidBeltArt(level);art.name=`world-${world}`;return art;}
  if(world==='upper_atmosphere'||world==='orbit'||world==='orbital_graveyard'){
@@ -48,7 +52,7 @@ export function createJourneyWorldScene(world:JourneyWorld,level=95):THREE.Group
  const moonish = world==='moon'||world==='far_side';
  const rockish = world==='drift';
  const lateArt =
-  world==='nebula'||world==='the_null' ? 'nebula' as const :
+  world==='nebula' ? 'nebula' as const :
   world==='false_home' ? 'homeward' as const :
   world==='network'||world==='ancient_network'||world==='the_machine'||world==='the_signal' ? 'network' as const :
   'homeward' as const;
@@ -80,7 +84,7 @@ export function createJourneyWorldScene(world:JourneyWorld,level=95):THREE.Group
   const matte=createWorldBackdrop('space-belt');
   (matte.material as THREE.MeshBasicMaterial).color.setHex(0x9eb8d0);
   root.add(matte);
-  const asteroidMaterial=new THREE.MeshPhongMaterial({color:0xc2b7b3,vertexColors:true,shininess:1,specular:0x141414});
+  const asteroidMaterial=createAsteroidMaterial(3,false);asteroidMaterial.color.setHex(0xc2d7e4);
   const variants=Array.from({length:6},(_,i)=>createAsteroidGeometry(7919+i*104729));
   for(let i=0;i<(world==='drift'?6:34);i++){
    const s=i%2?-1:1;
@@ -89,9 +93,6 @@ export function createJourneyWorldScene(world:JourneyWorld,level=95):THREE.Group
    if(world==='drift'){o.position.x*=1.8;o.position.z+=22;o.scale.multiplyScalar(.6);}
    o.userData.ambientAsteroid=true;
   }
- }else if(world==='the_null'){
-  // Lifted violet nebula wash — chapter was reading as a black void.
-  const matte=createWorldBackdrop('nebula');(matte.material as THREE.MeshBasicMaterial).color.setHex(0x5a3a78);root.add(matte);
  }else{
   const art=createLateWorldArt(lateArt);root.add(art);
   const matte=art.getObjectByName(`${lateArt}-distant-matte`) as THREE.Mesh|undefined;

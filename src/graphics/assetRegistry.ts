@@ -25,6 +25,7 @@ export type RuntimeAssetId =
   | 'ui.heart.full'
   | 'ui.heart.empty'
   | 'story.openingScore'
+  | 'story.endingScore'
   | 'story.01'
   | 'story.02'
   | 'story.03'
@@ -81,6 +82,8 @@ const entries: RuntimeAssetEntry[] = [
   { id: 'world.lumaBanner', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/worlds/luma-celebration-v2.png'), fallback: 'homeward backdrop', disposalOwner: 'react-native' },
 
   { id: 'home.cityGateway', kind: 'image', group: 'boot', version: 1, source: require('../../assets/art/home/city-gateway.jpg'), fallback: 'navy home background', disposalOwner: 'react-native' },
+  { id: 'story.endingScore', kind: 'audio', group: 'optional', version: 1,
+    source: require('../../assets/sfx/ending-score.wav'), fallback: 'silent cinematic with captions', disposalOwner: 'audio-manager' },
   { id: 'story.openingScore', kind: 'audio', group: 'optional', version: 1,
     source: require('../../assets/sfx/opening-score.wav'), fallback: 'silent cinematic with captions', disposalOwner: 'audio-manager' },
   { id: 'brand.wordmark', kind: 'image', group: 'boot', version: 2, source: require('../../assets/art/brand/spark-wordmark.png'), fallback: 'BrandWordmark text', disposalOwner: 'react-native' },

@@ -73,7 +73,7 @@ const HINTS: Record<string,string> = {
   energyField:'Lead the cyan circle — aim where the opening will be when Spark arrives.',
   phaseGate:'Wait for the membrane to fade open — bright blue means it is about to solidify.',
   repulsor:'Aim wide of the metal core — the amber rings shove Spark outward.',
-  nullTendril:'Throw through the violet gap before the tendrils seal it shut.',
+  nullTendril:'Lead the cyan corridor before the Void Reaches rotate it away.',
   nullLash:'Violet means the strike is coming — throw through the open lane while it is still coiled.',
   rollingAperture:'Track both size and drift — aim where the opening will be.',
   corkscrewTunnel:'Follow the open sector — aim where the gap will be when Spark arrives.',

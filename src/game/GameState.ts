@@ -16,6 +16,7 @@ export type GamePhase =
   | 'PROTOTYPE_COMPLETE'
   | 'CAMPAIGN_STORY'
   | 'CAMPAIGN_OPENING'
+  | 'CAMPAIGN_ENDING'
   | 'LEVEL_COMPLETE'
   | 'LEVEL_FAILED'
   | 'WORLD_COMPLETE'
@@ -46,6 +47,9 @@ export class GameState {
 export type HudSnapshot = {
   hydrated: boolean;
   openingStage: number;
+  openingCopyOpacity: number;
+  endingStage: number;
+  endingCopyOpacity: number;
   phase: GamePhase;
   lives: number;
   score: number;
@@ -80,6 +84,7 @@ export type HudSnapshot = {
   unlimitedHearts: boolean;
   lastFail: string | null;
   bestScore: number;
+  highestEndlessLevel: number;
   newBest: boolean;
   records: RecordFlags;
   loopNumber: number;

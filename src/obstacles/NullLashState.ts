@@ -12,6 +12,7 @@ export type NullLashState = {
   tipX: number;
   tipY: number;
   angle: number;
+  extension: number;
   length: number;
   thickness: number;
   phase: NullLashPhase;
@@ -22,6 +23,7 @@ function lashTimeline(config: NullLashConfig, time: number): {
   phase: NullLashPhase;
   /** 0 = coiled at rest, 1 = fully extended across lashSpan. */
   amount: number;
+  extension: number;
 } {
   const coiled = Math.max(0.45, config.coiledHold ?? 1.1);
   const warning = Math.max(0.15, config.warningHold ?? 0.32);
@@ -31,33 +33,52 @@ function lashTimeline(config: NullLashConfig, time: number): {
   const cycle = coiled + warning + lash + extended + retract;
   const local = ((time * config.speed + (config.phase ?? 0)) % cycle + cycle) % cycle;
 
-  if (local < coiled) return { phase: 'coiled', amount: 0 };
-  if (local < coiled + warning) return { phase: 'warning', amount: 0 };
+  if (local < coiled) return { phase: 'coiled', amount: 0, extension: 0 };
+  if (local < coiled + warning) return { phase: 'warning', amount: 0, extension: 0 };
   if (local < coiled + warning + lash) {
     const p = (local - coiled - warning) / lash;
-    return { phase: 'lashing', amount: p ** 2 };
+    return { phase: 'lashing', amount: p ** 2, extension: p * p * (3 - 2 * p) };
   }
-  if (local < coiled + warning + lash + extended) return { phase: 'extended', amount: 1 };
+  if (local < coiled + warning + lash + extended) return { phase: 'extended', amount: 1, extension: 1 };
   const p = (local - coiled - warning - lash - extended) / retract;
-  return { phase: 'retracting', amount: 1 - (1 - p) ** 2 };
+  const extension = 1 - p * p * (3 - 2 * p);
+  return { phase: 'retracting', amount: extension, extension };
 }
 
 export function nullLashStateAtTime(config: NullLashConfig, time: number): NullLashState {
-  const { phase, amount } = lashTimeline(config, time);
+  const { phase, amount, extension } = lashTimeline(config, time);
   const rest = config.restAngle;
   const angle = rest + config.lashSpan * amount;
   const length = config.length;
+  const tip = nullLashCenterline(config, time, 1, extension, angle);
   return {
     pivotX: config.pivotX,
     pivotY: config.pivotY,
-    tipX: config.pivotX + Math.cos(angle) * length,
-    tipY: config.pivotY + Math.sin(angle) * length,
+    tipX: tip.x,
+    tipY: tip.y,
     angle,
+    extension,
     length,
     thickness: config.thickness,
     phase,
     warning: phase === 'warning' || phase === 'lashing',
   };
+}
+
+/** Shared by the continuous skin and collision, including the coiling/recovery curve. */
+export function nullLashCenterline(config: NullLashConfig, time: number, u: number, extension: number, angle: number, out = { x: 0, y: 0, z: 0 }) {
+  const scale = config.length / 2.6, rest = config.restAngle;
+  const ca = rest + u * 4.9;
+  const cx = (Math.cos(ca) * (.17 + u * .55) - Math.cos(rest) * .17) * scale;
+  const cy = (Math.sin(ca) * (.17 + u * .55) - Math.sin(rest) * .17 + u * .53) * scale;
+  const wave = Math.sin(u * 8.2 - time * 4) * .055 * scale * Math.sin(u * Math.PI);
+  out.x = config.pivotX + cx * (1 - extension) + (Math.cos(angle) * config.length * u - Math.sin(angle) * wave) * extension;
+  out.y = config.pivotY + cy * (1 - extension) + (Math.sin(angle) * config.length * u + Math.cos(angle) * wave) * extension;
+  out.z = Math.sin(u * 4.7 + time * .4) * .11 * scale * Math.sin(u * Math.PI);
+  return out;
+}
+export function nullLashRadius(config: NullLashConfig, u: number) {
+  return config.thickness / .18 * (.018 + Math.pow(1 - u, .72) * .24) * (1 + Math.sin(u * 89) * .045);
 }
 
 /** Distance from point to segment (pivot → tip). */
@@ -100,8 +121,15 @@ export function evaluateNullLashCollision(
     };
   }
 
-  const d = distToSegment(x, y, state.pivotX, state.pivotY, state.tipX, state.tipY);
-  const clearance = d - state.thickness - radius;
+  let clearance = Infinity;
+  let a = nullLashCenterline(config, time, 0, state.extension, state.angle);
+  let b = { x: 0, y: 0, z: 0 };
+  for (let i = 1; i <= 48; i++) {
+    const u = i / 48; nullLashCenterline(config, time, u, state.extension, state.angle, b);
+    const width = nullLashRadius(config, (i - .5) / 48);
+    clearance = Math.min(clearance, distToSegment(x, y, a.x, a.y, b.x, b.y) - width - radius);
+    const previous = a; a = b; b = previous;
+  }
   return {
     hit: clearance < 0,
     clearance,

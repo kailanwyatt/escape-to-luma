@@ -21,6 +21,14 @@ export const EMPTY_BESTS: PersonalBests = {
   furthestLoop: 1,
 };
 
+/**
+ * Endless counts cleared gates. Reaching a new gate means the player has entered
+ * the following level, so the visible level record is always clears + 1.
+ */
+export function highestEndlessLevel(bests: Pick<PersonalBests, 'longestRun'>): number {
+  return Math.max(1, bests.longestRun + 1);
+}
+
 export type RecordFlags = {
   score: boolean;
   longestRun: boolean;

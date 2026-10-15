@@ -5,6 +5,7 @@ import {
   useFonts as useOrbitron,
 } from '@expo-google-fonts/orbitron';
 import {
+  BarlowCondensed_400Regular,
   BarlowCondensed_600SemiBold,
   BarlowCondensed_700Bold,
   BarlowCondensed_800ExtraBold,
@@ -18,6 +19,7 @@ export const fontDisplayBold = 'Orbitron_700Bold';
 
 /** Condensed UI face — labels, HUD, buttons, meta. */
 export const fontUi = 'BarlowCondensed_700Bold';
+export const fontUiRegular = 'BarlowCondensed_400Regular';
 export const fontUiSemi = 'BarlowCondensed_600SemiBold';
 export const fontUiHeavy = 'BarlowCondensed_800ExtraBold';
 
@@ -28,6 +30,7 @@ export function useAppFonts(): boolean {
     Orbitron_900Black,
   });
   const [barlow] = useBarlow({
+    BarlowCondensed_400Regular,
     BarlowCondensed_600SemiBold,
     BarlowCondensed_700Bold,
     BarlowCondensed_800ExtraBold,

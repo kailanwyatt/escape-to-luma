@@ -1,3 +1,4 @@
+import { DebrisWake } from './DebrisWake';
 import * as THREE from 'three';
 import type { AccretionShredderConfig } from '../config/ObstacleConfig';
 import { accretionDebrisAtTime } from './StoryLibraryState';
@@ -12,12 +13,14 @@ export class AccretionShredderArt {
   readonly group = new THREE.Group();
   private readonly kit = new FacilityArtKit({ cinematic: true });
   private readonly rocks: THREE.Mesh[] = [];
+  private readonly wake: DebrisWake;
   private readonly glow: THREE.MeshStandardMaterial;
   private readonly halo: THREE.Mesh;
   private readonly accent: THREE.PointLight;
   private readonly count: number;
 
   constructor(private readonly config: AccretionShredderConfig) {
+    this.wake = new DebrisWake(Math.max(4, Math.floor(config.debrisCount))); this.group.add(this.wake.points);
     this.group.name = 'accretion-shredder-art';
     this.count = Math.max(4, Math.floor(config.debrisCount));
     this.glow = this.kit.lamp();
@@ -25,7 +28,7 @@ export class AccretionShredderArt {
     this.glow.emissive.setHex(0xff6a2a);
 
     for (let i = 0; i < this.count; i++) {
-      const rock = createConveyorAsteroid(6.4 + i * 0.91);
+      const rock = createConveyorAsteroid(6.4 + i * 0.91, 'shard');
       rock.name = `rock-shard-${i}`;
       rock.scale.setScalar(config.debrisRadius);
       this.group.add(rock);
@@ -48,6 +51,7 @@ export class AccretionShredderArt {
 
   update(time: number) {
     const debris = accretionDebrisAtTime(this.config, time);
+    this.wake.update(debris, accretionDebrisAtTime(this.config, time - .03));
     let avgR = 0;
     debris.forEach((b, i) => {
       const rock = this.rocks[i];
@@ -71,6 +75,7 @@ export class AccretionShredderArt {
   }
 
   dispose() {
+    this.wake.dispose();
     for (const rock of this.rocks) {
       rock.geometry.dispose();
       if (rock.material instanceof THREE.Material) rock.material.dispose();

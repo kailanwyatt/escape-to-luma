@@ -46,7 +46,7 @@ export class EnvironmentManager {
     }
     if(this.nullPresence)this.nullPresence.group.visible=worldId==='the_null';
     if (this.journeyKit) this.journeyKit.visible=false;
-    if((this.journeyWorld!==worldId||((worldId!==null&&['asteroid_belt','city','ascent','sky','storm'].includes(worldId))&&this.asteroidArtLevel!==level))&&this.journeyKit){this.group.remove(this.journeyKit);disposeThreeObject(this.journeyKit);this.journeyKit=null;}
+    if((this.journeyWorld!==worldId||((worldId!==null&&['asteroid_belt','city','ascent','sky','storm','homeward','luma'].includes(worldId))&&this.asteroidArtLevel!==level))&&this.journeyKit){this.group.remove(this.journeyKit);disposeThreeObject(this.journeyKit);this.journeyKit=null;}
     this.asteroidArtLevel=level;
     this.journeyWorld=worldId;
     if(isJourneyWorld(worldId)){
