@@ -8,9 +8,10 @@ import {setDevLevelsUnlocked} from './src/config/devAccess';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
+import { syncNativeDrawableSize } from './src/utils/nativeDrawableSize';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, AppState, PanResponder, Share, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, AppState, PanResponder, PixelRatio, Platform, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { canStartLevel } from './src/campaign/CampaignPlay';
@@ -195,6 +196,8 @@ function AppShell() {
     return()=>{AdService.setTestRewardedPresenter(null);resolvePending?.('dismissed');};
   },[]);
   const gameRef = useRef<Game | null>(null);
+  const nativeGlRef = useRef<ExpoWebGLRenderingContext | null>(null);
+  const glLayoutRef = useRef<{width: number; height: number} | null>(null);
   const screenSizeRef = useRef<{width: number; height: number} | null>(null);
   const webArcadeCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const webArcadeCanvasCleanupRef = useRef<(() => void) | null>(null);
@@ -358,6 +361,11 @@ function AppShell() {
 
   const onContextCreate = useCallback(
     (gl: ExpoWebGLRenderingContext) => {
+      nativeGlRef.current = gl;
+      if (Platform.OS !== 'web' && glLayoutRef.current) {
+        const {width, height} = glLayoutRef.current;
+        syncNativeDrawableSize(gl, width, height, PixelRatio.get());
+      }
       const boot = () => {
         syncWebArcadeCanvasResolution();
         if (gl.drawingBufferWidth < 2 || gl.drawingBufferHeight < 2) {
@@ -382,8 +390,8 @@ function AppShell() {
 
   useEffect(() => {
     void preloadAssetGroup('boot');
-    void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {
-      // Orientation lock is best-effort in Expo Go / web.
+    void ScreenOrientation.unlockAsync().catch(() => {
+      // The system controls rotation and foldable window changes.
     });
     void AudioManager.init();
   }, []);
@@ -631,7 +639,7 @@ function AppShell() {
     : {};
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} onLayout={event => onLayout(event.nativeEvent.layout.width, event.nativeEvent.layout.height)}>
       <StatusBar style="light" hidden />
       <GLView
         {...webGlProps}
@@ -639,8 +647,15 @@ function AppShell() {
         msaaSamples={GRAPHICS_QUALITY.msaaSamples}
         nativeRef_EXPERIMENTAL={isWebArcadeBuild ? setWebArcadeCanvas : undefined}
         onContextCreate={onContextCreate}
-        onLayout={(event) => {
-          const { width, height } = event.nativeEvent.layout;
+        onLayout={event => {
+          const {width, height} = event.nativeEvent.layout;
+          glLayoutRef.current = {width, height};
+          const gl = nativeGlRef.current;
+          // Expo 57 snapshots these properties when creating the native context.
+          // Native layout resizes the framebuffer but does not refresh the JS values.
+          if (gl && Platform.OS !== 'web') {
+            syncNativeDrawableSize(gl, width, height, PixelRatio.get());
+          }
           onLayout(width, height);
         }}
       />

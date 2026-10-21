@@ -6,7 +6,7 @@ import {useState} from 'react';
 import {GameplayHeader, GameplayBoostButton} from './GameplayControls';
 import {RELEASE_POLICY} from '../config/release';
 import {StoryScreen} from './StoryScreen';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -82,6 +82,10 @@ export function HUD({
   onOpenSupplies,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
+  const [viewport,setViewport] = useState({width:window.width,height:window.height});
+  const {width,height} = viewport;
+  const compactLandscape = width > height;
   const [instructionHeight, setInstructionHeight] = useState(0);
   const campaign = hud.sessionMode === 'campaign';
   const showCampaignTop = campaign && !CAMPAIGN_OVERLAY_PHASES.has(hud.phase) && hud.phase !== 'RESULT';
@@ -111,11 +115,11 @@ export function HUD({
   }
 
   return (
-    <View style={styles.root} pointerEvents="box-none">
+    <View style={styles.root} pointerEvents="box-none" onLayout={({nativeEvent:{layout}}) => setViewport(previous => previous.width===layout.width && previous.height===layout.height ? previous : {width:layout.width,height:layout.height})}>
       {showCampaignTop ? <GameplayHeader hud={hud} onBack={onPause} onTitlePress={onOpenJourney} onOpenSupplies={onOpenSupplies}/> : null}
       {showCampaignTop ? (
-        hud.firstLevelOnboarding ? (
-          <View style={[styles.breachHeaderWrap, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
+        hud.firstLevelOnboarding && !compactLandscape ? (
+          <View pointerEvents="none" style={[styles.breachHeaderWrap, { paddingTop: 8, paddingLeft:Math.max(insets.left,14),paddingRight:Math.max(insets.right,14) }]}>
             <LinearGradient
               colors={['rgba(6,18,32,0.94)', 'rgba(8,28,44,0.88)', 'rgba(4,14,26,0.55)']}
               locations={[0, 0.55, 1]}
@@ -207,6 +211,7 @@ export function HUD({
           style={[
             styles.firstTutorial,
             { bottom: Math.max(insets.bottom, 16) + 18 },
+            compactLandscape && {left:Math.max(insets.left,14),right:undefined,width:Math.min(240,width*.32),paddingVertical:10},
           ]}
           pointerEvents="none"
         >
@@ -637,6 +642,8 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
   },
   breachHeader: {
+    width:'100%',
+    maxWidth:480,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: 'rgba(126,240,255,0.38)',

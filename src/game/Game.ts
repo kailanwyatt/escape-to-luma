@@ -161,6 +161,9 @@ export class Game {
   private raf = 0;
   private running = false;
   private lastMs = 0;
+  private drawableWidth = 0;
+  private drawableHeight = 0;
+  private displayAspect: number | null = null;
   private timeScale = 1;
   private slowdownRemaining = 0;
   private resultTimer = 0;
@@ -363,8 +366,10 @@ export class Game {
     resizeThreeRenderer(this.renderer, this.gl);
     const width = this.gl.drawingBufferWidth;
     const height = this.gl.drawingBufferHeight;
+    this.drawableWidth = width;
+    this.drawableHeight = height;
     if (width > 0 && height > 0) {
-      this.camera.setAspect(width / height);
+      this.camera.setAspect(this.displayAspect ?? width / height);
       this.opening.resize(this.renderer, this.camera.camera.aspect);
       this.ending.resize(this.renderer, this.camera.camera.aspect);
       this.worldGrade.resize(this.renderer);
@@ -372,6 +377,14 @@ export class Game {
   }
 
   setScreenSize(width: number, height: number): void {
+    if (width > 0 && height > 0) {
+      // Frame the visible display, including a fold or rotation.
+      this.displayAspect = width / height;
+      this.camera.setAspect(this.displayAspect);
+    }
+    if (width !== this.aim.screenWidth || height !== this.aim.screenHeight) {
+      this.onTouchCancel();
+    }
     this.aim.setScreenSize(width, height);
   }
 
@@ -1818,6 +1831,11 @@ export class Game {
   private loop = (ms: number): void => {
     if (!this.running) {
       return;
+    }
+    // Native drawable sizes can settle after the React layout event on a fold
+    // or rotation. Check the actual buffer before drawing the next frame.
+    if (this.drawableWidth !== this.gl.drawingBufferWidth || this.drawableHeight !== this.gl.drawingBufferHeight) {
+      this.resize();
     }
     this.raf = requestAnimationFrame(this.loop);
     const wallDt = this.lastMs === 0 ? 1 / 60 : Math.max(0, (ms - this.lastMs) / 1000);

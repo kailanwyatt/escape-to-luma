@@ -5,7 +5,7 @@
     "owner": "suiteplugins",
     "version": "0.1.0",
     "scheme": "spark",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#050B15",
@@ -13,7 +13,7 @@
       "bundleIdentifier": "com.escapetoluma.spark",
       "buildNumber": "25",
       "supportsTablet": true,
-      "requireFullScreen": true,
+      "requireFullScreen": false,
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -57,7 +57,7 @@
       [
         "expo-screen-orientation",
         {
-          "initialOrientation": "PORTRAIT_UP"
+          "initialOrientation": "ALL"
         }
       ],
       "expo-asset",

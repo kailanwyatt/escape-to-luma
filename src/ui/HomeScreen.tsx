@@ -17,7 +17,10 @@ import {NavIcon} from '../design/components/NavIcon';
 import {formatCountdown, msUntilNextEnergy, regenerateEnergy} from '../economy/energy';
 import {hasUnlimitedEnergy, type PersistentGameData} from '../persistence/GameSave';
 import {HomeSignalMeter} from './HomeSignalMeter';
+import {homeLayout} from './homeLayout';
+import {homeArtworkLayout} from './homeArtworkLayout';
 
+const CITY_WIDE_ART = require('../../assets/art/home/city-gateway-wide.png');
 const CITY_ART = require('../../assets/art/home/city-gateway.jpg');
 type Props = {
   reduceMotion?:boolean;
@@ -28,16 +31,19 @@ type Props = {
   onStats: () => void; onSettings: () => void; onArcade: () => void;
 };
 
-function CampaignIcon(){return <View accessible={false} style={s.campaignIcon}><View style={s.flagPole}/><View style={s.flag}/><View style={s.flagNotch}/></View>;}
+function CampaignIcon(){return <View accessible={false} style={s.campaignIcon}><View style={s.flagPole}/><View style={s.flag}/></View>;}
 function ArcadeIcon(){return <View accessible={false} style={s.arcadeIcon}><View style={s.arcadeGripLeft}/><View style={s.arcadeGripRight}/><View style={s.arcadePad}/><View style={s.arcadeCrossH}/><View style={s.arcadeCrossV}/><View style={[s.arcadeDot,{left:31}]}/><View style={[s.arcadeDot,{left:40}]}/></View>;}
 
 export function HomeScreen({reduceMotion=false,save, currentLevel, onSelectLevel, onJourney, onSparks, onShop, onWatchEnergy, onStats, onSettings, onArcade}: Props) {
   const insets = useSafeAreaInsets();
-  const {width, height} = useWindowDimensions();
-  const tablet = width >= 700;
-  const landscape = width >= 900 && width > height;
-  const sceneHeight = landscape ? Math.max(600, height - 48) : tablet ? Math.min(850, height * .72) : 0;
-  const compact = width < 370;
+  const window = useWindowDimensions();
+  const [viewport, setViewport] = useState({width:window.width,height:window.height});
+  const {width,height} = viewport;
+  const layout = homeLayout(width,height,insets);
+  const {landscape,sceneHeight,shortLandscape} = layout;
+  const tablet = layout.sceneWidth >= 500;
+  const art = homeArtworkLayout(width,height,landscape,
+    landscape ? insets.left+12+layout.sceneWidth/2 : width/2);
   const [now, setNow] = useState(Date.now);
   const [selected, setSelected] = useState(currentLevel);
   const [suppliesOpen, setSuppliesOpen] = useState(false);
@@ -66,15 +72,17 @@ export function HomeScreen({reduceMotion=false,save, currentLevel, onSelectLevel
       <NavIcon name={name}/><Text style={s.navLabel}>{label}</Text>
     </Pressable>
   );
-  return <View style={s.root}>
-    <ScrollView contentContainerStyle={{alignItems:'center', paddingHorizontal:Math.max(insets.left,insets.right), flexGrow:1, paddingBottom:Math.max(insets.bottom, landscape ? 12 : 24)}}>
-      <View style={[s.page, tablet && s.tabletPage, landscape && s.landscapePage, {paddingTop:Math.max(insets.top,12)}]}>
-        <View style={[s.scene, landscape && {flex:1,minHeight:sceneHeight}, tablet && !landscape && {height:sceneHeight}]}>
-        <View pointerEvents="none" style={[s.art, {height:tablet ? (landscape ? '100%' : sceneHeight + 130) : compact?570:660}]}>
-          <Image source={CITY_ART} style={[StyleSheet.absoluteFill, {width:'100%',height:'100%'}]} resizeMode="cover"/>
-          <LinearGradient colors={['rgba(0,15,29,.6)','transparent','transparent','#031522']} locations={[0,.25,.65,1]} style={StyleSheet.absoluteFill}/>
-        </View>
-        <View style={[s.resources, tablet && s.tabletResources]}>
+  return <View style={s.root} onLayout={({nativeEvent:{layout}}) => setViewport(previous => previous.width === layout.width && previous.height === layout.height ? previous : {width:layout.width,height:layout.height})}>
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill,{overflow:"hidden"}]}>
+      <Image source={landscape ? CITY_WIDE_ART : CITY_ART} style={[s.backdrop,art.image]} resizeMode="stretch"/>
+      <LinearGradient colors={['rgba(0,15,29,.45)','rgba(0,15,29,.08)','rgba(0,15,29,.8)']} locations={[0,.45,1]} style={StyleSheet.absoluteFill}/>
+      <View style={[s.sparkPlacement,{left:art.spark.x-25,top:art.spark.y-25,transform:[{rotate:`${art.launchAngle}deg`},{scale:art.sparkScale}]}]}>
+        <HomeSpark reduceMotion={motionReduced}/>
+      </View>
+    </View>
+    <ScrollView contentContainerStyle={{alignItems:'center', paddingLeft:insets.left, paddingRight:insets.right, flexGrow:1, paddingBottom:Math.max(insets.bottom, landscape ? 12 : 24)}}>
+      <View style={[s.page, {width:layout.pageWidth,paddingTop:Math.max(insets.top,12), minHeight:height - Math.max(insets.bottom,12)}]}>
+        <View style={[s.resources]}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("homescreen.settings")} onPress={onSettings} style={s.settings}><SettingsIcon/></Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={t("homescreen.energy_open_supplies", {value1: unlimited?'unlimited':t("homescreen.of", {value1: energy.energy, value2: ECONOMY.maxEnergy}), value2: energyLabel})} onPress={openSupplies} style={s.resource}>
             <CurrencyIcon kind="energy" size={34}/><View><Text style={s.value}>{unlimited?'∞':`${energy.energy} / ${ECONOMY.maxEnergy}`}</Text><Text style={s.resourceLabel}>{energyLabel}</Text></View>
@@ -83,32 +91,31 @@ export function HomeScreen({reduceMotion=false,save, currentLevel, onSelectLevel
             <BorderGlint active={borderSpotlight===4}/><CurrencyIcon kind="shard" size={29}/><View><Text style={s.value}>{c.shards.toLocaleString()}</Text><Text style={s.resourceLabel}>{t("statuspanel.shards")}</Text></View><Text style={s.plus}>+</Text>
           </Pressable>
         </View>
-        <View style={[s.brand, tablet && {paddingTop:42}]}>
-          <Text style={s.eyebrow}>{t("homescreen.predict_adapt_overcome")}</Text>
-          <BrandWordmark size="hero" showSubtitle/>
+        <View style={[s.body,{gap:layout.gap},landscape && s.landscapeBody]}>
+        <View style={[s.scene,{width:layout.sceneWidth,height:sceneHeight}]}>
+        <View style={[s.brand, {paddingTop:shortLandscape ? 12 : tablet ? 42 : 24}]}>
+          <Text numberOfLines={1} adjustsFontSizeToFit style={s.eyebrow}>{t("homescreen.predict_adapt_overcome")}</Text>
+          <BrandWordmark size={shortLandscape ? "header" : "hero"} showSubtitle/>
         </View>
-        <View style={[s.stage,tablet ? {flex:1,paddingHorizontal:32,paddingBottom:28} : {height:compact?265:310}]}>
+        <View style={[s.stage,{flex:1,paddingHorizontal:tablet ? 32 : 14,paddingBottom:shortLandscape ? 12 : 28}]}>
           <View style={s.side}>{nav('stats',t("homescreen.stats"),onStats)}{nav('sparks',t("homescreen.sparks"),onSparks)}</View>
-          <View pointerEvents="none" style={[s.sparkPlacement,tablet && {bottom:66,transform:[{scale:1.3}]}]}>
-            <HomeSpark reduceMotion={motionReduced}/>
-          </View>
           <View style={s.side}>{nav('shop',t("homescreen.shop"),onShop)}{nav('journey',t("homescreen.worlds"),onJourney)}</View>
         </View>
         </View>
-        <View style={[s.controls,tablet && !landscape && s.tabletControls,landscape && s.landscapeControls]}>
+        <View style={[s.controls,landscape && s.landscapeControls,{width:layout.controlsWidth}]}>
         <Text style={s.tap}>{t("homescreen.choose_your_mode")}</Text>
         <View style={s.modeDeck}>
           <View style={s.modeButtons}>
             <Pressable accessibilityRole="button" accessibilityLabel={t("homescreen.play_level", {value1: level})} onPress={play} style={({pressed})=>[s.campaign,pressed&&s.pressed]}>
-              <LinearGradient colors={['#FFE976','#FFC940','#F5A623']} start={{x:0,y:0}} end={{x:1,y:1}} style={s.campaignInner}>
+              <LinearGradient colors={['#FFE976','#FFC940','#F5A623']} start={{x:0,y:0}} end={{x:1,y:1}} style={[s.campaignInner,shortLandscape && {paddingHorizontal:10,gap:7}]}>
                 <View pointerEvents="none" style={s.campaignSheen}/>
                 <CampaignIcon/>
-                <View style={s.modeCopy}><Text style={s.campaignLabel}>{t("homescreen.campaign")}</Text><Text numberOfLines={1} adjustsFontSizeToFit style={s.campaignSubtitle}>{campaignSubtitle}</Text></View>
+                <View style={s.modeCopy}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={s.campaignLabel}>{t("homescreen.campaign")}</Text><Text numberOfLines={1} adjustsFontSizeToFit style={s.campaignSubtitle}>{campaignSubtitle}</Text></View>
                 <Text style={s.modeChevron}>›</Text>
               </LinearGradient>
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel={t("homescreen.arcade")} onPress={onArcade} style={({pressed})=>[s.arcade,pressed&&s.pressed]}>
-              <LinearGradient colors={['#1BAAD4','#087AA7','#063150']} locations={[0,.42,1]} start={{x:0,y:0}} end={{x:1,y:1}} style={s.arcadeInner}><View pointerEvents="none" style={s.arcadeSheen}/><ArcadeIcon/><View style={s.modeCopy}><Text style={s.arcadeLabel}>{t("homescreen.arcade")}</Text><Text style={s.arcadeSubtitle}>{t("homescreen.endless_challenges")}</Text></View><Text style={[s.modeChevron,{color:'#B8FAFF'}]}>›</Text></LinearGradient>
+              <LinearGradient colors={['#1BAAD4','#087AA7','#063150']} locations={[0,.42,1]} start={{x:0,y:0}} end={{x:1,y:1}} style={[s.arcadeInner,shortLandscape && {paddingHorizontal:10,gap:7}]}><View pointerEvents="none" style={s.arcadeSheen}/><ArcadeIcon/><View style={s.modeCopy}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={s.arcadeLabel}>{t("homescreen.arcade")}</Text><Text numberOfLines={1} adjustsFontSizeToFit style={s.arcadeSubtitle}>{t("homescreen.endless_challenges")}</Text></View><Text style={[s.modeChevron,{color:'#B8FAFF'}]}>›</Text></LinearGradient>
             </Pressable>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel={t("homescreen.previous_level")} disabled={level<=1} onPress={()=>setSelected(level-1)} style={[s.arrow,s.modeArrow,s.previousLevel,level<=1&&s.disabled]}><Text style={s.arrowText}>‹</Text></Pressable>
@@ -127,12 +134,13 @@ export function HomeScreen({reduceMotion=false,save, currentLevel, onSelectLevel
         <View style={s.chapter}>
           <Text style={s.chapterTitle}>{t("statuspanel.world")}{world.index} · {world.name}</Text>
           <HomeSignalMeter strength={world.homeSignalStrength} />
-          <Text style={s.chapterCopy}>{world.subtitle}</Text>
+          {!shortLandscape && <Text style={s.chapterCopy}>{world.subtitle}</Text>}
           <Text style={s.completion}>{cleared} / {TOTAL_CORE_LEVELS} {t("homescreen.levels_cleared")}</Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("homescreen.explore_your_journey")} onPress={onJourney} style={s.storyCard}>
+        {!shortLandscape && <Pressable accessibilityRole="button" accessibilityLabel={t("homescreen.explore_your_journey")} onPress={onJourney} style={s.storyCard}>
           <BorderGlint active={borderSpotlight===5} radius={18}/><Image source={CITY_ART} style={s.storyImage}/><View style={s.storyCopy}><Text style={s.eyebrow}>{t("homescreen.your_journey_continues")}</Text><Text style={s.quote}>{HOME_BRAND.tagline}</Text></View><Text style={s.arrowText}>›</Text>
-        </Pressable>
+        </Pressable>}
+        </View>
         </View>
       </View>
     </ScrollView>
@@ -140,25 +148,24 @@ export function HomeScreen({reduceMotion=false,save, currentLevel, onSelectLevel
   </View>;
 }
 const s=StyleSheet.create({
-  root:{...StyleSheet.absoluteFill,backgroundColor:'#031522'},page:{width:'100%',maxWidth:600,overflow:'hidden'},
-  scene:{position:'relative'},controls:{width:'100%'},
-  tabletPage:{maxWidth:'100%'},landscapePage:{flexDirection:'row',alignItems:'stretch',paddingHorizontal:24,gap:28,flex:1},
-  tabletResources:{width:'100%',maxWidth:560,alignSelf:'center',paddingHorizontal:24},
+  root:{...StyleSheet.absoluteFill,backgroundColor:'#031522'},page:{alignItems:'center'},
+  backdrop:{position:'absolute'},
+  scene:{position:'relative'},controls:{width:'100%',maxWidth:680,alignSelf:'center',backgroundColor:'rgba(2,19,32,.62)',borderRadius:24,paddingTop:12},
+  body:{width:'100%',alignItems:'center'},landscapeBody:{flexDirection:'row',alignItems:'stretch'},
   tabletNav:{width:82,minHeight:80},
-  tabletControls:{maxWidth:680,alignSelf:'center'},
-  landscapeControls:{width:400,alignSelf:'center',paddingVertical:28},
-  art:{position:'absolute',top:0,left:0,right:0},resources:{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:14},
+  landscapeControls:{alignSelf:'center',paddingVertical:16,flexShrink:0},
+  resources:{width:'100%',maxWidth:560,flexDirection:'row',alignItems:'center',gap:8,marginBottom:12},
   settings:{width:44,height:46,alignItems:'center',justifyContent:'center',backgroundColor:'#041E30',borderColor:'#258AAE',borderWidth:1,borderRadius:12},
   resource:{flex:1,minHeight:46,flexDirection:'row',gap:7,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(0,20,35,.9)',borderColor:'#246786',borderWidth:1,borderRadius:12,paddingHorizontal:7},
   bolt:{fontSize:36,color:'#35E9FF'},gem:{fontSize:22,color:'#BB8EFD'},value:{fontSize:16,color:'#F0FAFF',fontWeight:'800'},resourceLabel:{fontSize:8,color:'#7FD6F5',letterSpacing:1.8,textAlign:'center',marginTop:1},plus:{color:'#41DEFF',fontSize:22,marginLeft:2},
-  brand:{alignItems:'center',paddingTop:30},eyebrow:{fontSize:9,color:'#8ADBFA',letterSpacing:2,fontWeight:'700'},title:{color:'#F3FDFF',fontWeight:'300',letterSpacing:12,marginLeft:12,textShadowColor:'#00BDFF',textShadowRadius:18,textShadowOffset:{width:0,height:0},marginTop:8},subtitle:{fontSize:12,color:'#83DEFA',letterSpacing:5,marginTop:2},
+  brand:{width:'100%',alignItems:'center',paddingTop:30},eyebrow:{fontSize:9,color:'#8ADBFA',letterSpacing:2,fontWeight:'700'},title:{color:'#F3FDFF',fontWeight:'300',letterSpacing:12,marginLeft:12,textShadowColor:'#00BDFF',textShadowRadius:18,textShadowOffset:{width:0,height:0},marginTop:8},subtitle:{fontSize:12,color:'#83DEFA',letterSpacing:5,marginTop:2},
   stage:{flexDirection:'row',justifyContent:'space-between',alignItems:'flex-end',paddingHorizontal:14,paddingBottom:10},side:{gap:12},
   nav:{width:64,minHeight:67,alignItems:'center',justifyContent:'center',paddingVertical:8,borderRadius:13,borderWidth:1,borderColor:'#2385AA',backgroundColor:'rgba(0,19,34,.89)',overflow:'hidden'},navFrame:{position:'absolute',top:4,left:4,right:4,bottom:4,borderRadius:10,borderWidth:1,borderColor:'rgba(126,240,255,0.18)'},navLabel:{fontSize:9,color:'#E4F6FF',fontFamily:fontUi,letterSpacing:1},
-  sparkPlacement:{position:'absolute',bottom:37,left:'50%',width:50,height:50,marginLeft:-25,alignItems:'center',justifyContent:'center'},aura:{position:'absolute',width:90,height:90,borderRadius:45,backgroundColor:'#02B9FF',shadowColor:'#00CAFF',shadowRadius:28,shadowOpacity:1,shadowOffset:{width:0,height:0}},spark:{width:45,height:45,borderRadius:24,borderWidth:1,borderColor:'#E1FFFF',shadowColor:'#26DAFF',shadowRadius:18,shadowOpacity:1,shadowOffset:{width:0,height:0}},
+  sparkPlacement:{position:'absolute',width:50,height:50,alignItems:'center',justifyContent:'center'},aura:{position:'absolute',width:90,height:90,borderRadius:45,backgroundColor:'#02B9FF',shadowColor:'#00CAFF',shadowRadius:28,shadowOpacity:1,shadowOffset:{width:0,height:0}},spark:{width:45,height:45,borderRadius:24,borderWidth:1,borderColor:'#E1FFFF',shadowColor:'#26DAFF',shadowRadius:18,shadowOpacity:1,shadowOffset:{width:0,height:0}},
   tap:{fontSize:10,letterSpacing:3,color:'#A2DBF6',textAlign:'center',marginTop:4,marginBottom:10},modeDeck:{position:'relative',marginHorizontal:30},modeButtons:{gap:9},arrow:{width:40,height:46,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'#2383AA',borderRadius:24,backgroundColor:'#032037'},modeArrow:{position:'absolute',top:12,width:31,height:50,borderRadius:16,borderColor:'rgba(82,223,245,.85)',backgroundColor:'rgba(2,31,50,.94)',zIndex:2,shadowColor:'#00D7FF',shadowRadius:9,shadowOpacity:.3,shadowOffset:{width:0,height:0}},previousLevel:{left:-30},nextLevel:{right:-30},arrowText:{fontSize:30,color:'#B1F6FF',lineHeight:34},disabled:{opacity:.25},pressed:{opacity:.75},
-  campaign:{borderRadius:19,shadowColor:'#FFB321',shadowRadius:22,shadowOpacity:.64,shadowOffset:{width:0,height:0},overflow:'hidden'},campaignInner:{minHeight:72,borderRadius:19,borderWidth:1.5,borderColor:'#FFF4AD',paddingHorizontal:22,flexDirection:'row',alignItems:'center',gap:14,overflow:'hidden'},campaignSheen:{position:'absolute',top:0,left:0,right:0,height:'46%',backgroundColor:'rgba(255,255,255,.2)',borderTopLeftRadius:19,borderTopRightRadius:19},modeCopy:{flex:1,minWidth:0},campaignLabel:{fontSize:27,fontFamily:fontDisplay,letterSpacing:3.7,color:'#181305',lineHeight:30},campaignSubtitle:{fontSize:9,color:'#4B3303',letterSpacing:1.2,marginTop:3},campaignIcon:{width:36,height:42,justifyContent:'center'},flagPole:{position:'absolute',left:5,top:0,bottom:0,width:4,borderRadius:2,backgroundColor:'#171104'},flag:{position:'absolute',left:9,top:5,width:26,height:18,borderTopRightRadius:4,borderBottomRightRadius:3,backgroundColor:'#171104'},flagNotch:{position:'absolute',left:28,top:16,width:9,height:9,backgroundColor:'#FFC238',transform:[{rotate:'45deg'}]},modeChevron:{fontSize:42,lineHeight:45,color:'#1C1504',fontWeight:'300'},
+  campaign:{borderRadius:19,shadowColor:'#FFB321',shadowRadius:22,shadowOpacity:.64,shadowOffset:{width:0,height:0},overflow:'hidden'},campaignInner:{minHeight:72,borderRadius:19,borderWidth:1.5,borderColor:'#FFF4AD',paddingHorizontal:22,flexDirection:'row',alignItems:'center',gap:14,overflow:'hidden'},campaignSheen:{position:'absolute',top:0,left:0,right:0,height:'46%',backgroundColor:'rgba(255,255,255,.2)',borderTopLeftRadius:19,borderTopRightRadius:19},modeCopy:{flex:1,minWidth:0},campaignLabel:{fontSize:27,fontFamily:fontDisplay,letterSpacing:3.7,color:'#181305',lineHeight:30},campaignSubtitle:{fontSize:9,color:'#4B3303',letterSpacing:1.2,marginTop:3},campaignIcon:{width:36,height:42,justifyContent:'center'},flagPole:{position:'absolute',left:5,top:0,bottom:0,width:4,borderRadius:2,backgroundColor:'#171104'},flag:{position:'absolute',left:9,top:5,width:26,height:18,borderTopRightRadius:4,borderBottomRightRadius:3,backgroundColor:'#171104'},modeChevron:{fontSize:42,lineHeight:45,color:'#1C1504',fontWeight:'300'},
   arcade:{borderRadius:18,borderWidth:2,borderColor:'#52ECF5',shadowColor:'#00D8FF',shadowRadius:18,shadowOpacity:.62,shadowOffset:{width:0,height:0},overflow:'hidden'},arcadeInner:{minHeight:59,borderRadius:16,paddingHorizontal:22,flexDirection:'row',alignItems:'center',gap:14,overflow:'hidden'},arcadeSheen:{position:'absolute',top:0,left:0,right:0,height:'43%',backgroundColor:'rgba(143,248,255,.16)'},arcadeLabel:{fontSize:25,fontFamily:fontDisplay,letterSpacing:4.2,color:'#ECFFFF',lineHeight:28,textShadowColor:'#0ACDEB',textShadowRadius:8,textShadowOffset:{width:0,height:0}},arcadeSubtitle:{fontSize:9,color:'#B7F7FC',letterSpacing:1.55,marginTop:2},arcadeIcon:{width:45,height:32,justifyContent:'center'},arcadeGripLeft:{position:'absolute',left:2,top:14,width:15,height:18,borderRadius:6,backgroundColor:'#9DF7FC',transform:[{rotate:'-20deg'}]},arcadeGripRight:{position:'absolute',right:2,top:14,width:15,height:18,borderRadius:6,backgroundColor:'#9DF7FC',transform:[{rotate:'20deg'}]},arcadePad:{position:'absolute',left:6,top:4,width:33,height:23,borderRadius:9,backgroundColor:'#A9FAFF'},arcadeCrossH:{position:'absolute',left:11,top:14,width:10,height:3,borderRadius:2,backgroundColor:'#075578'},arcadeCrossV:{position:'absolute',left:14.5,top:10.5,width:3,height:10,borderRadius:2,backgroundColor:'#075578'},arcadeDot:{position:'absolute',top:13,width:5,height:5,borderRadius:3,backgroundColor:'#075578'},
-  levelTrack:{marginTop:17,flexDirection:'row',justifyContent:'space-between',paddingHorizontal:15},trackLine:{position:'absolute',height:1,backgroundColor:'#38627B',top:22,left:25,right:25},nodeWrap:{alignItems:'center',width:58},node:{width:44,height:44,borderRadius:22,backgroundColor:'#061F32',borderWidth:1,borderColor:'#52829B',alignItems:'center',justifyContent:'center'},nodeText:{color:'#D5EDF8',fontSize:17,fontWeight:'700'},cleared:{borderColor:'#66E5BE',backgroundColor:'#0D383A'},current:{borderColor:'#35E9FF',borderWidth:2,shadowColor:'#00D7FF',shadowRadius:12,shadowOpacity:.7,shadowOffset:{width:0,height:0}},locked:{borderColor:'#36556D'},rank:{fontSize:7,color:'#78B4D1',marginTop:8,letterSpacing:.7},
+  levelTrack:{marginTop:17,flexDirection:'row',justifyContent:'space-between',paddingHorizontal:15},trackLine:{position:'absolute',height:1,backgroundColor:'#38627B',top:22,left:25,right:25},nodeWrap:{alignItems:'center',flex:1,minWidth:0},node:{width:44,height:44,borderRadius:22,backgroundColor:'#061F32',borderWidth:1,borderColor:'#52829B',alignItems:'center',justifyContent:'center'},nodeText:{color:'#D5EDF8',fontSize:17,fontWeight:'700'},cleared:{borderColor:'#66E5BE',backgroundColor:'#0D383A'},current:{borderColor:'#35E9FF',borderWidth:2,shadowColor:'#00D7FF',shadowRadius:12,shadowOpacity:.7,shadowOffset:{width:0,height:0}},locked:{borderColor:'#36556D'},rank:{fontSize:7,color:'#78B4D1',marginTop:8,letterSpacing:.7},
   chapter:{alignItems:'center',paddingHorizontal:20,paddingTop:22,gap:10},chapterTitle:{fontSize:11,letterSpacing:2,color:'#69D7FA',fontFamily:fontUi,textAlign:'center'},chapterCopy:{fontSize:12,color:'#B0CADD',textAlign:'center'},completion:{fontSize:9,color:'#5C8BA7',letterSpacing:1.5,marginTop:3},
   storyCard:{margin:18,marginTop:24,borderRadius:18,overflow:'hidden',borderWidth:1,borderColor:'#245977',backgroundColor:'#061D2E',flexDirection:'row',alignItems:'center',paddingRight:14,minHeight:104},storyImage:{width:'27%',height:110},storyCopy:{flex:1,padding:14,gap:10},quote:{color:'#D7E5EF',fontSize:12,lineHeight:19,letterSpacing:1},endless:{padding:14},
 });
