@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import type { ShotResultKind } from '../game/GameState';
 import { color, fontDisplay } from '../design';
@@ -9,6 +9,8 @@ type Props = {
 };
 
 export function ResultFeedback({ text, kind }: Props) {
+  const { width } = useWindowDimensions();
+  const stampWidth = Math.min(width - 28, 520);
   if (!text) {
     return null;
   }
@@ -24,12 +26,16 @@ export function ResultFeedback({ text, kind }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.stamp, kind === 'PERFECT' && styles.stampPerfect]}>
+      <View style={[styles.stamp, { width: stampWidth }, kind === 'PERFECT' && styles.stampPerfect]}>
         <View style={[styles.burst, { borderColor: accent }]} />
         <View style={[styles.burstInner, { borderColor: accent }]} />
         <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.62}
           style={[
             styles.text,
+            { width: stampWidth - 36 },
             { color: accent, fontFamily: fontDisplay },
             kind === 'GREAT' && styles.great,
             kind === 'PERFECT' && styles.perfect,
@@ -57,7 +63,7 @@ const styles = StyleSheet.create({
   stamp: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 28,
+    paddingHorizontal: 18,
     paddingVertical: 18,
     minWidth: 180,
   },
@@ -82,9 +88,10 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   text: {
+    textAlign: 'center',
     color: color.cream,
     fontSize: 34,
-    letterSpacing: 2,
+    letterSpacing: 1,
     textShadowColor: 'rgba(0,0,0,0.55)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,

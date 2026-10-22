@@ -201,3 +201,16 @@ export const GAME_TUNING = {
     base: { x: 0, y: 3 },
   },
 };
+
+/** Collision-sized slices of a frame. A late frame catches up at most two slices. */
+export function gameplaySteps(wallDt: number): number[] {
+  const step = GAME_TUNING.timing.maxDeltaSeconds;
+  let remaining = Math.min(Math.max(0, wallDt), step * 2);
+  const steps: number[] = [];
+  while (remaining > 1e-8) {
+    const dt = Math.min(step, remaining);
+    steps.push(dt);
+    remaining -= dt;
+  }
+  return steps;
+}

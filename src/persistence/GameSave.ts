@@ -561,6 +561,7 @@ export function hasUnlimitedEnergy(campaign: CampaignSave, now = Date.now()): bo
   return campaign.unlimitedEnergyExpiresAt > now;
 }
 
-export function isEndlessUnlocked(campaign: CampaignSave): boolean {
-  return campaign.campaignCompleted || campaign.endlessUnlockedDev;
+/** Endless Voyage is available from the first session. */
+export function isEndlessUnlocked(_campaign: CampaignSave): boolean {
+  return true;
 }

@@ -5,7 +5,7 @@ import {emptySave} from '../src/persistence/GameSave';
 describe('Arcade catalog',()=>{
   it('lists only the existing Endless Voyage mode and keeps it separate from campaign progress',()=>{
     const save=emptySave();
-    expect(arcadeGames(save)).toEqual([expect.objectContaining({id:'endlessVoyage',unlocked:false})]);
+    expect(arcadeGames(save)).toEqual([expect.objectContaining({id:'endlessVoyage',unlocked:true})]);
     save.campaign.campaignCompleted=true;
     expect(arcadeGames(save)).toEqual([expect.objectContaining({id:'endlessVoyage',unlocked:true})]);
   });

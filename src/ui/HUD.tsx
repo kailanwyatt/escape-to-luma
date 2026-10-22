@@ -17,6 +17,7 @@ import { color, ContinueJourneyButton, fontUi } from '../design';
 import { CampaignOpening } from './CampaignOpening';
 import { HeartIcon } from './HeartIcon';
 import { BriefingFrame } from './BriefingFrame';
+import { SPARK_REST_SCREEN_FRACTION } from './sparkRestAnchor';
 
 type Props = {
   reduceMotion?:boolean;
@@ -87,6 +88,13 @@ export function HUD({
   const {width,height} = viewport;
   const compactLandscape = width > height;
   const [instructionHeight, setInstructionHeight] = useState(0);
+  const [nextButtonHeight, setNextButtonHeight] = useState(72);
+  const nextButtonMinTop = 12;
+  const nextButtonMaxTop = Math.max(nextButtonMinTop, height - Math.max(insets.bottom, 12) - nextButtonHeight);
+  const nextButtonTop = Math.min(
+    nextButtonMaxTop,
+    Math.max(nextButtonMinTop, height * SPARK_REST_SCREEN_FRACTION - nextButtonHeight / 2),
+  );
   const campaign = hud.sessionMode === 'campaign';
   const showCampaignTop = campaign && !CAMPAIGN_OVERLAY_PHASES.has(hud.phase) && hud.phase !== 'RESULT';
   const crackEscapeSource = getAssetSource('world1.crackEscape');
@@ -235,17 +243,39 @@ export function HUD({
 
       {hud.phase === 'LEVEL_COMPLETE' ? (
         <View style={styles.overlay}>
-          <Text style={styles.endTitle}>{t("hud.level_clear")}</Text>
-          {hud.lastPrecisionRank ? (
-            <Text style={styles.rank}>{displayLabel(hud.lastPrecisionRank)}</Text>
-          ) : null}
-          {hud.lastShardsGained > 0 ? (
-            <Text style={styles.shardGain}>+{hud.lastShardsGained} {t("statuspanel.shards")}</Text>
-          ) : null}
-          <ContinueJourneyButton label={hud.campaignLevel >= RELEASE_POLICY.campaignMaxLevel ? t("debugoverlay.replay") : t("debugoverlay.next")} playIcon={false} style={styles.overlayCta} onPress={onContinueLevel} />
-          <Pressable style={styles.homeButton} onPress={onHome}>
-            <Text style={styles.homeText}>{t("worldspack.home")}</Text>
-          </Pressable>
+          <View style={styles.clearContent}>
+            <Text style={styles.endTitle}>{t("hud.level_clear")}</Text>
+            {hud.lastPrecisionRank ? (
+              <Text style={styles.rank}>{displayLabel(hud.lastPrecisionRank)}</Text>
+            ) : null}
+            {hud.lastShardsGained > 0 ? (
+              <Text style={styles.shardGain}>+{hud.lastShardsGained} {t("statuspanel.shards")}</Text>
+            ) : null}
+            <Pressable style={styles.homeButton} onPress={onHome}>
+              <Text style={styles.homeText}>{t("worldspack.home")}</Text>
+            </Pressable>
+          </View>
+          <View
+            onLayout={event => {
+              const measured = event.nativeEvent.layout.height;
+              setNextButtonHeight(previous => (Math.abs(previous - measured) < 1 ? previous : measured));
+            }}
+            style={[
+              styles.clearNextWrap,
+              {
+                top: nextButtonTop,
+                left: Math.max(insets.left, 36),
+                right: Math.max(insets.right, 36),
+              },
+            ]}
+          >
+            <ContinueJourneyButton
+              label={hud.campaignLevel >= RELEASE_POLICY.campaignMaxLevel ? t("debugoverlay.replay") : t("debugoverlay.next")}
+              playIcon={false}
+              style={styles.clearNext}
+              onPress={onContinueLevel}
+            />
+          </View>
         </View>
       ) : null}
 
@@ -1039,6 +1069,18 @@ const styles = StyleSheet.create({
   },
   overlayCta: {
     marginTop: 28,
+    width: '100%',
+    maxWidth: 360,
+  },
+  clearContent: {
+    alignItems: 'center',
+    paddingBottom: 140,
+  },
+  clearNextWrap: {
+    position: 'absolute',
+    alignItems: 'center',
+  },
+  clearNext: {
     width: '100%',
     maxWidth: 360,
   },

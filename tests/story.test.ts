@@ -1,5 +1,6 @@
 import {describe,it,expect} from 'vitest';
 import {FIRST_ESCAPE,storyAfterWorld,storyForLevel} from '../src/campaign/StoryMoments';
+import {storyArtwork} from '../src/ui/storyArtwork';
 import {WORLDS} from '../src/campaign/worlds';
 import {ENCOUNTER_LESSONS} from '../src/campaign/levels/NewEncounters';
 import {LIBRARY_LESSONS} from '../src/campaign/levels/LibraryEncounters';
@@ -56,6 +57,12 @@ describe('campaign story moments',()=>{
       expect(story.body.toLowerCase()).not.toContain('sequential');
       expect(getCampaignLevel(level)!.challenge.obstacles.every(o=>o.type==='phaseGate')).toBe(true);
     }
+  });
+  it('loads chapter art for a new story screen instead of an empty fallback',()=>{
+    const story=storyForLevel(12,[])!;
+    expect(story.title).toBeTruthy();
+    expect(storyArtwork(story,12)).toBe('world.lockdownBanner');
+    expect(storyArtwork(storyAfterWorld(15,[])!,15)).toBe('world.lockdownBanner');
   });
   it('hands Upper Atmosphere off into Orbit, not the graveyard or Moon',()=>{
     const exit=storyAfterWorld(60,[])!;

@@ -1,11 +1,37 @@
 import {t} from '../i18n';
-import {useState,type ReactNode} from 'react';
+import {useEffect,useState,type ReactNode} from 'react';
 import {Image,Pressable,ScrollView,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
+import {Asset} from 'expo-asset';
 import {LinearGradient} from 'expo-linear-gradient';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {ContinueJourneyButton} from '../design';
 import {getAssetSource,type RuntimeAssetId} from '../graphics/assetRegistry';
 import {TypewriterText} from './TypewriterText';
+
+function useStoryImage(id: RuntimeAssetId) {
+  const moduleId = getAssetSource(id);
+  const [resolved, setResolved] = useState<{moduleId: number | null; uri: string | null}>({moduleId, uri: null});
+  useEffect(() => {
+    if (moduleId == null) {
+      setResolved({moduleId, uri: null});
+      return;
+    }
+    let cancelled = false;
+    const asset = Asset.fromModule(moduleId);
+    const publish = () => {
+      const uri = asset.localUri ?? (asset.downloaded ? asset.uri : null);
+      if (!cancelled) setResolved({moduleId, uri: uri ?? null});
+    };
+    publish();
+    if (!asset.localUri) void asset.downloadAsync().then(publish).catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [moduleId]);
+  const uri = resolved.moduleId === moduleId ? resolved.uri : null;
+  if (uri) return {uri};
+  return moduleId;
+}
 
 type Props={foreground?:ReactNode;heroOverlay?:ReactNode;headingContent?:ReactNode;instructionContent?:ReactNode;typewriter?:boolean;heroHeight?:number;luma?:boolean;artContent?:ReactNode;id:string;image:RuntimeAssetId;eyebrow:string;title:string;body:string;instruction?:string;action:string;onContinue:()=>void;secondaryLabel?:string;onSecondary?:()=>void;reduceMotion?:boolean;progress?:ReactNode};
 function copyEstimate(width:number,body:string,instruction:string|undefined,hasInstruction:boolean,hasProgress:boolean,secondary:boolean){
@@ -13,7 +39,7 @@ function copyEstimate(width:number,body:string,instruction:string|undefined,hasI
  const lines=(text:string)=>Math.max(1,Math.ceil(text.length/chars));
  return 20+16+12+44+43+lines(body)*28+(hasInstruction?25+40+28+lines(instruction??'The way forward.')*24:0)+(hasProgress?72:0)+22+68+(secondary?60:0);
 }
-export function StoryTemplate(p:Props){const insets=useSafeAreaInsets(),{width,height}=useWindowDimensions(),wide=width>=900&&width>height;const source=getAssetSource(p.image);
+export function StoryTemplate(p:Props){const insets=useSafeAreaInsets(),{width,height}=useWindowDimensions(),wide=width>=900&&width>height;const source=useStoryImage(p.image);
  const [measured,setMeasured]=useState<{id:string;height:number}|null>(null);
  const copyHeight=measured?.id===p.id?measured.height:copyEstimate(width,p.body,p.instruction,Boolean(p.instruction||p.instructionContent),Boolean(p.progress),Boolean(p.onSecondary));
  const available=height-insets.top-18-insets.bottom-24;

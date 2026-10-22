@@ -37,7 +37,8 @@ import { AudioManager } from '../src/feedback/AudioManager';
 import { getCampaignLevel } from '../src/campaign/levels';
 import { CampaignEndingPresentation } from '../src/scene/CampaignEndingPresentation';
 import { CameraController } from '../src/scene/CameraController';
-import { GAME_TUNING } from '../src/game/gameTuning';
+import { GAME_TUNING, gameplaySteps } from '../src/game/gameTuning';
+import { holdBootCover, initialBootRoute } from '../src/ui/bootRoute';
 import type { PersistentGameData } from '../src/persistence/GameSave';
 import type { ObstacleSlot } from '../src/obstacles/ObstacleSlot';
 import type { Projectile } from '../src/projectile/Projectile';
@@ -58,6 +59,9 @@ type Internals = {
   obstacles: ObstacleSlot[];
   projectile: Projectile;
   applyChallenge: (...args: unknown[]) => void;
+  scene: { scene: THREE.Scene };
+  renderer: { compile: ReturnType<typeof vi.fn> };
+  state: { set: (phase: 'PROJECTILE_ACTIVE') => void };
 };
 let game: Game;
 let state: Internals;
@@ -75,6 +79,9 @@ afterEach(() => { game?.dispose(); vi.unstubAllGlobals(); });
 describe('campaign opening integration', () => {
   it('plays the cinematic, freezes gameplay and hands off without rebuilding any level meshes', () => {
     expect(game.getHudSnapshot().phase).toBe('CAMPAIGN_OPENING');
+    expect(state.save.campaign.hasSeenOpening).toBe(false);
+    expect(initialBootRoute(false)).toBe('opening');
+    expect(holdBootCover(false, false)).toBe(true);
     expect(game.canAcceptInput()).toBe(false);
     const obstacleTime = state.obstacleTime;
     const geometryIds = state.obstacles.map(obstacle => obstacle.group.children.map(child => child.uuid));
@@ -93,6 +100,15 @@ describe('campaign opening integration', () => {
     expect(AudioManager.syncOpening).toHaveBeenLastCalledWith(null);
     game.resume();
     expect(game.canAcceptInput()).toBe(true);
+  });
+
+  it('does not replay the film once the opening has been seen', () => {
+    game.skipCampaignOpening();
+    expect(state.save.campaign.hasSeenOpening).toBe(true);
+    expect(initialBootRoute(true)).toBe('home');
+    expect(holdBootCover(false, true)).toBe(false);
+    game.startCampaignLevel(2, {}, { force: true });
+    expect(game.getHudSnapshot().phase).not.toBe('CAMPAIGN_OPENING');
   });
 
   it.each([0, 6, 14, 21, 28, 32.5])('skip at %ss stops audio and restores the exact playable camera', time => {
@@ -138,6 +154,77 @@ describe('campaign opening integration', () => {
   });
 });
 
+describe('next level prep', () => {
+  function cityScene() {
+    return state.scene.scene.getObjectByName('world-city');
+  }
+
+  it('keeps the passed level on the clear card and builds the next scene on Next', () => {
+    game.skipCampaignOpening();
+    game.startCampaignLevel(16, {}, { force: true });
+    const cleared = cityScene();
+    expect(cleared).toBeTruthy();
+    state.renderer.compile.mockClear();
+    state.lastResult = 'HIT';
+    state.finishCampaignSuccess();
+    expect(game.getHudSnapshot().phase).toBe('LEVEL_COMPLETE');
+    expect(cityScene()).toBe(cleared);
+    game.resume();
+    expect(game.getHudSnapshot().phase).toBe('LEVEL_COMPLETE');
+    expect(cityScene()).toBe(cleared);
+    expect(state.renderer.compile).not.toHaveBeenCalled();
+    game.continueAfterLevel();
+    expect(game.getHudSnapshot().campaignLevel).toBe(17);
+    expect(cityScene()).toBeTruthy();
+    expect(cityScene()).not.toBe(cleared);
+  });
+
+  it('still builds synchronously when Next arrives on the clear card', () => {
+    game.skipCampaignOpening();
+    game.startCampaignLevel(16, {}, { force: true });
+    const cleared = cityScene();
+    state.lastResult = 'HIT';
+    state.finishCampaignSuccess();
+    game.continueAfterLevel();
+    expect(game.getHudSnapshot().campaignLevel).toBe(17);
+    expect(cityScene()).toBeTruthy();
+    expect(cityScene()).not.toBe(cleared);
+  });
+
+  it('keeps the passed level when leaving the clear card for home', () => {
+    game.skipCampaignOpening();
+    game.startCampaignLevel(16, {}, { force: true });
+    const cleared = cityScene();
+    state.lastResult = 'HIT';
+    state.finishCampaignSuccess();
+    game.resume();
+    game.discardPreparedCampaignLevel();
+    expect(game.getHudSnapshot().phase).toBe('LEVEL_COMPLETE');
+    expect(cityScene()).toBe(cleared);
+  });
+});
+
+describe('late frame shot timing', () => {
+  it('keeps a 0.1s frame at full speed and caps a longer stall at two steps', () => {
+    expect(gameplaySteps(0.1).reduce((sum, step) => sum + step, 0)).toBeCloseTo(0.1);
+    expect(gameplaySteps(0.1).every(step => step <= GAME_TUNING.timing.maxDeltaSeconds)).toBe(true);
+    expect(gameplaySteps(0.4).reduce((sum, step) => sum + step, 0)).toBeCloseTo(0.1);
+    expect(gameplaySteps(0.4)).toHaveLength(2);
+
+    game.skipCampaignOpening();
+    game.resume();
+    state.state.set('PROJECTILE_ACTIVE');
+    state.projectile.position.set(0, 2, 0);
+    state.projectile.velocity.set(0, 0, 10);
+    state.loop(1000);
+    const z = state.projectile.position.z;
+    state.loop(1100);
+    const moved = state.projectile.position.z - z;
+    expect(moved).toBeCloseTo(1);
+    state.loop(1600);
+    expect(state.projectile.position.z - z - moved).toBeCloseTo(moved);
+  });
+});
 
 describe('campaign ending integration', () => {
   function finalClear() {

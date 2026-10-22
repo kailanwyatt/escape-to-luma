@@ -122,7 +122,7 @@ import { createThreeRenderer, resizeThreeRenderer } from '../utils/createThreeRe
 import { disposeThreeObject } from '../utils/disposeThree';
 import { signOr } from '../utils/math';
 import { GameState, type DebugSnapshot, type HudSnapshot, type ObstacleDebug } from './GameState';
-import { GAME_TUNING } from './gameTuning';
+import { GAME_TUNING, gameplaySteps } from './gameTuning';
 
 const CAMPAIGN_OPENING_DURATION = OPENING_DURATION;
 const CAMPAIGN_OPENING_STAGES = OPENING_BEATS.length;
@@ -253,6 +253,9 @@ export class Game {
   private flightShotTime = 0;
   private hydrated = false;
   private pendingCampaignComplete = false;
+  private nextLevelPrepPending = false;
+  private preparedLevel: number | null = null;
+  private compiledLevel: number | null = null;
   private voyageShards = 0;
   private runProgressCommitted = true;
   private unlockedSparkName: string | null = null;
@@ -870,10 +873,14 @@ export class Game {
     if(canStartLevel(this.save.campaign,levelNumber).reason==='energy'){
       this.sessionMode='campaign';
       this.campaignDef=def;
+      this.nextLevelPrepPending = false;
+      this.preparedLevel = null;
       this.state.set('OUT_OF_ENERGY');
       this.emitHud();
       return;
     }
+    this.nextLevelPrepPending = false;
+    this.preparedLevel = null;
     this.sessionMode = 'campaign';
     this.director.mode = 'AUTHORED_30';
     this.campaignStory = null;
@@ -958,6 +965,7 @@ export class Game {
       this.beginCampaignOpening();
     } else {
       this.state.set('READY');
+      this.warmRevealedScene();
       const story = pendingWorldStory(levelNumber, this.save.campaign.seenStoryIds ?? [], this.save.campaign.completedLevels) ?? storyForLevel(levelNumber, this.save.campaign.seenStoryIds ?? []);
       if (story) this.showCampaignStory(story, 'READY');
     }
@@ -1001,6 +1009,7 @@ export class Game {
     }
     if (this.state.phase === 'WORLD_COMPLETE' && this.unlockedSparkName) {
       this.state.set('SPARK_UNLOCKED');
+      this.nextLevelPrepPending = this.canPrepareNextLevel();
       this.emitHud();
       return;
     }
@@ -1026,6 +1035,55 @@ export class Game {
     const nextLevel = this.campaignDef.levelNumber + 1;
     this.pendingWorldComplete = false;
     this.startCampaignLevel(nextLevel, {});
+  }
+
+  /** Drop a scene built under the clear card. Home must not inherit that level. */
+  discardPreparedCampaignLevel(): void {
+    this.nextLevelPrepPending = false;
+    if (this.preparedLevel === null || !this.campaignDef) {
+      this.preparedLevel = null;
+      return;
+    }
+    this.preparedLevel = null;
+    this.compiledLevel = null;
+    this.applyChallenge(this.campaignDef.challenge, true);
+    this.warmRevealedScene();
+  }
+
+  private canPrepareNextLevel(): boolean {
+    if (this.preparedLevel !== null || !this.campaignDef || this.pendingCampaignComplete) return false;
+    if (this.campaignDef.levelNumber >= RELEASE_POLICY.campaignMaxLevel) return false;
+    if (!getCampaignLevel(this.campaignDef.levelNumber + 1)) return false;
+    if (this.state.phase === 'CAMPAIGN_STORY') {
+      return this.storyReturn === 'LEVEL_COMPLETE' || this.storyReturn === 'WORLD_COMPLETE';
+    }
+    return this.state.phase === 'LEVEL_COMPLETE' || this.state.phase === 'WORLD_COMPLETE' || this.state.phase === 'SPARK_UNLOCKED';
+  }
+
+  /** Build and compile the next scene while the clear card is already up. */
+  private prepareNextCampaignLevel(): void {
+    const current = this.campaignDef;
+    if (!current || !this.canPrepareNextLevel()) return;
+    const next = getCampaignLevel(current.levelNumber + 1);
+    if (!next) return;
+    const phase = this.state.phase;
+    const story = this.campaignStory;
+    const storyReturn = this.storyReturn;
+    this.campaignDef = next;
+    this.applyChallenge(next.challenge, true);
+    this.warmRevealedScene();
+    this.campaignDef = current;
+    this.campaignStory = story;
+    this.storyReturn = storyReturn;
+    if (this.state.phase !== phase) this.state.set(phase);
+    this.preparedLevel = next.levelNumber;
+  }
+
+  private warmRevealedScene(): void {
+    const level = this.campaignDef?.levelNumber ?? null;
+    if (level !== null && this.compiledLevel === level) return;
+    this.renderer.compile(this.scene.scene, this.camera.camera);
+    this.compiledLevel = level;
   }
 
   declineHelp(): void {
@@ -1387,6 +1445,7 @@ export class Game {
     this.camera.update(0);
     this.projectile.updateVisual(0, reduceMotion, 'idle', this.campaignDef?.challenge.environment !== 'space');
     this.opening.prepare(this.renderer, this.scene.scene, this.camera.camera, reduceMotion);
+    this.compiledLevel = this.campaignDef?.levelNumber ?? null;
     // Shader preparation must not consume film time, especially on a first native launch.
     this.lastMs = 0;
     this.openingTimer = CAMPAIGN_OPENING_DURATION;
@@ -1837,18 +1896,23 @@ export class Game {
     if (this.drawableWidth !== this.gl.drawingBufferWidth || this.drawableHeight !== this.gl.drawingBufferHeight) {
       this.resize();
     }
+    if (this.nextLevelPrepPending) {
+      this.nextLevelPrepPending = false;
+      this.prepareNextCampaignLevel();
+    }
     this.raf = requestAnimationFrame(this.loop);
     const wallDt = this.lastMs === 0 ? 1 / 60 : Math.max(0, (ms - this.lastMs) / 1000);
-    const rawDt = Math.min(wallDt, GAME_TUNING.timing.maxDeltaSeconds);
+    const steps = gameplaySteps(wallDt);
+    const simDt = steps.reduce((total, step) => total + step, 0);
     if (this.state.phase === 'CAMPAIGN_OPENING' && this.lastMs > 0 && !this.adShowing) {
       this.opening.noteFrame((ms - this.lastMs) / 1000, this.renderer, this.camera.camera.aspect);
     }
     if (this.ending.active && this.lastMs > 0 && !this.adShowing) this.ending.noteFrame(wallDt, this.renderer, this.camera.camera.aspect);
     this.lastMs = ms;
-    this.fps = this.fps * 0.9 + (rawDt > 0 ? 1 / rawDt : 60) * 0.1;
+    this.fps = this.fps * 0.9 + (wallDt > 0 ? 1 / wallDt : 60) * 0.1;
 
     if (this.slowdownRemaining > 0) {
-      this.slowdownRemaining -= rawDt;
+      this.slowdownRemaining -= simDt;
       if (this.slowdownRemaining <= 0) {
         this.timeScale = 1;
       }
@@ -1858,9 +1922,13 @@ export class Game {
       // Film/audio time is independent of the physics timestep and slow-motion effects.
       this.update(0, Math.min(wallDt, .25));
     } else if(this.sessionMode==='campaign'&&this.campaignDef?.challenge.ricochet){
-      this.ricochetAccumulator+=rawDt;
+      this.ricochetAccumulator+=simDt;
       while(this.ricochetAccumulator>=RICOCHET_STEP){this.update(RICOCHET_STEP*this.timeScale,RICOCHET_STEP);this.ricochetAccumulator-=RICOCHET_STEP;}
-    }else this.update(rawDt * this.timeScale, rawDt);
+    } else if (steps.length === 0) {
+      this.update(0, 0);
+    } else {
+      for (const step of steps) this.update(step * this.timeScale, step);
+    }
     this.render();
   };
 
@@ -2516,6 +2584,10 @@ export class Game {
       this.showCampaignStory(FIRST_ESCAPE, 'LEVEL_COMPLETE');
     }
     this.emitHud();
+    // The clear card shows the level that was just passed. Building the next
+    // scene here would replace it before the player presses Next.
+    const clearCardStaysVisible = this.state.phase === 'LEVEL_COMPLETE' || this.storyReturn === 'LEVEL_COMPLETE';
+    this.nextLevelPrepPending = !clearCardStaysVisible && this.canPrepareNextLevel();
   }
 
   private finishCampaignFailure(): void {

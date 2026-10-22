@@ -22,6 +22,7 @@ import { GRAPHICS_QUALITY, webArcadeBackingRatio } from './src/config/graphicsQu
 import { isWebArcadeBuild } from './src/config/webArcade';
 import { isEmbeddedWebArcade } from './src/platform/installWebArcadeViewport';
 import { useAppFonts } from './src/design';
+import { holdBootCover, initialBootRoute } from './src/ui/bootRoute';
 import { Game } from './src/game/Game';
 import { preloadAssetGroup } from './src/graphics/assetRegistry';
 import { buildDiagnosticReport } from './src/debug/Diagnostics';
@@ -182,11 +183,14 @@ function AppShell() {
   const fontsReady = useAppFonts();
   const [previewLuma,setPreviewLuma]=useState(false);
   const [testOffer,setTestOffer]=useState<TestOffer|null>(null);
+  const [routeReady, setRouteReady] = useState(isWebArcadeBuild);
   useEffect(()=>{
-    if (fontsReady) {
+    if (!fontsReady) return;
+    // Hide the native splash only once this cover is already in the tree.
+    if (isWebArcadeBuild || holdBootCover(isWebArcadeBuild, routeReady)) {
       SplashScreen.hideAsync().catch(() => undefined);
     }
-  }, [fontsReady]);
+  }, [fontsReady, routeReady]);
   useEffect(()=>{
     let resolvePending:((v:'completed'|'dismissed')=>void)|null=null;
     AdService.setTestRewardedPresenter(()=>new Promise(resolve=>{
@@ -485,10 +489,11 @@ function AppShell() {
       return;
     }
     openingRoutedRef.current = true;
-    if (!save.campaign.hasSeenOpening) {
+    if (initialBootRoute(save.campaign.hasSeenOpening) === 'opening') {
       gameRef.current?.startCampaignLevel(1, {});
       setScreen('play');
     }
+    setRouteReady(true);
   }, [hud.hydrated, save.campaign.hasSeenOpening]);
 
   useEffect(() => {
@@ -607,6 +612,7 @@ function AppShell() {
     tap(() => {
       const game = gameRef.current;
       game?.onTouchCancel();
+      game?.discardPreparedCampaignLevel();
       game?.pause();
       game?.finishEndlessVoyage();
       pausedRef.current = false;
@@ -615,6 +621,17 @@ function AppShell() {
       setScreen(isWebArcadeBuild ? 'arcade' : 'home');
     });
   }, [refreshSave, tap]);
+
+  const startEndlessVoyage = useCallback(() => {
+    tap(() => {
+      pausedRef.current = false;
+      setPaused(false);
+      gameRef.current?.resume();
+      setScreen('play');
+      gameRef.current?.startEndlessVoyage();
+      reportWebArcadeEvent('arcade_game_started');
+    });
+  }, [tap]);
 
   const onToggleSetting = useCallback(
     (key: keyof GameSettings) => {
@@ -902,7 +919,7 @@ function AppShell() {
               setScreen('settings');
             })
           }
-          onArcade={() => tap(() => setScreen('arcade'))}
+          onArcade={startEndlessVoyage}
           currentLevel={continueLevelNumber(save)}
         />
       ) : null}
@@ -915,14 +932,7 @@ function AppShell() {
             if (gameId !== 'endlessVoyage') {
               return;
             }
-            tap(() => {
-              pausedRef.current = false;
-              setPaused(false);
-              gameRef.current?.resume();
-              setScreen('play');
-              gameRef.current?.startEndlessVoyage();
-              reportWebArcadeEvent('arcade_game_started');
-            });
+            startEndlessVoyage();
           }}
         />
       ) : null}
@@ -1093,7 +1103,7 @@ function AppShell() {
           onBack={() => tap(() => setScreen('home'))}
         />
       ) : null}
-      {!hud.hydrated ? (
+      {!hud.hydrated || holdBootCover(isWebArcadeBuild, routeReady) ? (
         <View style={styles.loading} accessibilityRole="progressbar" accessibilityLabel={t("app.loading_saved_journey")}>
           <Text style={styles.loadingBrand}>{t("branding.spark")}</Text>
           <Text style={styles.loadingText}>{t("app.restoring_journey")}</Text>
