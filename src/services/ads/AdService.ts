@@ -1,7 +1,9 @@
 import { getCommercialConfig, patchCommercialConfig } from '../../config/commercial';
 import { ANALYTICS_EVENTS, Analytics } from '../analytics/Analytics';
 import { PurchaseService } from '../purchases/PurchaseService';
+import { gatherAdConsent } from './adConsent';
 import { AdMobController, adMobNativeAvailable, initializeMobileAds } from './AdMobController';
+import { requestTrackingIfNeeded } from './trackingPermission';
 import { InterstitialPolicy, type InterstitialContext } from './InterstitialPolicy';
 import { SimulatedAdController } from './SimulatedAdController';
 import type { AdController, AdShowResult, AdStatus } from './AdTypes';
@@ -48,6 +50,11 @@ class AdServiceImpl {
 
   private async bootstrap(): Promise<void> {
     if (!this.usingLive && adMobNativeAvailable()) {
+      // UMP form first, then ATT, then the Mobile Ads SDK. Measurement stays
+      // delayed until initialize() via delayAppMeasurementInit.
+      const consent = await gatherAdConsent();
+      await requestTrackingIfNeeded();
+      if (!consent.canRequestAds) return;
       const ok = await initializeMobileAds();
       if (ok) {
         this.rewarded = new AdMobController('rewarded');

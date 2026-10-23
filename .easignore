@@ -68,6 +68,9 @@ credentials/
 # Local planning, tests, and tooling (not runtime)
 /tests/
 /scripts/
+/docs/
+/src/experiments/
+vitest.config.ts
 /.github/
 /.claude/
 /.codex/

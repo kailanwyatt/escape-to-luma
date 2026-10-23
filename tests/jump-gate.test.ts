@@ -21,7 +21,7 @@ describe('Jump Gate visual contract',()=>{
     const geometry=particle.geometry;const children=gate.group.children.length;
     for(let i=0;i<500;i++)gate.update(1/60,false);
     expect(gate.frame.rotation.toArray().slice(0,3)).toEqual([0,0,0]);
-    expect(particle.geometry).toBe(geometry);expect(geometry.getAttribute('position').count).toBe(32);expect(gate.group.children).toHaveLength(children);
+    expect(particle.geometry).toBe(geometry);expect(geometry.getAttribute('position').count).toBe(40);expect(gate.group.children).toHaveLength(children);
     gate.update(.1,true);const positions=Array.from(geometry.getAttribute('position').array);gate.update(10,true);
     expect(Array.from(geometry.getAttribute('position').array)).toEqual(positions);
   });

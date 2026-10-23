@@ -29,7 +29,6 @@ import { GameHaptics } from '../feedback/Haptics';
 import { Analytics, ANALYTICS_EVENTS } from '../services/analytics/Analytics';
 import { reportWebArcadeEvent } from '../services/analytics/WebArcadeEvents';
 import { AdService } from '../services/ads/AdService';
-import { requestTrackingIfNeeded } from '../services/ads/trackingPermission';
 import { PurchaseService } from '../services/purchases/PurchaseService';
 import { getCommercialConfig } from '../config/commercial';
 import { ECONOMY, SELECTABLE_BOOST_IDS, SHARD_PACKS, type ShardPackId, BOOST_LOADOUT_LIMIT } from '../config/economy';
@@ -316,7 +315,6 @@ export class Game {
     if (!this.save.hasCompletedOnboarding) {
       Analytics.markOnboardingStarted();
     }
-    await requestTrackingIfNeeded();
     await AdService.start();
   }
 

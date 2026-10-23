@@ -11,7 +11,7 @@
     "backgroundColor": "#050B15",
     "ios": {
       "bundleIdentifier": "com.escapetoluma.spark",
-      "buildNumber": "26",
+      "buildNumber": "27",
       "supportsTablet": true,
       "requireFullScreen": false,
       "config": {
@@ -35,7 +35,7 @@
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "package": "com.escapetoluma.spark",
-      "versionCode": 11
+      "versionCode": 15
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -93,7 +93,8 @@
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-1715335515944327~9693302939",
-          "iosAppId": "ca-app-pub-1715335515944327~5238132731"
+          "iosAppId": "ca-app-pub-1715335515944327~5238132731",
+          "delayAppMeasurementInit": true
         }
       ]
     ],
@@ -113,6 +114,6 @@
   },
   "react-native-google-mobile-ads": {
     "android_app_id": "ca-app-pub-1715335515944327~9693302939",
-    "ios_app_id": "ca-app-pub-1715335515944327~5238132731"
+    "delay_app_measurement_init": true
   }
 }

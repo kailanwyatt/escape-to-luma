@@ -5,10 +5,12 @@
   },
   "build": {
     "development": {
+      "node": "22.13.0",
       "developmentClient": true,
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "appl_THsWGhvquciNPhrYFyQzCDwBbNE",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY": "goog_wYVlFnGYJrTwUNqcXAzikDRmItW",
         "EXPO_PUBLIC_ADMOB_IOS_APP_ID": "ca-app-pub-1715335515944327~5238132731",
         "EXPO_PUBLIC_ADMOB_IOS_REWARDED_UNIT_ID": "ca-app-pub-1715335515944327/4154035794",
         "EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_UNIT_ID": "ca-app-pub-1715335515944327/5038822187",
@@ -21,9 +23,11 @@
       }
     },
     "preview": {
+      "node": "22.13.0",
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "appl_THsWGhvquciNPhrYFyQzCDwBbNE",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY": "goog_wYVlFnGYJrTwUNqcXAzikDRmItW",
         "EXPO_PUBLIC_ADMOB_IOS_APP_ID": "ca-app-pub-1715335515944327~5238132731",
         "EXPO_PUBLIC_ADMOB_IOS_REWARDED_UNIT_ID": "ca-app-pub-1715335515944327/4154035794",
         "EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_UNIT_ID": "ca-app-pub-1715335515944327/5038822187",
@@ -36,10 +40,12 @@
       }
     },
     "production": {
+      "node": "22.13.0",
       "autoIncrement": true,
       "distribution": "store",
       "env": {
         "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "appl_THsWGhvquciNPhrYFyQzCDwBbNE",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY": "goog_wYVlFnGYJrTwUNqcXAzikDRmItW",
         "EXPO_PUBLIC_ADMOB_IOS_APP_ID": "ca-app-pub-1715335515944327~5238132731",
         "EXPO_PUBLIC_ADMOB_IOS_REWARDED_UNIT_ID": "ca-app-pub-1715335515944327/4154035794",
         "EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_UNIT_ID": "ca-app-pub-1715335515944327/5038822187",
@@ -50,6 +56,7 @@
     },
     "production-local": {
       "extends": "production",
+      "autoIncrement": false,
       "credentialsSource": "remote"
     },
     "testflight": {

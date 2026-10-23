@@ -143,8 +143,11 @@ export function ShopScreen({
         if (tries++ < 12) requestAnimationFrame(scrollToFocus);
         return;
       }
-      node.measureInWindow((_x, y) => {
-        scroll.measureInWindow((_sx, sy) => {
+      node.measureInWindow((_x: number, y: number) => {
+        const measurableScroll = scroll as ScrollView & {
+          measureInWindow: (callback: (x: number, y: number) => void) => void;
+        };
+        measurableScroll.measureInWindow((_sx: number, sy: number) => {
           const target = Math.max(0, scrollY.current + (y - sy) - 20);
           scroll.scrollTo({y: target, animated: true});
         });

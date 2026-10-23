@@ -4,16 +4,16 @@ import {applyLevelSuccess} from '../src/campaign/CampaignPlay';
 import {getCampaignLevel} from '../src/campaign/levels';
 import {emptySave} from '../src/persistence/GameSave';
 describe('Journey menu selectors',()=>{
- it('shows ten worlds with accurate locks and one current world',()=>{
+ it('shows twenty worlds with accurate locks and one current world',()=>{
   const data=journeyProgress(emptySave().campaign);
-  expect(data.worlds).toHaveLength(10);expect(data.total).toBe(150);expect(data.cleared).toBe(0);
+  expect(data.worlds).toHaveLength(20);expect(data.total).toBe(150);expect(data.cleared).toBe(0);
   expect(data.worlds[0].state).toBe('current');expect(data.worlds.slice(1).every(w=>w.state==='locked')).toBe(true);
   expect(data.destination).toBe('UNKNOWN');
  });
  it('derives mastery, completion and the next world from actual level records',()=>{
-  let save=emptySave();for(let n=1;n<=15;n++)save=applyLevelSuccess(save,getCampaignLevel(n)!,'PERFECT',0).save;
+  let save=emptySave();for(let n=1;n<=8;n++)save=applyLevelSuccess(save,getCampaignLevel(n)!,'PERFECT',0).save;
   const data=journeyProgress(save.campaign);
-  expect(data.cleared).toBe(15);expect(data.worlds[0]).toMatchObject({state:'completed',cleared:15,perfect:15});
+  expect(data.cleared).toBe(8);expect(data.worlds[0]).toMatchObject({state:'completed',cleared:8,perfect:8});
   expect(data.worlds[1].state).toBe('current');expect(data.currentIndex).toBe(1);
   expect(data.worlds[1].levels.filter(l=>l.available)).toHaveLength(1);
  });

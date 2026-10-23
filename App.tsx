@@ -1,4 +1,3 @@
-import {FinaleScreen} from './src/ui/FinaleScreen';
 import { reportWebArcadeEvent } from './src/services/analytics/WebArcadeEvents';
 import {t} from './src/i18n';
 import {TestCommerceModal,type TestOffer} from './src/ui/TestCommerceModal';
@@ -167,6 +166,13 @@ function continueLevelNumber(save: PersistentGameData): number {
     }
   }
   return highest;
+}
+
+/** Dev-only stills preview. The require stays behind __DEV__ so store bundles omit those images. */
+function DevFinaleScreen(props: {equippedSparkId: string; onExplore: () => void; reduceMotion: boolean; onClosePreview?: () => void}) {
+  if (!__DEV__) return null;
+  const {FinaleScreen} = require('./src/ui/FinaleScreen') as typeof import('./src/ui/FinaleScreen');
+  return <FinaleScreen {...props} />;
 }
 
 export default function App() {
@@ -676,7 +682,12 @@ function AppShell() {
           onLayout(width, height);
         }}
       />
-      {acceptsGameplayTouch ? <View style={styles.touch} {...panResponder.panHandlers} /> : null}
+      {acceptsGameplayTouch ? (
+        <View
+          style={[styles.touch, Platform.OS === 'web' ? ({touchAction: 'none'} as never) : null]}
+          {...panResponder.panHandlers}
+        />
+      ) : null}
       {playing ? <ResultFeedback text={hud.resultText} kind={hud.resultKind} /> : null}
       {playing ? (
         <HUD
@@ -1109,7 +1120,7 @@ function AppShell() {
           <Text style={styles.loadingText}>{t("app.restoring_journey")}</Text>
         </View>
       ) : null}
-    {__DEV__ && previewLuma ? <FinaleScreen equippedSparkId={save.campaign.equippedSparkId}
+    {__DEV__ && previewLuma ? <DevFinaleScreen equippedSparkId={save.campaign.equippedSparkId}
       reduceMotion={save.settings.reduceMotion || systemReduceMotion} onClosePreview={() => setPreviewLuma(false)}
       onExplore={() => {
         setPreviewLuma(false); pausedRef.current = false; setPaused(false);
@@ -1131,7 +1142,6 @@ const styles = StyleSheet.create({
   },
   touch: {
     ...StyleSheet.absoluteFill,
-    touchAction: 'none',
   },
   loading: {
     ...StyleSheet.absoluteFill,

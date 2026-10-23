@@ -67,7 +67,8 @@ describe('campaign story moments',()=>{
   it('hands Upper Atmosphere off into Orbit, not the graveyard or Moon',()=>{
     const exit=storyAfterWorld(60,[])!;
     expect(exit.action).toBe('ENTER ORBIT');
-    expect(exit.instruction.toLowerCase()).not.toContain('graveyard');
+    expect(exit.instruction).toBeDefined();
+    expect(exit.instruction!.toLowerCase()).not.toContain('graveyard');
     expect(exit.body.toLowerCase()).toContain('orbit');
     expect(exit.body.toLowerCase()).not.toContain('moon');
   });

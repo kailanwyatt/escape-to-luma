@@ -1,6 +1,7 @@
 import {t} from '../i18n';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { adPrivacyOptionsRequired, showAdPrivacyOptions } from '../services/ads/adConsent';
 import Constants from 'expo-constants';
 
 import { RELEASE_POLICY } from '../config/release';
@@ -41,6 +42,17 @@ export function SettingsScreen({
   onResetProgress,
 }: Props) {
   const [resetBusy, setResetBusy] = useState(false);
+  const [adPrivacy, setAdPrivacy] = useState(false);
+  useEffect(() => {
+    if (!RELEASE_POLICY.adsEnabled) return;
+    let active = true;
+    void adPrivacyOptionsRequired().then(required => {
+      if (active) setAdPrivacy(required);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   const confirmReset = () => {
     if (resetBusy) return;
     Alert.alert(
@@ -105,6 +117,17 @@ export function SettingsScreen({
           <Pressable style={styles.restore} disabled={purchaseBusy} onPress={onRestore}>
             <Text style={styles.restoreText}>{t("settingsscreen.restore_purchases")}</Text>
           </Pressable>
+          {adPrivacy ? (
+            <Pressable
+              accessibilityRole="button"
+              style={styles.restore}
+              onPress={() => {
+                void showAdPrivacyOptions().then(() => adPrivacyOptionsRequired().then(setAdPrivacy));
+              }}
+            >
+              <Text style={styles.restoreText}>{t("settingsscreen.ad_privacy")}</Text>
+            </Pressable>
+          ) : null}
           {purchaseMessage ? <Text style={styles.note}>{purchaseMessage}</Text> : null}
         </>
       ) : (

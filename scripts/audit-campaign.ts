@@ -67,5 +67,7 @@ if (failures.length > 0) {
   const families = Array.from(
     new Set(levels.flatMap((level) => level.challenge.obstacles.map(obstacleTypeOf))),
   ).sort();
-  console.log(`Campaign audit passed: 150 levels, 10 worlds, ${families.length} obstacle families.`);
+  console.log(
+    `Campaign audit passed: ${levels.length} levels, ${WORLDS.length} worlds, ${families.length} obstacle families.`,
+  );
 }

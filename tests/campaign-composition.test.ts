@@ -46,7 +46,7 @@ describe('authored campaign compositions',()=>{
     expect(getCampaignLevel(32)!.challenge.obstacles).toHaveLength(1);
     expect(getCampaignLevel(32)!.challenge.obstacles[0].type).toBe('groundCutLasers');
     expect(getCampaignLevel(33)!.challenge.obstacles).toHaveLength(1);
-    expect(getCampaignLevel(33)!.challenge.obstacles[0].type).toBe('movingRing');
+    expect(getCampaignLevel(33)!.challenge.obstacles[0].type).toBe('rotatingGate');
     expect(getCampaignLevel(40)!.challenge.obstacles[0].type).toBe('pulseRing');
     expect(Math.abs(getCampaignLevel(45)!.windX!)).toBeGreaterThan(Math.abs(getCampaignLevel(31)!.windX!));
   });

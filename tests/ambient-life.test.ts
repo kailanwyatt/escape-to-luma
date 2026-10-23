@@ -29,7 +29,7 @@ describe('ambient life',()=>{
  });
  it('changes ambient actors by world and restores clouds under Reduced Motion',()=>{
   const source=new THREE.Group(),cloud=new THREE.Group();cloud.position.x=8;cloud.userData.ambientCloud=true;source.add(cloud);
-  const a=new AmbientLife();a.setWorld('sky',source);a.update(.1,false);expect(cloud.position.x).not.toBe(8);a.update(0,true);expect(cloud.position.x).toBe(8);
+  const a=new AmbientLife();a.setWorld('sky',source);a.update(.1,false);a.update(.1,false);expect(cloud.position.x).not.toBe(8);a.update(0,true);expect(cloud.position.x).toBe(8);
   a.setWorld('homeward',new THREE.Group());expect(a.group.getObjectByName('background-maintenance-drone')).toBeUndefined();expect(a.group.getObjectByName('distant-living-light')).toBeDefined();expect(a.group.getObjectByName('distant-comet')).toBeUndefined();disposeThreeObject(a.group);
  });
 });

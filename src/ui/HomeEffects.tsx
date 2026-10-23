@@ -10,7 +10,7 @@ export function useBorderSpotlight(reduceMotion:boolean){
   let timer:ReturnType<typeof setTimeout>,previous=-1,disposed=false;
   const wait=()=>{timer=setTimeout(()=>{
    if(disposed)return;
-   let next=Math.floor(Math.random()*6);if(next===previous)next=(next+1)%6;
+   let next=Math.floor(Math.random()*5);if(next===previous)next=(next+1)%5;
    previous=next;setActive(next);
    timer=setTimeout(()=>{if(disposed)return;setActive(-1);wait();},4200);
   },8000+Math.random()*4000);};

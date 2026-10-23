@@ -11,7 +11,7 @@ describe('Stats dashboard',()=>{
  it('counts unique campaign levels and their best precision, not repeated successes',()=>{
   let save=emptySave();for(let n=1;n<=15;n++)save=applyLevelSuccess(save,getCampaignLevel(n)!,'GREAT',0).save;
   save=applyLevelSuccess(save,getCampaignLevel(1)!,'PERFECT',2).save;
-  const s=statsSummary(save);expect(s.journey.cleared).toBe(15);expect(s.percent).toBe(10);expect(s.worldsCleared).toBe(1);
+  const s=statsSummary(save);expect(s.journey.cleared).toBe(15);expect(s.percent).toBe(10);expect(s.worldsCleared).toBe(2);
   expect(s.precision).toEqual({CLEAR:0,GREAT:14,BULLSEYE:0,PERFECT:1});expect(s.activity.attempts).toBe(16);expect(s.activity.closeCalls).toBe(2);expect(s.showRuns).toBe(false);
  });
  it('preserves distinct wallet, earnings and historical arcade records',()=>{
@@ -23,7 +23,7 @@ describe('Stats dashboard',()=>{
  });
  it('shows completion and replay mastery from a complete save',()=>{
   let save=emptySave();for(let n=1;n<=150;n++)save=applyLevelSuccess(save,getCampaignLevel(n)!,'CLEAR',0).save;
-  const s=statsSummary(save);expect(s.percent).toBe(100);expect(s.worldsCleared).toBe(10);expect(s.precision.CLEAR).toBe(150);expect(s.showRuns).toBe(true);
+  const s=statsSummary(save);expect(s.percent).toBe(100);expect(s.worldsCleared).toBe(20);expect(s.precision.CLEAR).toBe(150);expect(s.showRuns).toBe(true);
  });
  it('accepts a migrated prototype save and absent optional counters',()=>{
   const migrated=migrateSaveData(1,{playerProgress:{...emptySave().playerProgress,totalRuns:7}});
